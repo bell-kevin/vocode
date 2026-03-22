@@ -19,6 +19,10 @@
   "contributes": {
     "commands": [
       {
+        "command": "vocode.ping",
+        "title": "Vocode: Ping Daemon"
+      },
+      {
         "command": "vocode.startVoice",
         "title": "Vocode: Start Voice"
       },

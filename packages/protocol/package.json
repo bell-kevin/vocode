@@ -1,0 +1,9 @@
+{
+  "name": "@vocode/protocol",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./ts": "./typescript/generated.ts",
+    "./go": "./go/generated.go"
+  }
+}
