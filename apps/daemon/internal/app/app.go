@@ -23,10 +23,11 @@ type App struct {
 
 func New(opts Options) (*App, error) {
 	agentService := agent.NewService()
-	editService := edits.NewService(agentService)
+	editService := edits.NewService()
+	editOrchestrator := NewEditOrchestrator(agentService, editService)
 
 	router := rpc.NewRouter(opts.Logger)
-	for _, def := range rpc.BuildHandlers(editService) {
+	for _, def := range rpc.BuildHandlers(editOrchestrator) {
 		router.Register(def.Method, def.Handler)
 	}
 

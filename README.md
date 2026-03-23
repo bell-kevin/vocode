@@ -231,7 +231,7 @@ Vocode: Apply Edit
 Vocode: Run Command
 ```
 
-Supported today: deterministic single-file edits for `insert statement "..." inside current function`, `replace block after "..." before "..." with "..."`, and `append import "..." if missing`. The daemon now returns structured failures when it cannot produce a safe edit.
+Supported today: deterministic single-file edits for `insert statement "..." inside current function`, `replace block after "..." before "..." with "..."`, and `append import "..." if missing`. The daemon returns explicit `success`/`failure`/`noop` edit outcomes so the extension can display intent-preserving UX without re-planning.
 
 ---
 

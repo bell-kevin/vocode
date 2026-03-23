@@ -1,13 +1,17 @@
 package rpc
 
-import "vocoding.net/vocode/v2/apps/daemon/internal/edits"
+import protocol "vocoding.net/vocode/v2/packages/protocol/go"
 
 type HandlerDefinition struct {
 	Method  string
 	Handler Handler
 }
 
-func BuildHandlers(editService *edits.Service) []HandlerDefinition {
+type EditApplyService interface {
+	Apply(params protocol.EditApplyParams) (protocol.EditApplyResult, error)
+}
+
+func BuildHandlers(editService EditApplyService) []HandlerDefinition {
 	return []HandlerDefinition{
 		{
 			Method:  "ping",

@@ -60,37 +60,46 @@ export const applyEditCommand: CommandDefinition = {
       throw new Error("Daemon returned an invalid edit/apply result.");
     }
 
-    if (result.failure) {
-      void vscode.window.showWarningMessage(
-        `Vocode could not produce a safe edit: ${result.failure.message}`,
-      );
-      return;
-    }
+    switch (result.kind) {
+      case "failure":
+        if (!result.failure) {
+          throw new Error("Daemon returned failure kind without failure data.");
+        }
+        void vscode.window.showWarningMessage(
+          `Vocode could not produce a safe edit: ${result.failure.message}`,
+        );
+        return;
+      case "noop":
+        if (!result.reason) {
+          throw new Error("Daemon returned noop kind without reason.");
+        }
+        void vscode.window.showInformationMessage(result.reason);
+        return;
+      case "success": {
+        if (!result.actions) {
+          throw new Error("Daemon returned success kind without actions.");
+        }
+        let nextText = document.getText();
+        for (const action of result.actions) {
+          if (action.path !== document.uri.fsPath) {
+            throw new Error(
+              `Received action for unsupported file: ${action.path}`,
+            );
+          }
 
-    if (result.actions.length === 0) {
-      void vscode.window.showWarningMessage(
-        "Vocode could not produce a safe edit for that instruction.",
-      );
-      return;
-    }
+          switch (action.kind) {
+            case "replace_between_anchors":
+              nextText = applyReplaceBetweenAnchors(nextText, action);
+              break;
+            default:
+              throw new Error(`Unsupported action kind: ${action.kind}`);
+          }
+        }
 
-    let nextText = document.getText();
-
-    for (const action of result.actions) {
-      if (action.path !== document.uri.fsPath) {
-        throw new Error(`Received action for unsupported file: ${action.path}`);
+        await replaceWholeDocument(editor, nextText);
+        void vscode.window.showInformationMessage("Vocode edit applied.");
+        return;
       }
-
-      switch (action.kind) {
-        case "replace_between_anchors":
-          nextText = applyReplaceBetweenAnchors(nextText, action);
-          break;
-        default:
-          throw new Error(`Unsupported action kind: ${action.kind}`);
-      }
     }
-
-    await replaceWholeDocument(editor, nextText);
-    void vscode.window.showInformationMessage("Vocode edit applied.");
   },
 };

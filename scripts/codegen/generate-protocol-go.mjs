@@ -214,6 +214,41 @@ function toOptionalGoType(goType) {
   return `*${goType}`;
 }
 
+function mergeOneOfObjectSchema(schema, currentAbsPath) {
+  const variants = schema.oneOf.map((variant) =>
+    variant.$ref ? resolveRef(currentAbsPath, variant.$ref).schema : variant,
+  );
+
+  const objectVariants = variants.filter((variant) => variant.type === "object");
+  if (objectVariants.length !== variants.length || objectVariants.length === 0) {
+    throw new Error("Unsupported oneOf union: expected object variants only");
+  }
+
+  const mergedProperties = {};
+  const requiredIntersection = new Set(objectVariants[0].required ?? []);
+  for (const variant of objectVariants) {
+    const props = variant.properties ?? {};
+    for (const [name, value] of Object.entries(props)) {
+      if (!(name in mergedProperties)) {
+        mergedProperties[name] = value;
+      }
+    }
+
+    const requiredSet = new Set(variant.required ?? []);
+    for (const key of [...requiredIntersection]) {
+      if (!requiredSet.has(key)) {
+        requiredIntersection.delete(key);
+      }
+    }
+  }
+
+  return {
+    type: "object",
+    properties: mergedProperties,
+    required: [...requiredIntersection],
+  };
+}
+
 function emitEntry(entry) {
   const { schema, absPath } = getEntrySchema(entry);
   const ctx = { name: entry.name };
@@ -223,8 +258,9 @@ function emitEntry(entry) {
       const targetType = schemaToGoType(schema.oneOf[0], absPath, ctx);
       return `type ${entry.name} = ${targetType}`;
     }
-
-    throw new Error(`Unsupported union root for ${entry.name}`);
+    const mergedObjectSchema = mergeOneOfObjectSchema(schema, absPath);
+    const goType = schemaToGoType(mergedObjectSchema, absPath, ctx);
+    return `type ${entry.name} ${goType}`;
   }
 
   const goType = schemaToGoType(schema, absPath, ctx);

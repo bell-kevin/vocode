@@ -27,26 +27,22 @@ test("applyReplaceBetweenAnchors replaces the range between unique anchors", () 
   assert.doesNotMatch(output, /hi from vocode/);
 });
 
-test("applyReplaceBetweenAnchors rejects ambiguous anchors", () => {
+test("applyReplaceBetweenAnchors throws when after anchor is missing", () => {
   const action: ReplaceBetweenAnchorsAction = {
     kind: "replace_between_anchors",
     path: "/tmp/example.ts",
     anchor: {
       before: "function firstBraceAnchors() {",
-      after: "}",
+      after: "END_ANCHOR",
     },
     newText: '\n  console.log("updated safely");\n',
   };
 
-  const input = [
-    "function firstBraceAnchors() {",
-    "}",
-    "",
-    "function firstBraceAnchors() {",
-    "}",
-  ].join("\n");
+  const input = ["function firstBraceAnchors() {", "  return 1;", "}"].join(
+    "\n",
+  );
 
   assert.throws(() => applyReplaceBetweenAnchors(input, action), {
-    message: /ambiguous/,
+    message: /after anchor/,
   });
 });

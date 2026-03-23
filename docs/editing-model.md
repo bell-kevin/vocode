@@ -25,6 +25,12 @@ The currently supported intents are:
 
 These rules intentionally fail closed when the daemon cannot map the instruction to a unique edit.
 
+`edit/apply` now returns an explicit outcome kind so clients never infer semantics from field combinations:
+
+- `success` with `actions`
+- `failure` with structured `failure`
+- `noop` with a daemon-provided `reason`
+
 ## Goals
 
 - The model must be semantic, inspectable, reversible, transportable, and independent of any single parser or editor.

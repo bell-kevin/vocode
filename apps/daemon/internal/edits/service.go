@@ -6,35 +6,17 @@ import (
 )
 
 type Service struct {
-	agentService *agent.Service
-	planner      *Planner
+	actionBuilder *ActionBuilder
 }
 
-func NewService(agentService *agent.Service) *Service {
+func NewService() *Service {
 	return &Service{
-		agentService: agentService,
-		planner:      NewPlanner(),
+		actionBuilder: NewActionBuilder(),
 	}
 }
 
-func (s *Service) Apply(params protocol.EditApplyParams) (protocol.EditApplyResult, error) {
-	planResult := s.agentService.PlanEdit(params)
-	if planResult.Failure != nil {
-		return protocol.EditApplyResult{
-			Actions: []protocol.EditAction{},
-			Failure: planResult.Failure,
-		}, nil
-	}
-
-	actions, failure := s.planner.BuildActions(params, *planResult.Plan)
-	if failure != nil {
-		return protocol.EditApplyResult{
-			Actions: []protocol.EditAction{},
-			Failure: failure,
-		}, nil
-	}
-
-	return protocol.EditApplyResult{Actions: actions}, nil
+func (s *Service) BuildActions(params protocol.EditApplyParams, plan agent.EditPlan) ([]protocol.EditAction, *protocol.EditFailure) {
+	return s.actionBuilder.BuildActions(params, plan)
 }
 
 func editFailure(code string, message string) *protocol.EditFailure {

@@ -13,25 +13,28 @@ import (
 func TestApplyInsertStatementInCurrentFunction(t *testing.T) {
 	t.Parallel()
 
-	service := NewService(agent.NewService())
+	agentService := agent.NewService()
+	service := NewService()
 	fileText := readFixture(t, "single-function.ts")
-
-	result, err := service.Apply(protocol.EditApplyParams{
+	params := protocol.EditApplyParams{
 		Instruction: "insert statement `console.log(\"done\")` inside current function",
 		ActiveFile:  "/tmp/single-function.ts",
 		FileText:    fileText,
-	})
-	if err != nil {
-		t.Fatalf("Apply returned error: %v", err)
-	}
-	if result.Failure != nil {
-		t.Fatalf("Apply returned failure: %+v", *result.Failure)
-	}
-	if len(result.Actions) != 1 {
-		t.Fatalf("expected 1 action, got %d", len(result.Actions))
 	}
 
-	action := result.Actions[0]
+	planResult := agentService.PlanEdit(params)
+	if planResult.Failure != nil {
+		t.Fatalf("unexpected planning failure: %+v", *planResult.Failure)
+	}
+	result, failure := service.BuildActions(params, *planResult.Plan)
+	if failure != nil {
+		t.Fatalf("BuildActions returned failure: %+v", *failure)
+	}
+	if len(result) != 1 {
+		t.Fatalf("expected 1 action, got %d", len(result))
+	}
+
+	action := result[0]
 	if !strings.Contains(action.NewText, `console.log("done");`) {
 		t.Fatalf("expected generated statement, got %q", action.NewText)
 	}
@@ -43,72 +46,81 @@ func TestApplyInsertStatementInCurrentFunction(t *testing.T) {
 func TestApplyFailsForAmbiguousCurrentFunction(t *testing.T) {
 	t.Parallel()
 
-	service := NewService(agent.NewService())
+	agentService := agent.NewService()
+	service := NewService()
 	fileText := readFixture(t, "multi-function.ts")
-
-	result, err := service.Apply(protocol.EditApplyParams{
+	params := protocol.EditApplyParams{
 		Instruction: "insert statement `console.log(\"done\")` inside current function",
 		ActiveFile:  "/tmp/multi-function.ts",
 		FileText:    fileText,
-	})
-	if err != nil {
-		t.Fatalf("Apply returned error: %v", err)
 	}
-	if result.Failure == nil {
+
+	planResult := agentService.PlanEdit(params)
+	if planResult.Failure != nil {
+		t.Fatalf("unexpected planning failure: %+v", *planResult.Failure)
+	}
+	_, failure := service.BuildActions(params, *planResult.Plan)
+	if failure == nil {
 		t.Fatal("expected failure but got success")
 	}
-	if result.Failure.Code != "ambiguous_target" {
-		t.Fatalf("expected ambiguous_target failure, got %+v", *result.Failure)
+	if failure.Code != "ambiguous_target" {
+		t.Fatalf("expected ambiguous_target failure, got %+v", *failure)
 	}
 }
 
 func TestApplyReplaceAnchoredBlock(t *testing.T) {
 	t.Parallel()
 
-	service := NewService(agent.NewService())
+	agentService := agent.NewService()
+	service := NewService()
 	fileText := readFixture(t, "anchored-block.ts")
-
-	result, err := service.Apply(protocol.EditApplyParams{
+	params := protocol.EditApplyParams{
 		Instruction: "replace block after \"export function firstBraceAnchors() {\" before \"}\" with `\\n  return \\\"updated\\\";\\n`",
 		ActiveFile:  "/tmp/anchored-block.ts",
 		FileText:    fileText,
-	})
-	if err != nil {
-		t.Fatalf("Apply returned error: %v", err)
 	}
-	if result.Failure != nil {
-		t.Fatalf("unexpected failure: %+v", *result.Failure)
+
+	planResult := agentService.PlanEdit(params)
+	if planResult.Failure != nil {
+		t.Fatalf("unexpected planning failure: %+v", *planResult.Failure)
 	}
-	if len(result.Actions) != 1 {
-		t.Fatalf("expected 1 action, got %d", len(result.Actions))
+	result, failure := service.BuildActions(params, *planResult.Plan)
+	if failure != nil {
+		t.Fatalf("unexpected failure: %+v", *failure)
 	}
-	if !strings.Contains(result.Actions[0].Anchor.Before, "firstBraceAnchors") {
-		t.Fatalf("expected anchored action to target firstBraceAnchors, got %+v", result.Actions[0].Anchor)
+	if len(result) != 1 {
+		t.Fatalf("expected 1 action, got %d", len(result))
+	}
+	if !strings.Contains(result[0].Anchor.Before, "firstBraceAnchors") {
+		t.Fatalf("expected anchored action to target firstBraceAnchors, got %+v", result[0].Anchor)
 	}
 }
 
 func TestApplyAppendImportIfMissing(t *testing.T) {
 	t.Parallel()
 
-	service := NewService(agent.NewService())
+	agentService := agent.NewService()
+	service := NewService()
 	fileText := readFixture(t, "imports.go")
-
-	result, err := service.Apply(protocol.EditApplyParams{
+	params := protocol.EditApplyParams{
 		Instruction: "append import `import \"fmt\"` if missing",
 		ActiveFile:  "/tmp/imports.go",
 		FileText:    fileText,
-	})
-	if err != nil {
-		t.Fatalf("Apply returned error: %v", err)
 	}
-	if result.Failure != nil {
-		t.Fatalf("unexpected failure: %+v", *result.Failure)
+
+	planResult := agentService.PlanEdit(params)
+	if planResult.Failure != nil {
+		t.Fatalf("unexpected planning failure: %+v", *planResult.Failure)
 	}
-	if len(result.Actions) != 1 {
-		t.Fatalf("expected 1 action, got %d", len(result.Actions))
+	result, failure := service.BuildActions(params, *planResult.Plan)
+	if failure != nil {
+		t.Fatalf("unexpected failure: %+v", *failure)
 	}
-	if !strings.Contains(result.Actions[0].NewText, `import "fmt"`) {
-		t.Fatalf("expected import insertion, got %q", result.Actions[0].NewText)
+	if len(result) != 1 {
+		t.Fatalf("expected 1 action, got %d", len(result))
+	}
+	if !strings.Contains(result[0].NewText, `import "fmt"`) {
+		t.Fatalf("expected import insertion, got %q", result[0].NewText)
 	}
 }
 

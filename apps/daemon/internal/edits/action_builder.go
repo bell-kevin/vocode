@@ -9,18 +9,18 @@ import (
 	protocol "vocoding.net/vocode/v2/packages/protocol/go"
 )
 
-type Planner struct {
+type ActionBuilder struct {
 	validator *Validator
 }
 
-func NewPlanner() *Planner {
-	return &Planner{validator: NewValidator()}
+func NewActionBuilder() *ActionBuilder {
+	return &ActionBuilder{validator: NewValidator()}
 }
 
-func (p *Planner) BuildActions(params protocol.EditApplyParams, plan agent.EditPlan) ([]protocol.EditAction, *protocol.EditFailure) {
+func (b *ActionBuilder) BuildActions(params protocol.EditApplyParams, plan agent.EditPlan) ([]protocol.EditAction, *protocol.EditFailure) {
 	switch plan.Intent.Kind {
 	case agent.EditIntentInsertStatementInCurrentFunction:
-		action, failure := p.buildInsertStatementAction(params, plan.Intent)
+		action, failure := b.buildInsertStatementAction(params, plan.Intent)
 		if failure != nil {
 			return nil, failure
 		}
@@ -35,12 +35,12 @@ func (p *Planner) BuildActions(params protocol.EditApplyParams, plan agent.EditP
 			},
 			NewText: plan.Intent.NewText,
 		}
-		if failure := p.validator.ValidateAction(params.FileText, action); failure != nil {
+		if failure := b.validator.ValidateAction(params.FileText, action); failure != nil {
 			return nil, failure
 		}
 		return []protocol.EditAction{action}, nil
 	case agent.EditIntentAppendImportIfMissing:
-		action, failure := p.buildAppendImportAction(params, plan.Intent)
+		action, failure := b.buildAppendImportAction(params, plan.Intent)
 		if failure != nil {
 			return nil, failure
 		}
@@ -53,7 +53,7 @@ func (p *Planner) BuildActions(params protocol.EditApplyParams, plan agent.EditP
 	}
 }
 
-func (p *Planner) buildInsertStatementAction(params protocol.EditApplyParams, intent agent.EditIntent) (protocol.ReplaceBetweenAnchorsAction, *protocol.EditFailure) {
+func (b *ActionBuilder) buildInsertStatementAction(params protocol.EditApplyParams, intent agent.EditIntent) (protocol.ReplaceBetweenAnchorsAction, *protocol.EditFailure) {
 	block, failure := findSingleFunctionBlock(params.FileText)
 	if failure != nil {
 		return protocol.ReplaceBetweenAnchorsAction{}, failure
@@ -88,14 +88,14 @@ func (p *Planner) buildInsertStatementAction(params protocol.EditApplyParams, in
 		NewText: newText,
 	}
 
-	if failure := p.validator.ValidateAction(params.FileText, action); failure != nil {
+	if failure := b.validator.ValidateAction(params.FileText, action); failure != nil {
 		return protocol.ReplaceBetweenAnchorsAction{}, failure
 	}
 
 	return action, nil
 }
 
-func (p *Planner) buildAppendImportAction(params protocol.EditApplyParams, intent agent.EditIntent) (*protocol.ReplaceBetweenAnchorsAction, *protocol.EditFailure) {
+func (b *ActionBuilder) buildAppendImportAction(params protocol.EditApplyParams, intent agent.EditIntent) (*protocol.ReplaceBetweenAnchorsAction, *protocol.EditFailure) {
 	if strings.Contains(params.FileText, intent.Import) {
 		return nil, editFailure("no_change_needed", fmt.Sprintf("Import %q is already present.", intent.Import))
 	}
@@ -103,15 +103,15 @@ func (p *Planner) buildAppendImportAction(params protocol.EditApplyParams, inten
 	ext := strings.ToLower(filepath.Ext(params.ActiveFile))
 	switch ext {
 	case ".go":
-		return p.buildGoImportAction(params, intent.Import)
+		return b.buildGoImportAction(params, intent.Import)
 	case ".ts", ".tsx", ".js", ".jsx":
-		return p.buildJSImportAction(params, intent.Import)
+		return b.buildJSImportAction(params, intent.Import)
 	default:
 		return nil, editFailure("unsupported_instruction", fmt.Sprintf("Append import is not supported for %q files yet.", ext))
 	}
 }
 
-func (p *Planner) buildGoImportAction(params protocol.EditApplyParams, importStmt string) (*protocol.ReplaceBetweenAnchorsAction, *protocol.EditFailure) {
+func (b *ActionBuilder) buildGoImportAction(params protocol.EditApplyParams, importStmt string) (*protocol.ReplaceBetweenAnchorsAction, *protocol.EditFailure) {
 	lines := strings.Split(params.FileText, "\n")
 	packageIndex := -1
 	for i, line := range lines {
@@ -151,7 +151,7 @@ func (p *Planner) buildGoImportAction(params protocol.EditApplyParams, importStm
 			Anchor:  protocol.Anchor{Before: lines[i], After: lines[closeIndex]},
 			NewText: newText,
 		}
-		if failure := p.validator.ValidateAction(params.FileText, action); failure != nil {
+		if failure := b.validator.ValidateAction(params.FileText, action); failure != nil {
 			return nil, failure
 		}
 		return &action, nil
@@ -169,13 +169,13 @@ func (p *Planner) buildGoImportAction(params protocol.EditApplyParams, importStm
 		Anchor:  protocol.Anchor{Before: before, After: after},
 		NewText: "\n\n" + importStmt + "\n",
 	}
-	if failure := p.validator.ValidateAction(params.FileText, action); failure != nil {
+	if failure := b.validator.ValidateAction(params.FileText, action); failure != nil {
 		return nil, failure
 	}
 	return &action, nil
 }
 
-func (p *Planner) buildJSImportAction(params protocol.EditApplyParams, importStmt string) (*protocol.ReplaceBetweenAnchorsAction, *protocol.EditFailure) {
+func (b *ActionBuilder) buildJSImportAction(params protocol.EditApplyParams, importStmt string) (*protocol.ReplaceBetweenAnchorsAction, *protocol.EditFailure) {
 	lines := strings.Split(params.FileText, "\n")
 	lastImportIndex := -1
 	for i, line := range lines {
@@ -200,7 +200,7 @@ func (p *Planner) buildJSImportAction(params protocol.EditApplyParams, importStm
 			Anchor:  protocol.Anchor{Before: before, After: after},
 			NewText: "\n" + importStmt + "\n",
 		}
-		if failure := p.validator.ValidateAction(params.FileText, action); failure != nil {
+		if failure := b.validator.ValidateAction(params.FileText, action); failure != nil {
 			return nil, failure
 		}
 		return &action, nil
@@ -216,7 +216,7 @@ func (p *Planner) buildJSImportAction(params protocol.EditApplyParams, importStm
 		Anchor:  protocol.Anchor{Before: lines[0], After: strings.Join(lines[1:], "\n")},
 		NewText: "\n" + importStmt + "\n",
 	}
-	if failure := p.validator.ValidateAction(params.FileText, action); failure != nil {
+	if failure := b.validator.ValidateAction(params.FileText, action); failure != nil {
 		return nil, failure
 	}
 	return &action, nil

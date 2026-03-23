@@ -22,13 +22,13 @@ var (
 	)
 )
 
-type Planner struct{}
+type IntentPlanner struct{}
 
-func NewPlanner() *Planner {
-	return &Planner{}
+func NewIntentPlanner() *IntentPlanner {
+	return &IntentPlanner{}
 }
 
-func (p *Planner) Plan(params protocol.EditApplyParams) EditPlanResult {
+func (p *IntentPlanner) Plan(params protocol.EditApplyParams) EditPlanResult {
 	instruction := strings.TrimSpace(params.Instruction)
 	if instruction == "" {
 		return EditPlanResult{Failure: failure("unsupported_instruction", "Instruction was empty.")}
