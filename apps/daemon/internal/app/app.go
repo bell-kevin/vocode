@@ -4,6 +4,7 @@ import (
 	"io"
 	"log"
 
+	"vocoding.net/vocode/v2/apps/daemon/internal/agent"
 	"vocoding.net/vocode/v2/apps/daemon/internal/edits"
 	"vocoding.net/vocode/v2/apps/daemon/internal/rpc"
 )
@@ -21,10 +22,12 @@ type App struct {
 }
 
 func New(opts Options) (*App, error) {
+	agentService := agent.NewService()
 	editService := edits.NewService()
+	editOrchestrator := NewEditOrchestrator(agentService, editService)
 
 	router := rpc.NewRouter(opts.Logger)
-	for _, def := range rpc.BuildHandlers(editService) {
+	for _, def := range rpc.BuildHandlers(editOrchestrator) {
 		router.Register(def.Method, def.Handler)
 	}
 

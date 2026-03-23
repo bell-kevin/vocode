@@ -49,6 +49,7 @@ function extractTypes(ts) {
     }
 
     const name = interfaceMatch?.[1] ?? typeMatch?.[1];
+    const isTypeAlias = Boolean(typeMatch);
     const block = [line];
 
     // Single-line declaration like:
@@ -77,13 +78,13 @@ function extractTypes(ts) {
         (nextLine.match(/{/g) ?? []).length -
         (nextLine.match(/}/g) ?? []).length;
 
-      // If this is a type alias ending with semicolon, finish.
-      if (braceDepth <= 0 && nextLine.trim().endsWith(";")) {
-        break;
-      }
-
-      // If braces balanced back out, finish.
-      if (braceDepth <= 0) {
+      // Type aliases can include union members that close braces before the
+      // declaration is complete, so always wait for the trailing semicolon.
+      if (isTypeAlias) {
+        if (braceDepth <= 0 && nextLine.trim().endsWith(";")) {
+          break;
+        }
+      } else if (braceDepth <= 0) {
         break;
       }
 

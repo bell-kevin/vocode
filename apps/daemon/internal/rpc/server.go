@@ -61,6 +61,13 @@ func (s *Server) Run() error {
 			continue
 		}
 
+		if err := s.validateResult(result); err != nil {
+			s.logger.Printf("invalid handler result for %s: %v", req.Method, err)
+			id := req.ID
+			s.encodeError(encoder, &id, NewInternalError(err))
+			continue
+		}
+
 		s.encodeSuccess(encoder, req.ID, result)
 	}
 
@@ -88,5 +95,19 @@ func (s *Server) encodeError(
 ) {
 	if err := encoder.Encode(NewErrorResponse(id, rpcErr)); err != nil {
 		s.logger.Printf("failed to encode error response: %v", err)
+	}
+}
+
+func (s *Server) validateResult(result any) error {
+	switch v := result.(type) {
+	case protocol.EditApplyResult:
+		return v.Validate()
+	case *protocol.EditApplyResult:
+		if v == nil {
+			return nil
+		}
+		return v.Validate()
+	default:
+		return nil
 	}
 }

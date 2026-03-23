@@ -1,130 +1,198 @@
-# Architecture
+# Vocode Architecture
 
-Vocode is a voice-driven AI code editing system built around a local daemon and a thin editor client.
+Vocode is a voice-driven code editing system with strict ownership boundaries:
 
-## Core Idea
-- Magical UX, deterministic core: user experience should feel seamless, while the system remains structured, predictable, and debuggable.
+- **VS Code extension**: daemon process lifecycle, transport client calls, mechanical editor apply, user messaging.
+- **Go daemon**: intent understanding, semantic safety policy, action building, orchestration.
+- **Protocol package**: schemas, generated types, runtime validators, and shared result contracts.
 
-## High-Level Architecture
-- **VS Code Extension (TypeScript)**
-  - UI (panels, status, diff viewer)
-  - Voice capture
-  - Command surface
-  - RPC client
-- **Daemon (Go)**
-  - RPC server
-  - Agent / planner
-  - Edit engine
-  - Indexing engine
-  - Workspace model
-  - Speech providers
-- **Transport:** stdio (JSON-RPC) between extension and daemon.
+Core principle: **magical UX, deterministic core**.
 
-## Component Responsibilities
-### VS Code Extension
-- Capture user input (voice, commands).
-- Display output (diffs, transcripts, status).
-- Maintain UI state.
-- Send requests to daemon.
-- Apply edits returned by daemon.
+## Layering and ownership
 
-**Non-responsibilities**
-- No business logic.
-- No edit planning.
-- No code intelligence.
+Expected daemon flow:
 
-### Daemon (Go)
-- Interpret user intent.
-- Build execution plans.
-- Generate structured edit actions.
-- Validate edits.
-- Maintain workspace model.
-- Perform indexing.
-- Execute commands.
-- Interface with speech providers.
+`cmd/vocoded/main.go`  
+→ `internal/app` (composition root)  
+→ `internal/rpc` (transport/routing only)  
+→ `internal/app/EditOrchestrator` (application orchestration)  
+→ `internal/agent` (intent planning)  
+→ `internal/edits` (action building + validation)
 
-## System Flow
-1. User speaks.
-2. Speech -> text (streaming).
-3. Intent parsing.
-4. Planning.
-5. Edit actions.
-6. Validation.
-7. Diff generation.
-8. Apply edits.
-9. UI updates.
+### Extension (`apps/vscode-extension`)
 
-## Key Subsystems
-### 1) Agent / Planner
-- Location: `apps/daemon/internal/agent/`.
-- Responsibilities: interpret natural language; ask clarifying questions; generate structured plans; orchestrate subsystems.
+Owns:
 
-### 2) Edit Engine
-- Location: `apps/daemon/internal/edits/`.
-- Responsibilities: convert plans into edit actions; anchor edits to code structure; generate diffs; validate before applying.
-- Critical rule: never blindly rewrite entire files unless explicitly intended.
+- Spawning and managing daemon process lifecycle
+- Sending RPC requests and receiving typed responses
+- Runtime shape checks (`@vocode/protocol` validators)
+- Mechanical editor application of daemon actions
+- User-facing status/error/warning messages and command UX
 
-### 3) Indexing Engine
-- Location: `apps/daemon/internal/indexing/`.
-- Responsibilities: fast file search (ripgrep); symbol extraction; file summaries; incremental updates via watchers.
+Does not own:
 
-### 4) Workspace Model
-- Location: `apps/daemon/internal/workspace/`.
-- Responsibilities: track files and structure; maintain snapshots; respect ignore rules; provide context to agent.
+- Semantic edit safety policy
+- Instruction planning or ambiguity-resolution policy
+- Daemon business rules duplicated in UI
 
-### 5) RPC Layer
-- Locations: `apps/daemon/internal/rpc/`, `apps/vscode-extension/src/client/`.
-- Transport: stdio (JSON-RPC).
-- Responsibilities: request/response handling; streaming events; routing to handlers.
+### Daemon (`apps/daemon`)
 
-### 6) Speech System
-- Locations: `apps/daemon/internal/speech/`, `apps/vscode-extension/src/voice/`.
-- Responsibilities: streaming STT; provider abstraction (ElevenLabs, Whisper.cpp); partial transcript handling.
+Owns:
 
-## Communication Model
-- **Transport:** stdio-based JSON-RPC; extension spawns daemon; persistent connection.
-- **Rules:** stdout carries protocol only; stderr is for logs only.
-- **Example flow:** extension calls `startVoice()` -> RPC request; daemon streams transcript events; extension updates UI live.
+- Request interpretation and orchestration
+- Semantic safety policy and deterministic failure/noop behavior
+- Building validated edit actions
+- Returning explicit result variants
 
-## Directory Boundaries
-- **Extension** (`apps/vscode-extension/src/`)
-  - `commands/` - command entrypoints
-  - `client/` - RPC client
-  - `daemon/` - process spawning and paths
-  - `ui/` - panels and views
-  - `voice/` - microphone and audio
-- **Daemon** (`apps/daemon/internal/`)
-  - `agent/`
-  - `edits/`
-  - `indexing/`
-  - `workspace/`
-  - `rpc/`
-  - `speech/`
+Does not own:
 
-## Runtime Model
-- **Startup:** extension activates; daemon binary is resolved; daemon process is spawned; RPC connection is established.
-- **Steady state:** daemon runs continuously; extension sends requests; daemon emits events.
-- **Shutdown:** extension disposes daemon process; daemon exits cleanly.
+- VS Code UX concerns
+- UI messaging policy
+- Extension/editor behavior details
 
-## Design Principles
-- Magical UX, deterministic core: UX should feel effortless; internals must be structured and predictable.
-- Structured edits over text generation: edits are explicit operations; diffs are inspectable; results are reproducible.
-- Daemon-first intelligence: all “smart” logic lives in the daemon; the extension stays simple.
-- Local-first: no required cloud dependency; fast iteration; private by default.
-- Incremental everything: streaming speech; incremental planning; progressive UI updates.
+### Protocol (`packages/protocol`)
 
-## Future Evolution
-- AST-aware editing via tree-sitter.
-- LSP integration for semantic understanding.
-- Multi-file coordinated edits.
-- Collaborative sessions.
-- Plugin system for tools/providers.
+Owns:
 
-## Mental Model
-Think of Vocode as a real-time, voice-driven compiler for code changes where input = natural language, output = structured edits, execution = a deterministic pipeline.
+- JSON schema source of truth
+- Generated TypeScript + Go types
+- Runtime validators used by clients and services
+
+Does not own:
+
+- Planning/orchestration/business logic
+- Editor or transport implementations
+
+## Edit/apply contract
+
+`edit/apply` returns one explicit variant:
+
+- `success` with `actions`
+- `failure` with `failure`
+- `noop` with `reason`
+
+Mixed-state payloads are invalid (examples: `success + failure`, `failure + actions`, `noop + actions`, `noop + failure`).  
+Schema, generated types, validators, and runtime behavior must remain aligned.
+
+## Quick ownership guide
+
+If you are about to write logic, pick the owner first:
+
+- **UI behavior, command flow, editor operations** → extension.
+- **Meaning/safety decisions, planning, action construction** → daemon.
+- **Payload shape and validation contract** → protocol.
+
+One rule should have one owner. Duplicate ownership is a regression risk.
+
+## Developer playbooks
+
+### How to add a new extension command
+
+1. Add a new command file in `apps/vscode-extension/src/commands`.
+2. Register it in the extension command registry.
+3. Add a command contribution in `apps/vscode-extension/package.json`.
+4. If it talks to daemon, call client methods only (no daemon policy in command code).
+5. Add/extend tests under `apps/vscode-extension/src/commands`.
+
+Rules:
+
+- Keep command logic orchestration/UI-level.
+- Any semantic safety logic belongs in daemon.
+
+### How to add a new RPC method
+
+1. Add protocol schema(s) for params/result in `packages/protocol/schema`.
+2. Regenerate protocol types/code.
+3. Update protocol runtime validators if needed.
+4. Add daemon handler in `apps/daemon/internal/rpc`:
+   - decode params
+   - call one service/orchestrator entrypoint
+   - return result or structured RPC error
+5. Register handler in `BuildHandlers`.
+6. Add RPC-level tests for:
+   - success path
+   - expected failure/noop paths (if applicable)
+   - invalid-result rejection path if result has invariants
+7. Add/extend extension client call and command/UI usage.
+
+Rules:
+
+- Handlers must stay thin.
+- Transport layer must not perform planning.
+- If a method crosses multiple daemon domains, route through app-level orchestration.
+
+### How to add a new edit action type
+
+1. Add action schema in `packages/protocol/schema`.
+2. Wire action union schema updates.
+3. Regenerate TS/Go protocol types and keep validators aligned.
+4. Implement daemon action builder logic in `internal/edits`.
+5. Add daemon validation for action safety/uniqueness.
+6. Implement extension mechanical apply logic for the new action kind.
+7. Add tests:
+   - daemon action-building + validation tests
+   - extension action-application tests
+   - protocol validator acceptance/rejection tests
+8. Ensure extension apply logic remains mechanical (no semantic policy added).
+
+Rules:
+
+- Daemon decides whether action is safe/valid to emit.
+- Extension only performs deterministic mechanical apply + sanity checks.
+
+### How to add a new intent/planner capability
+
+1. Extend `internal/agent/IntentPlanner` with explicit parsing rules.
+2. Return deterministic `EditPlan` or structured `EditFailure`.
+3. Keep intent-level semantics in agent, not in `internal/edits`.
+4. Ensure `EditOrchestrator` maps planner/builder outcomes to result variants.
+5. Add planner tests for:
+   - supported instruction parsing
+   - unsupported instruction failures
+   - expected failure codes
+
+Rules:
+
+- Planner should fail closed when intent is unclear.
+- Edits layer should not parse natural language.
+- Keep failure codes intentional and test them.
+
+## Testing expectations for boundary safety
+
+When touching architecture-sensitive code, include tests in the owning layer:
+
+- **RPC tests**: handler/server transport behavior and invalid-result rejection.
+- **Agent tests**: supported parsing + unsupported/failure code expectations.
+- **Edits tests**: action construction and safety validation behavior.
+- **Extension tests**: mechanical apply behavior and runtime shape handling.
+
+## Anti-patterns
+
+- Handler doing planning or target resolution
+- `internal/edits` orchestrating `internal/agent`
+- Extension re-deciding daemon semantic policy
+- Ambiguous/overloaded result shapes
+- Placeholder layers/files with no active usage
+- “Temporary” policy logic added in extension to unblock daemon work
+
+## Contributor checklist
+
+Before merging:
+
+- `main.go` remains bootstrap-only
+- `internal/app` remains composition + orchestration owner
+- `internal/rpc` remains transport/routing only
+- `EditOrchestrator` owns agent+edits coordination
+- Extension contains only mechanical apply + UI policy
+- Protocol schema/types/validators/runtime behavior stay aligned
+- Tests cover variant invariants and boundary behavior
 
 ## Summary
-- Extension = interface.
-- Daemon = brain.
-- Protocol = glue.
-- Everything should reinforce that separation.
+
+Vocode stays reliable when ownership is explicit and enforced:
+
+- daemon decides meaning and safety,
+- extension applies actions and presents UX,
+- protocol defines and validates the contract.
+
+For contributors: if you are unsure where logic belongs, choose the layer that already owns that rule, and add tests there.

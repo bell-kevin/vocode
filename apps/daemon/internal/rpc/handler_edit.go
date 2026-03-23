@@ -3,11 +3,10 @@ package rpc
 import (
 	"encoding/json"
 
-	"vocoding.net/vocode/v2/apps/daemon/internal/edits"
 	protocol "vocoding.net/vocode/v2/packages/protocol/go"
 )
 
-func NewEditApplyHandler(editService *edits.Service) Handler {
+func NewEditApplyHandler(editService EditApplyService) Handler {
 	return func(
 		req protocol.JSONRPCRequest[json.RawMessage],
 	) (any, *protocol.JSONRPCErrorObject) {

@@ -2,15 +2,36 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://vocoding.net/schemas/edit-apply.result.schema.json",
   "title": "EditApplyResult",
-  "type": "object",
-  "additionalProperties": false,
-  "properties": {
-    "actions": {
-      "type": "array",
-      "items": {
-        "$ref": "./edit-action.schema.json"
-      }
+  "oneOf": [
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "kind": { "const": "success" },
+        "actions": {
+          "type": "array",
+          "items": { "$ref": "./edit-action.schema.json" }
+        }
+      },
+      "required": ["kind", "actions"]
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "kind": { "const": "failure" },
+        "failure": { "$ref": "./common.schema.json#/$defs/EditFailure" }
+      },
+      "required": ["kind", "failure"]
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "kind": { "const": "noop" },
+        "reason": { "type": "string" }
+      },
+      "required": ["kind", "reason"]
     }
-  },
-  "required": ["actions"]
+  ]
 }
