@@ -127,7 +127,7 @@ func TestApplyAppendImportIfMissing(t *testing.T) {
 func readFixture(t *testing.T, name string) string {
 	t.Helper()
 
-	path := filepath.Join("testdata", name)
+	path := filepath.Join("fixtures", name)
 	data, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatalf("read fixture %s: %v", name, err)
