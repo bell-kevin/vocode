@@ -46,3 +46,39 @@ test("applyReplaceBetweenAnchors throws when after anchor is missing", () => {
     message: /after anchor/,
   });
 });
+
+test("applyReplaceBetweenAnchors throws when before anchor is ambiguous", () => {
+  const action: ReplaceBetweenAnchorsAction = {
+    kind: "replace_between_anchors",
+    path: "/tmp/example.ts",
+    anchor: {
+      before: "TARGET_START",
+      after: "TARGET_END",
+    },
+    newText: "updated",
+  };
+
+  const input = ["TARGET_START", "x", "TARGET_END", "TARGET_START"].join("\n");
+
+  assert.throws(() => applyReplaceBetweenAnchors(input, action), {
+    message: /matched multiple locations/,
+  });
+});
+
+test("applyReplaceBetweenAnchors throws when after anchor is ambiguous", () => {
+  const action: ReplaceBetweenAnchorsAction = {
+    kind: "replace_between_anchors",
+    path: "/tmp/example.ts",
+    anchor: {
+      before: "TARGET_START",
+      after: "TARGET_END",
+    },
+    newText: "updated",
+  };
+
+  const input = ["TARGET_START", "x", "TARGET_END", "TARGET_END"].join("\n");
+
+  assert.throws(() => applyReplaceBetweenAnchors(input, action), {
+    message: /matched multiple locations/,
+  });
+});
