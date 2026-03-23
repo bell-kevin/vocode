@@ -8,6 +8,7 @@ const outFile = path.join(outDir, "types.generated.go");
 
 const entries = [
   { file: "common.schema.json", def: "Anchor", name: "Anchor" },
+  { file: "common.schema.json", def: "EditFailure", name: "EditFailure" },
   {
     file: "edit-action.replace-between-anchors.schema.json",
     name: "ReplaceBetweenAnchorsAction",
@@ -177,8 +178,12 @@ function schemaToGoType(schema, currentAbsPath, ctx) {
     for (const [jsonName, propSchema] of propEntries) {
       const fieldName = toGoFieldName(jsonName);
       const goType = schemaToGoType(propSchema, currentAbsPath, ctx);
-      const omitempty = required.has(jsonName) ? "" : ",omitempty";
-      lines.push(`\t${fieldName} ${goType} \`json:"${jsonName}${omitempty}"\``);
+      const isRequired = required.has(jsonName);
+      const fieldType = isRequired ? goType : toOptionalGoType(goType);
+      const omitempty = isRequired ? "" : ",omitempty";
+      lines.push(
+        `	${fieldName} ${fieldType} \`json:"${jsonName}${omitempty}"\``,
+      );
     }
 
     lines.push("}");
@@ -188,6 +193,25 @@ function schemaToGoType(schema, currentAbsPath, ctx) {
   throw new Error(
     `Unsupported schema in ${ctx.name}: ${JSON.stringify(schema, null, 2)}`,
   );
+}
+
+function toOptionalGoType(goType) {
+  if (
+    goType === "string" ||
+    goType === "int" ||
+    goType === "float64" ||
+    goType === "bool" ||
+    goType === "interface{}" ||
+    goType.startsWith("[]")
+  ) {
+    return goType;
+  }
+
+  if (goType.startsWith("*")) {
+    return goType;
+  }
+
+  return `*${goType}`;
 }
 
 function emitEntry(entry) {

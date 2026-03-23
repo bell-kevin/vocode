@@ -7,6 +7,24 @@ Vocode uses a structured editing model so AI-driven code changes stay reliable, 
 Magical UX, deterministic core:
 users describe changes naturally; the system turns them into structured actions that can be validated, diffed, and applied safely.
 
+## Current Implemented Slice
+
+Today's daemon ships a deliberately small, rule-based planning layer. It is not the final editing system, but it is a safe vertical slice that proves the daemon-first architecture.
+
+The currently supported intents are:
+
+- `insert statement "..." inside current function`
+  - Only succeeds when the active file contains exactly one supported function-shaped block.
+  - The inserted statement is appended just before that function's closing brace.
+- `replace block after "..." before "..." with "..."`
+  - Both anchors must resolve uniquely in the active file.
+  - Ambiguous or missing anchors produce a structured failure instead of guessing.
+- `append import "..." if missing`
+  - Currently supported for Go files and top-of-file JS/TS import sections.
+  - If the import already exists, the daemon returns a structured no-change response.
+
+These rules intentionally fail closed when the daemon cannot map the instruction to a unique edit.
+
 ## Goals
 
 - The model must be semantic, inspectable, reversible, transportable, and independent of any single parser or editor.
@@ -25,15 +43,20 @@ User intent -> plan -> structured edit actions -> target resolution -> validatio
 
 ## Layers
 
-### 1) Edit actions
+### 1) Edit planning
+
+- Interprets a user instruction into a narrow, deterministic edit intent.
+- The current planner lives behind the daemon's `internal/agent` boundary so richer planners can replace the rules later without changing the extension contract.
+
+### 2) Edit actions
 
 - Describe what change should happen (create file, delete file, insert before symbol, replace function body, replace anchored range, add import, rename symbol, etc.).
 
-### 2) Target resolution
+### 3) Target resolution
 
 - Determines where the action applies using file path, symbol summaries, text anchors, AST queries, or LSP data.
 
-### 3) Application
+### 4) Application
 
 - Performs the final mutation and generates a diff.
 
@@ -136,7 +159,7 @@ Every edit must be validated before apply by checking:
 
 - file exists when required
 - target resolves uniquely
-- fallback anchors still match
+- fallback anchors still match uniquely
 - file has not changed incompatibly
 - edits do not overlap
 - resulting patch is well-formed
@@ -180,4 +203,5 @@ Safety level controls whether Vocode auto-applies, previews first, or asks for c
 ## Summary
 
 - Edit actions describe intent; resolvers determine location.
+- The current rule-based planner is a safe starting slice, not the end state.
 - This keeps the user experience magical while the system stays deterministic and evolvable.

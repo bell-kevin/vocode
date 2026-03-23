@@ -10,6 +10,9 @@
       "items": {
         "$ref": "./edit-action.schema.json"
       }
+    },
+    "failure": {
+      "$ref": "./common.schema.json#/$defs/EditFailure"
     }
   },
   "required": ["actions"]

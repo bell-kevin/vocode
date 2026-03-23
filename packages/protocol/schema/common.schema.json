@@ -10,6 +10,24 @@
         "after": { "type": "string" }
       },
       "required": ["before", "after"]
+    },
+    "EditFailure": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "code": {
+          "type": "string",
+          "enum": [
+            "unsupported_instruction",
+            "ambiguous_target",
+            "missing_anchor",
+            "validation_failed",
+            "no_change_needed"
+          ]
+        },
+        "message": { "type": "string" }
+      },
+      "required": ["code", "message"]
     }
   }
 }

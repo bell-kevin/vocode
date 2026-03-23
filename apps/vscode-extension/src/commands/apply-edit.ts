@@ -1,36 +1,9 @@
-import type {
-  EditApplyParams,
-  ReplaceBetweenAnchorsAction,
-} from "@vocode/protocol";
+import type { EditApplyParams } from "@vocode/protocol";
 import { isEditApplyResult } from "@vocode/protocol";
 import * as vscode from "vscode";
 
+import { applyReplaceBetweenAnchors } from "./apply-edit-helpers";
 import type { CommandDefinition } from "./types";
-
-function applyReplaceBetweenAnchors(
-  documentText: string,
-  action: ReplaceBetweenAnchorsAction,
-): string {
-  const beforeIndex = documentText.indexOf(action.anchor.before);
-  if (beforeIndex === -1) {
-    throw new Error(
-      `Could not find before anchor: ${JSON.stringify(action.anchor.before)}`,
-    );
-  }
-
-  const searchStart = beforeIndex + action.anchor.before.length;
-  const afterIndex = documentText.indexOf(action.anchor.after, searchStart);
-  if (afterIndex === -1) {
-    throw new Error(
-      `Could not find after anchor: ${JSON.stringify(action.anchor.after)}`,
-    );
-  }
-
-  const prefix = documentText.slice(0, searchStart);
-  const suffix = documentText.slice(afterIndex);
-
-  return `${prefix}${action.newText}${suffix}`;
-}
 
 async function replaceWholeDocument(
   editor: vscode.TextEditor,
@@ -65,7 +38,8 @@ export const applyEditCommand: CommandDefinition = {
     const instruction = await vscode.window.showInputBox({
       title: "Vocode Apply Edit",
       prompt: "Describe the edit to apply",
-      placeHolder: "Insert a console.log inside the current function",
+      placeHolder:
+        'Insert statement "console.log(value)" inside current function',
       ignoreFocusOut: true,
     });
 
@@ -86,6 +60,20 @@ export const applyEditCommand: CommandDefinition = {
       throw new Error("Daemon returned an invalid edit/apply result.");
     }
 
+    if (result.failure) {
+      void vscode.window.showWarningMessage(
+        `Vocode could not produce a safe edit: ${result.failure.message}`,
+      );
+      return;
+    }
+
+    if (result.actions.length === 0) {
+      void vscode.window.showWarningMessage(
+        "Vocode could not produce a safe edit for that instruction.",
+      );
+      return;
+    }
+
     let nextText = document.getText();
 
     for (const action of result.actions) {
@@ -93,14 +81,12 @@ export const applyEditCommand: CommandDefinition = {
         throw new Error(`Received action for unsupported file: ${action.path}`);
       }
 
-      for (const action of result.actions) {
-        switch (action.kind) {
-          case "replace_between_anchors":
-            nextText = applyReplaceBetweenAnchors(nextText, action);
-            break;
-          default:
-            throw new Error(`Unsupported action kind: ${action.kind}`);
-        }
+      switch (action.kind) {
+        case "replace_between_anchors":
+          nextText = applyReplaceBetweenAnchors(nextText, action);
+          break;
+        default:
+          throw new Error(`Unsupported action kind: ${action.kind}`);
       }
     }
 

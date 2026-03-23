@@ -15,5 +15,5 @@
       "type": "string"
     }
   },
-  "required": ["instruction"]
+  "required": ["instruction", "activeFile", "fileText"]
 }

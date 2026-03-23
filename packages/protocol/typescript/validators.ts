@@ -16,6 +16,16 @@ function isAnchor(value: unknown): value is { before: string; after: string } {
   );
 }
 
+function isEditFailure(
+  value: unknown,
+): value is { code: string; message: string } {
+  return (
+    isRecord(value) &&
+    typeof value.code === "string" &&
+    typeof value.message === "string"
+  );
+}
+
 export function isPingResult(value: unknown): value is PingResult {
   return isRecord(value) && value.message === "pong";
 }
@@ -34,6 +44,7 @@ export function isEditApplyResult(value: unknown): value is EditApplyResult {
   return (
     isRecord(value) &&
     Array.isArray(value.actions) &&
-    value.actions.every(isEditAction)
+    value.actions.every(isEditAction) &&
+    (value.failure === undefined || isEditFailure(value.failure))
   );
 }

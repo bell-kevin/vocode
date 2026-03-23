@@ -158,9 +158,12 @@ We **never blindly rewrite files**.
 
 All edits are:
 
+- planned in the daemon
 - anchored
 - validated
 - diffed before apply
+
+The current implementation intentionally supports a small deterministic slice instead of pretending the planner is finished.
 
 #### 2. Daemon-first architecture
 
@@ -181,7 +184,7 @@ The extension is just:
 #### 4. Streaming everything
 
 - voice → streaming STT
-- edits → incremental planning
+- edits → incremental planning (currently rule-based for a small safe slice)
 - UI → live feedback
 
 ---
@@ -192,7 +195,7 @@ The extension is just:
 - ✅ Daemon spawns
 - ✅ Cross-platform daemon build
 - 🚧 JSON-RPC transport (next)
-- 🚧 Edit engine wiring
+- 🚧 Rich edit engine wiring beyond the initial safe slice
 - 🚧 Voice pipeline
 
 ---
@@ -228,7 +231,7 @@ Vocode: Apply Edit
 Vocode: Run Command
 ```
 
-(Currently stubbed)
+Supported today: deterministic single-file edits for `insert statement "..." inside current function`, `replace block after "..." before "..." with "..."`, and `append import "..." if missing`. The daemon now returns structured failures when it cannot produce a safe edit.
 
 ---
 

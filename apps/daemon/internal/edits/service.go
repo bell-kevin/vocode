@@ -1,49 +1,42 @@
 package edits
 
 import (
-	"strings"
-
+	"vocoding.net/vocode/v2/apps/daemon/internal/agent"
 	protocol "vocoding.net/vocode/v2/packages/protocol/go"
 )
 
-type Service struct{}
+type Service struct {
+	agentService *agent.Service
+	planner      *Planner
+}
 
-func NewService() *Service {
-	return &Service{}
+func NewService(agentService *agent.Service) *Service {
+	return &Service{
+		agentService: agentService,
+		planner:      NewPlanner(),
+	}
 }
 
 func (s *Service) Apply(params protocol.EditApplyParams) (protocol.EditApplyResult, error) {
-	before, after, ok := firstBraceAnchors(params.FileText)
-	if !ok {
+	planResult := s.agentService.PlanEdit(params)
+	if planResult.Failure != nil {
 		return protocol.EditApplyResult{
 			Actions: []protocol.EditAction{},
+			Failure: planResult.Failure,
 		}, nil
 	}
 
-	action := protocol.ReplaceBetweenAnchorsAction{
-		Kind: "replace_between_anchors",
-		Path: params.ActiveFile,
-		Anchor: protocol.Anchor{
-			Before: before,
-			After:  after,
-		},
-		NewText: "\n  console.log(\"hi from vocode\");\n",
+	actions, failure := s.planner.BuildActions(params, *planResult.Plan)
+	if failure != nil {
+		return protocol.EditApplyResult{
+			Actions: []protocol.EditAction{},
+			Failure: failure,
+		}, nil
 	}
 
-	return protocol.EditApplyResult{
-		Actions: []protocol.EditAction{action},
-	}, nil
+	return protocol.EditApplyResult{Actions: actions}, nil
 }
 
-func firstBraceAnchors(fileText string) (before string, after string, ok bool) {
-	lines := strings.Split(fileText, "\n")
-
-	for _, line := range lines {
-		trimmed := strings.TrimSpace(line)
-		if strings.Contains(line, "{") && trimmed != "{" {
-			return line, "}", true
-		}
-	}
-
-	return "", "", false
+func editFailure(code string, message string) *protocol.EditFailure {
+	return &protocol.EditFailure{Code: code, Message: message}
 }
