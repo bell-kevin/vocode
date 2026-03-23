@@ -6,6 +6,7 @@ import (
 	"io"
 	"log"
 	"os"
+	"strings"
 
 	protocol "vocoding.net/vocode/v2/packages/protocol/go"
 )
@@ -113,15 +114,51 @@ func handleEditApply(encoder *json.Encoder, req rawRequest) {
 		return
 	}
 
-	log.Printf("edit/apply instruction=%q", params.Instruction)
+	log.Printf("edit/apply instruction=%q activeFile=%q", params.Instruction, params.ActiveFile)
+
+	before, after, ok := firstBraceAnchors(params.FileText)
+	if !ok {
+		resp := protocol.JSONRPCResponse[protocol.EditApplyResult]{
+			JSONRPC: "2.0",
+			ID:      req.ID,
+			Result: protocol.EditApplyResult{
+				Actions: []protocol.EditAction{},
+			},
+		}
+		_ = encoder.Encode(resp)
+		return
+	}
+
+	action := protocol.ReplaceBetweenAnchorsAction{
+		Kind: "replace_between_anchors",
+		Path: params.ActiveFile,
+		Anchor: protocol.Anchor{
+			Before: before,
+			After:  after,
+		},
+		NewText: "\n  console.log(\"hi from vocode\");\n",
+	}
 
 	resp := protocol.JSONRPCResponse[protocol.EditApplyResult]{
 		JSONRPC: "2.0",
 		ID:      req.ID,
 		Result: protocol.EditApplyResult{
-			Actions: []protocol.EditAction{},
+			Actions: []protocol.EditAction{action},
 		},
 	}
 
 	_ = encoder.Encode(resp)
+}
+
+func firstBraceAnchors(fileText string) (before string, after string, ok bool) {
+	lines := strings.Split(fileText, "\n")
+
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if strings.Contains(line, "{") && trimmed != "{" {
+			return line, "}", true
+		}
+	}
+
+	return "", "", false
 }
