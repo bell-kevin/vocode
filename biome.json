@@ -17,7 +17,8 @@
       "!**/tmp",
       "!**/.DS_Store",
       "!pnpm-lock.yaml",
-      "!**/*.generated.ts"
+      "!**/*.generated.ts",
+      "!**/third-party-research"
     ]
   },
   "formatter": {
@@ -50,7 +51,12 @@
     }
   },
   "linter": {
-    "includes": ["**", "!**/*.min.js", "!**/*.bundle.js"],
+    "includes": [
+      "**",
+      "!**/*.min.js",
+      "!**/*.bundle.js",
+      "!**/third-party-research/**"
+    ],
     "rules": {
       "recommended": true,
       "complexity": {

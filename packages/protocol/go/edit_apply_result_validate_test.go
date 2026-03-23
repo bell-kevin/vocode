@@ -38,12 +38,12 @@ func TestEditApplyResultValidateRejectsInvalidCombinations(t *testing.T) {
 	invalid := []EditApplyResult{
 		{Kind: "success"},
 		{
-			Kind: "success",
+			Kind:    "success",
 			Actions: []EditAction{},
 			Failure: &EditFailure{Code: "validation_failed", Message: "bad"},
 		},
 		{
-			Kind: "failure",
+			Kind:    "failure",
 			Failure: &EditFailure{Code: "validation_failed", Message: "bad"},
 			Actions: []EditAction{{Kind: "replace_between_anchors"}},
 		},
