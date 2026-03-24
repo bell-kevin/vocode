@@ -6,16 +6,13 @@
   "private": true,
   "publisher": "our-publisher-id",
   "engines": {
-    "vscode": "^1.110.0"
+    "vscode": "^1.96.0"
   },
   "categories": [
     "AI"
   ],
   "main": "./dist/extension.js",
-  "activationEvents": [
-    "onStartupFinished",
-    "workspaceContains:**/*"
-  ],
+  "activationEvents": ["onStartupFinished"],
   "contributes": {
     "commands": [
       {
