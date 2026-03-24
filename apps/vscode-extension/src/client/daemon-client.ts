@@ -7,6 +7,11 @@ import type {
 } from "@vocode/protocol";
 import { isEditApplyResult, isPingResult } from "@vocode/protocol";
 
+import {
+  isVoiceTranscriptResult,
+  type VoiceTranscriptParams,
+  type VoiceTranscriptResult,
+} from "./requests";
 import { RpcTransport } from "./rpc-transport";
 
 export class DaemonClient {
@@ -16,27 +21,40 @@ export class DaemonClient {
     this.transport = new RpcTransport(process);
   }
 
-  public async ping(params: PingParams = {}): Promise<PingResult> {
-    const res = (await this.transport.request("ping", params)) as PingResult;
+  public async sendRequest<T>(
+    method: string,
+    params: unknown,
+    isResult?: (value: unknown) => value is T,
+  ): Promise<T> {
+    const result = await this.transport.request(method, params);
 
-    if (!isPingResult(res)) {
-      throw new Error("Invalid ping response from daemon.");
+    if (isResult && !isResult(result)) {
+      throw new Error(`Invalid ${method} response from daemon.`);
     }
 
-    return res;
+    return result as T;
+  }
+
+  public async ping(params: PingParams = {}): Promise<PingResult> {
+    return this.sendRequest<PingResult>("ping", params, isPingResult);
   }
 
   public async applyEdit(params: EditApplyParams): Promise<EditApplyResult> {
-    const res = (await this.transport.request(
+    return this.sendRequest<EditApplyResult>(
       "edit/apply",
       params,
-    )) as EditApplyResult;
+      isEditApplyResult,
+    );
+  }
 
-    if (!isEditApplyResult(res)) {
-      throw new Error("Invalid edit/apply response from daemon.");
-    }
-
-    return res;
+  public async voiceTranscript(
+    params: VoiceTranscriptParams,
+  ): Promise<VoiceTranscriptResult> {
+    return this.sendRequest<VoiceTranscriptResult>(
+      "voice.transcript",
+      params,
+      isVoiceTranscriptResult,
+    );
   }
 
   public dispose(): void {
