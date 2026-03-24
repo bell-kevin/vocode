@@ -21,5 +21,9 @@ func BuildHandlers(editService EditApplyService) []HandlerDefinition {
 			Method:  "edit/apply",
 			Handler: NewEditApplyHandler(editService),
 		},
+		{
+			Method:  "voice.transcript",
+			Handler: NewVoiceTranscriptHandler(),
+		},
 	}
 }
