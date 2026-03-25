@@ -2,29 +2,12 @@ import type { EditApplyParams } from "@vocode/protocol";
 import { isEditApplyResult } from "@vocode/protocol";
 import * as vscode from "vscode";
 
-import { applyReplaceBetweenAnchors } from "./apply-edit-helpers";
+import { resolveReplaceBetweenAnchors } from "./apply-edit-helpers";
 import type { CommandDefinition } from "./types";
 
-// TEMPORARY: Replace the whole document with the new text.
-// TODO: Replace the structured edit with the new data
-async function replaceWholeDocument(
-  editor: vscode.TextEditor,
-  newText: string,
-): Promise<void> {
-  const document = editor.document;
-  const lastLine = document.lineAt(document.lineCount - 1);
-  const fullRange = new vscode.Range(
-    new vscode.Position(0, 0),
-    lastLine.rangeIncludingLineBreak.end,
-  );
-
-  const success = await editor.edit((editBuilder) => {
-    editBuilder.replace(fullRange, newText);
-  });
-
-  if (!success) {
-    throw new Error("VS Code failed to apply the edit.");
-  }
+interface DocumentEditState {
+  document: vscode.TextDocument;
+  nextText: string;
 }
 
 export const applyEditCommand: CommandDefinition = {
@@ -81,24 +64,54 @@ export const applyEditCommand: CommandDefinition = {
         if (!result.actions) {
           throw new Error("Daemon returned success kind without actions.");
         }
-        let nextText = document.getText();
+
+        const workspaceEdit = new vscode.WorkspaceEdit();
+        const documentsByPath = new Map<string, DocumentEditState>();
+
         for (const action of result.actions) {
-          if (action.path !== document.uri.fsPath) {
-            throw new Error(
-              `Received action for unsupported file: ${action.path}`,
-            );
+          let state = documentsByPath.get(action.path);
+          if (!state) {
+            const actionUri = vscode.Uri.file(action.path);
+            const actionDocument =
+              await vscode.workspace.openTextDocument(actionUri);
+            state = {
+              document: actionDocument,
+              nextText: actionDocument.getText(),
+            };
+            documentsByPath.set(action.path, state);
           }
 
           switch (action.kind) {
-            case "replace_between_anchors":
-              nextText = applyReplaceBetweenAnchors(nextText, action);
+            case "replace_between_anchors": {
+              const replacement = resolveReplaceBetweenAnchors(
+                state.nextText,
+                action,
+              );
+
+              const range = new vscode.Range(
+                state.document.positionAt(replacement.startOffset),
+                state.document.positionAt(replacement.endOffset),
+              );
+
+              workspaceEdit.replace(
+                state.document.uri,
+                range,
+                replacement.replacementText,
+              );
+
+              state.nextText = replacement.nextText;
               break;
+            }
             default:
               throw new Error(`Unsupported action kind: ${action.kind}`);
           }
         }
 
-        await replaceWholeDocument(editor, nextText);
+        const success = await vscode.workspace.applyEdit(workspaceEdit);
+        if (!success) {
+          throw new Error("VS Code failed to apply the edit.");
+        }
+
         void vscode.window.showInformationMessage("Vocode edit applied.");
         return;
       }

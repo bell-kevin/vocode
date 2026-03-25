@@ -1,5 +1,12 @@
 import type { ReplaceBetweenAnchorsAction } from "@vocode/protocol";
 
+export interface AnchoredReplacement {
+  startOffset: number;
+  endOffset: number;
+  replacementText: string;
+  nextText: string;
+}
+
 function findUniqueOccurrence(
   text: string,
   needle: string,
@@ -31,6 +38,13 @@ export function applyReplaceBetweenAnchors(
   documentText: string,
   action: ReplaceBetweenAnchorsAction,
 ): string {
+  return resolveReplaceBetweenAnchors(documentText, action).nextText;
+}
+
+export function resolveReplaceBetweenAnchors(
+  documentText: string,
+  action: ReplaceBetweenAnchorsAction,
+): AnchoredReplacement {
   const beforeIndex = findUniqueOccurrence(
     documentText,
     action.anchor.before,
@@ -48,6 +62,12 @@ export function applyReplaceBetweenAnchors(
 
   const prefix = documentText.slice(0, searchStart);
   const suffix = documentText.slice(afterIndex);
+  const nextText = `${prefix}${action.newText}${suffix}`;
 
-  return `${prefix}${action.newText}${suffix}`;
+  return {
+    startOffset: searchStart,
+    endOffset: afterIndex,
+    replacementText: action.newText,
+    nextText,
+  };
 }
