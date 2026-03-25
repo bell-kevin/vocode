@@ -32,12 +32,25 @@ func (s *voiceTranscriptServiceStub) AcceptTranscript(
 	return protocol.VoiceTranscriptResult{Accepted: true}, true
 }
 
-func runSingleRequest(t *testing.T, editService EditApplyService, requestLine string) map[string]any {
+type commandRunServiceStub struct {
+	result protocol.CommandRunResult
+}
+
+func (s *commandRunServiceStub) Run(_ protocol.CommandRunParams) protocol.CommandRunResult {
+	return s.result
+}
+
+func runSingleRequest(
+	t *testing.T,
+	editService EditApplyService,
+	voiceService VoiceTranscriptService,
+	commandService CommandRunService,
+	requestLine string,
+) map[string]any {
 	t.Helper()
 
 	router := NewRouter(log.New(io.Discard, "", 0))
-	voiceService := &voiceTranscriptServiceStub{}
-	for _, def := range BuildHandlers(editService, voiceService) {
+	for _, def := range BuildHandlers(editService, voiceService, commandService) {
 		router.Register(def.Method, def.Handler)
 	}
 
@@ -71,7 +84,7 @@ func validEditApplyRequestLine(t *testing.T) string {
 	req := map[string]any{
 		"jsonrpc": "2.0",
 		"id":      1,
-		"method":  "edit/apply",
+		"method":  "edit.apply",
 		"params": map[string]any{
 			"instruction": "insert statement `console.log(\"done\")` inside current function",
 			"activeFile":  "/tmp/example.ts",
@@ -100,6 +113,8 @@ func TestServerEditApplySuccessResult(t *testing.T) {
 				NewText: "\n  console.log(\"done\");\n",
 			},
 		}),
+	}, &voiceTranscriptServiceStub{}, &commandRunServiceStub{
+		result: protocol.CommandRunResult{Kind: "failure"},
 	}, validEditApplyRequestLine(t))
 
 	result, ok := response["result"].(map[string]any)
@@ -119,6 +134,8 @@ func TestServerEditApplyFailureResult(t *testing.T) {
 			Code:    "validation_failed",
 			Message: "unsafe edit",
 		}),
+	}, &voiceTranscriptServiceStub{}, &commandRunServiceStub{
+		result: protocol.CommandRunResult{Kind: "failure"},
 	}, validEditApplyRequestLine(t))
 
 	result, ok := response["result"].(map[string]any)
@@ -135,6 +152,8 @@ func TestServerEditApplyNoopResult(t *testing.T) {
 
 	response := runSingleRequest(t, &editApplyServiceStub{
 		result: protocol.NewEditApplyNoop("No change needed."),
+	}, &voiceTranscriptServiceStub{}, &commandRunServiceStub{
+		result: protocol.CommandRunResult{Kind: "failure"},
 	}, validEditApplyRequestLine(t))
 
 	result, ok := response["result"].(map[string]any)
@@ -153,6 +172,8 @@ func TestServerEditApplyRejectsInvalidMixedResult(t *testing.T) {
 		result: protocol.EditApplyResult{
 			Kind: "success",
 		},
+	}, &voiceTranscriptServiceStub{}, &commandRunServiceStub{
+		result: protocol.CommandRunResult{Kind: "failure"},
 	}, validEditApplyRequestLine(t))
 
 	errorObject, ok := response["error"].(map[string]any)
@@ -169,7 +190,13 @@ func TestServerVoiceTranscriptSuccess(t *testing.T) {
 	t.Parallel()
 
 	request := `{"jsonrpc":"2.0","id":1,"method":"voice.transcript","params":{"text":"hello world"}}`
-	response := runSingleRequest(t, &editApplyServiceStub{}, request)
+	response := runSingleRequest(
+		t,
+		&editApplyServiceStub{},
+		&voiceTranscriptServiceStub{},
+		&commandRunServiceStub{result: protocol.CommandRunResult{Kind: "failure"}},
+		request,
+	)
 
 	result, ok := response["result"].(map[string]any)
 	if !ok {
@@ -185,7 +212,13 @@ func TestServerVoiceTranscriptRejectsEmptyText(t *testing.T) {
 	t.Parallel()
 
 	request := `{"jsonrpc":"2.0","id":1,"method":"voice.transcript","params":{"text":"   "}}`
-	response := runSingleRequest(t, &editApplyServiceStub{}, request)
+	response := runSingleRequest(
+		t,
+		&editApplyServiceStub{},
+		&voiceTranscriptServiceStub{},
+		&commandRunServiceStub{result: protocol.CommandRunResult{Kind: "failure"}},
+		request,
+	)
 
 	errorObject, ok := response["error"].(map[string]any)
 	if !ok {
@@ -194,5 +227,84 @@ func TestServerVoiceTranscriptRejectsEmptyText(t *testing.T) {
 
 	if got := errorObject["code"]; got != float64(-32602) {
 		t.Fatalf("expected invalid params error code -32602, got %#v", got)
+	}
+}
+
+func TestServerCommandRunSuccessResult(t *testing.T) {
+	t.Parallel()
+
+	exitCode := int64(0)
+	request := `{"jsonrpc":"2.0","id":1,"method":"command.run","params":{"command":"cmd.exe","args":["/c","echo","hi"]}}`
+	response := runSingleRequest(
+		t,
+		&editApplyServiceStub{},
+		&voiceTranscriptServiceStub{},
+		&commandRunServiceStub{
+			result: protocol.CommandRunResult{
+				Kind:     "success",
+				ExitCode: &exitCode,
+				Stdout:   "hi",
+				Stderr:   "",
+			},
+		},
+		request,
+	)
+
+	result, ok := response["result"].(map[string]any)
+	if !ok {
+		t.Fatalf("expected result object, got: %#v", response["result"])
+	}
+
+	if got := result["kind"]; got != "success" {
+		t.Fatalf("expected success kind, got %#v", got)
+	}
+}
+
+func TestServerCommandRunRejectsEmptyCommand(t *testing.T) {
+	t.Parallel()
+
+	request := `{"jsonrpc":"2.0","id":1,"method":"command.run","params":{"command":"   "}}`
+	response := runSingleRequest(
+		t,
+		&editApplyServiceStub{},
+		&voiceTranscriptServiceStub{},
+		&commandRunServiceStub{result: protocol.CommandRunResult{Kind: "failure"}},
+		request,
+	)
+
+	errorObject, ok := response["error"].(map[string]any)
+	if !ok {
+		t.Fatalf("expected error object, got: %#v", response)
+	}
+
+	if got := errorObject["code"]; got != float64(-32602) {
+		t.Fatalf("expected invalid params error code -32602, got %#v", got)
+	}
+}
+
+func TestServerCommandRunRejectsInvalidMixedResult(t *testing.T) {
+	t.Parallel()
+
+	// Missing exitCode for kind=success should fail protocol validation.
+	request := `{"jsonrpc":"2.0","id":1,"method":"command.run","params":{"command":"cmd.exe"}}`
+	response := runSingleRequest(
+		t,
+		&editApplyServiceStub{},
+		&voiceTranscriptServiceStub{},
+		&commandRunServiceStub{
+			result: protocol.CommandRunResult{
+				Kind: "success",
+			},
+		},
+		request,
+	)
+
+	errorObject, ok := response["error"].(map[string]any)
+	if !ok {
+		t.Fatalf("expected error object, got: %#v", response)
+	}
+
+	if got := errorObject["code"]; got != float64(-32000) {
+		t.Fatalf("expected internal error code -32000, got %#v", got)
 	}
 }

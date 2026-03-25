@@ -9,6 +9,7 @@ const outFile = path.join(outDir, "types.generated.go");
 const entries = [
   { file: "common.schema.json", def: "Anchor", name: "Anchor" },
   { file: "common.schema.json", def: "EditFailure", name: "EditFailure" },
+  { file: "common.schema.json", def: "CommandFailure", name: "CommandFailure" },
   {
     file: "edit-action.replace-between-anchors.schema.json",
     name: "ReplaceBetweenAnchorsAction",
@@ -25,6 +26,14 @@ const entries = [
   {
     file: "voice-transcript.result.schema.json",
     name: "VoiceTranscriptResult",
+  },
+  {
+    file: "command-run.params.schema.json",
+    name: "CommandRunParams",
+  },
+  {
+    file: "command-run.result.schema.json",
+    name: "CommandRunResult",
   },
 ];
 

@@ -6,11 +6,14 @@ import type {
   PingResult,
   VoiceTranscriptParams,
   VoiceTranscriptResult,
+  CommandRunParams,
+  CommandRunResult,
 } from "@vocode/protocol";
 import {
   isEditApplyResult,
   isPingResult,
   isVoiceTranscriptResult,
+  isCommandRunResult,
 } from "@vocode/protocol";
 
 import { RpcTransport } from "./rpc-transport";
@@ -42,7 +45,7 @@ export class DaemonClient {
 
   public applyEdit(params: EditApplyParams): Promise<EditApplyResult> {
     return this.sendRequest<EditApplyResult>(
-      "edit/apply",
+      "edit.apply",
       params,
       isEditApplyResult,
     );
@@ -55,6 +58,16 @@ export class DaemonClient {
       "voice.transcript",
       params,
       isVoiceTranscriptResult,
+    );
+  }
+
+  public commandRun(
+    params: CommandRunParams,
+  ): Promise<CommandRunResult> {
+    return this.sendRequest<CommandRunResult>(
+      "command.run",
+      params,
+      isCommandRunResult,
     );
   }
 

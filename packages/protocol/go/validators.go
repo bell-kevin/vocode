@@ -29,7 +29,7 @@ func (r EditApplyResult) Validate() error {
 			return errors.New("noop result must not contain actions or failure")
 		}
 	default:
-		return errors.New("unknown edit/apply result kind")
+		return errors.New("unknown edit.apply result kind")
 	}
 
 	return nil
@@ -38,6 +38,29 @@ func (r EditApplyResult) Validate() error {
 func (r VoiceTranscriptResult) Validate() error {
 	if !r.Accepted {
 		return errors.New("voice transcript result must have accepted=true")
+	}
+
+	return nil
+}
+
+func (r CommandRunResult) Validate() error {
+	switch r.Kind {
+	case "success":
+		if r.Failure != nil {
+			return errors.New("command.run success result must not include failure")
+		}
+		if r.ExitCode == nil {
+			return errors.New("command.run success result must include exitCode")
+		}
+	case "failure":
+		if r.Failure == nil {
+			return errors.New("command.run failure result must include failure")
+		}
+		if r.ExitCode != nil {
+			return errors.New("command.run failure result must not include exitCode")
+		}
+	default:
+		return errors.New("unknown command.run result kind")
 	}
 
 	return nil

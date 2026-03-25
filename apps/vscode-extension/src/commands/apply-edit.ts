@@ -59,7 +59,7 @@ export const applyEditCommand: CommandDefinition = {
     const result = await client.applyEdit(params);
 
     if (!isEditApplyResult(result)) {
-      throw new Error("Daemon returned an invalid edit/apply result.");
+      throw new Error("Daemon returned an invalid edit.apply result.");
     }
 
     switch (result.kind) {

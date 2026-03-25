@@ -26,6 +26,14 @@ const entries = [
     file: "voice-transcript.result.schema.json",
     name: "VoiceTranscriptResult",
   },
+  {
+    file: "command-run.params.schema.json",
+    name: "CommandRunParams",
+  },
+  {
+    file: "command-run.result.schema.json",
+    name: "CommandRunResult",
+  },
 ];
 
 mkdirSync(outDir, { recursive: true });

@@ -63,9 +63,9 @@ Does not own:
 - Planning/orchestration/business logic
 - Editor or transport implementations
 
-## Edit/apply contract
+## edit.apply contract
 
-`edit/apply` returns one explicit variant:
+`edit.apply` returns one explicit variant:
 
 - `success` with `actions`
 - `failure` with `failure`

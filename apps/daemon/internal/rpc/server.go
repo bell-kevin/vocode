@@ -114,6 +114,13 @@ func (s *Server) validateResult(result any) error {
 			return nil
 		}
 		return v.Validate()
+	case protocol.CommandRunResult:
+		return v.Validate()
+	case *protocol.CommandRunResult:
+		if v == nil {
+			return nil
+		}
+		return v.Validate()
 	default:
 		return nil
 	}

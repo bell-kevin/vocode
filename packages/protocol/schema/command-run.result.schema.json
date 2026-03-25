@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vocoding.net/schemas/command-run.result.schema.json",
+  "title": "CommandRunResult",
+  "oneOf": [
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "kind": { "const": "success" },
+        "exitCode": { "type": "integer" },
+        "stdout": { "type": "string" },
+        "stderr": { "type": "string" }
+      },
+      "required": ["kind", "exitCode", "stdout", "stderr"]
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "kind": { "const": "failure" },
+        "failure": { "$ref": "./common.schema.json#/$defs/CommandFailure" },
+        "stdout": { "type": "string" },
+        "stderr": { "type": "string" }
+      },
+      "required": ["kind", "failure", "stdout", "stderr"]
+    }
+  ]
+}
+

@@ -3,6 +3,7 @@ import type {
   EditApplyResult,
   PingResult,
   VoiceTranscriptResult,
+  CommandRunResult,
 } from "./types.generated";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -94,4 +95,41 @@ export function isVoiceTranscriptResult(
     hasOnlyKeys(value, ["accepted"]) &&
     value.accepted === true
   );
+}
+
+export function isCommandRunResult(
+  value: unknown,
+): value is CommandRunResult {
+  if (!isRecord(value) || typeof value.kind !== "string") {
+    return false;
+  }
+
+  switch (value.kind) {
+    case "success":
+      return (
+        hasOnlyKeys(value, ["kind", "exitCode", "stdout", "stderr"]) &&
+        typeof value.exitCode === "number" &&
+        typeof value.stdout === "string" &&
+        typeof value.stderr === "string"
+      );
+    case "failure": {
+      const failure = value.failure;
+      const validCodes = new Set([
+        "command_rejected",
+        "execution_failed",
+        "timeout",
+      ]);
+
+      return (
+        hasOnlyKeys(value, ["kind", "failure"]) &&
+        isRecord(failure) &&
+        hasOnlyKeys(failure, ["code", "message"]) &&
+        typeof failure.code === "string" &&
+        validCodes.has(failure.code) &&
+        typeof failure.message === "string"
+      );
+    }
+    default:
+      return false;
+  }
 }
