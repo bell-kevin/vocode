@@ -18,11 +18,11 @@ export function registerCommands(
             return;
           }
 
-          await definition.run(services.client);
+          await definition.run(services.client, services);
           return;
         }
 
-        await definition.run();
+        await definition.run(services);
       } catch (error) {
         const message =
           error instanceof Error ? error.message : "Unknown command error";
