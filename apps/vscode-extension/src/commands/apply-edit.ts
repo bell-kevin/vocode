@@ -5,6 +5,8 @@ import * as vscode from "vscode";
 import { applyReplaceBetweenAnchors } from "./apply-edit-helpers";
 import type { CommandDefinition } from "./types";
 
+// TEMPORARY: Replace the whole document with the new text.
+// TODO: Replace the structured edit with the new data
 async function replaceWholeDocument(
   editor: vscode.TextEditor,
   newText: string,

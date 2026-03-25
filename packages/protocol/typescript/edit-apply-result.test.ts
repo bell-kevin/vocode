@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { isEditApplyResult } from "@vocode/protocol";
+
+import { isEditApplyResult } from "./validators";
 
 test("isEditApplyResult accepts explicit success shape", () => {
   const value = {
@@ -61,3 +62,4 @@ test("isEditApplyResult rejects invalid failure code", () => {
 
   assert.equal(isEditApplyResult(value), false);
 });
+
