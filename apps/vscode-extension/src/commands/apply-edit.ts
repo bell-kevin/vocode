@@ -1,4 +1,8 @@
-import type { EditApplyParams } from "@vocode/protocol";
+import type {
+  EditAction,
+  EditApplyParams,
+  ReplaceBetweenAnchorsAction,
+} from "@vocode/protocol";
 import { isEditApplyResult } from "@vocode/protocol";
 import * as vscode from "vscode";
 
@@ -8,6 +12,31 @@ import type { CommandDefinition } from "./types";
 interface DocumentEditState {
   document: vscode.TextDocument;
   nextText: string;
+}
+
+function describeAction(action: EditAction): string {
+  switch (action.kind) {
+    case "replace_between_anchors":
+      return describeReplaceBetweenAnchorsAction(action);
+    default:
+      return "Editing file…";
+  }
+}
+
+function describeReplaceBetweenAnchorsAction(
+  action: ReplaceBetweenAnchorsAction,
+): string {
+  const nextText = action.newText.toLowerCase();
+  if (
+    nextText.includes("for (") ||
+    nextText.includes("for(") ||
+    nextText.includes("while (") ||
+    nextText.includes("while(")
+  ) {
+    return "Adding loop…";
+  }
+
+  return `Editing ${vscode.workspace.asRelativePath(action.path, false)}…`;
 }
 
 export const applyEditCommand: CommandDefinition = {
@@ -39,7 +68,18 @@ export const applyEditCommand: CommandDefinition = {
       fileText: document.getText(),
     };
 
-    const result = await client.applyEdit(params);
+    const result = await vscode.window.withProgress(
+      {
+        location: vscode.ProgressLocation.Notification,
+        title: "Vocode",
+      },
+      async (progress) => {
+        progress.report({ message: "Understanding request…" });
+        const response = await client.applyEdit(params);
+        progress.report({ message: "Planning changes…" });
+        return response;
+      },
+    );
 
     if (!isEditApplyResult(result)) {
       throw new Error("Daemon returned an invalid edit.apply result.");
@@ -69,6 +109,8 @@ export const applyEditCommand: CommandDefinition = {
         const documentsByPath = new Map<string, DocumentEditState>();
 
         for (const action of result.actions) {
+          void vscode.window.setStatusBarMessage(describeAction(action), 2_000);
+
           let state = documentsByPath.get(action.path);
           if (!state) {
             const actionUri = vscode.Uri.file(action.path);
