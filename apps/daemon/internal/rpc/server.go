@@ -98,29 +98,19 @@ func (s *Server) encodeError(
 	}
 }
 
+type resultValidator interface {
+	Validate() error
+}
+
 func (s *Server) validateResult(result any) error {
 	switch v := result.(type) {
-	case protocol.EditApplyResult:
+	case resultValidator:
 		return v.Validate()
-	case *protocol.EditApplyResult:
+	case *resultValidator:
 		if v == nil {
 			return nil
 		}
-		return v.Validate()
-	case protocol.VoiceTranscriptResult:
-		return v.Validate()
-	case *protocol.VoiceTranscriptResult:
-		if v == nil {
-			return nil
-		}
-		return v.Validate()
-	case protocol.CommandRunResult:
-		return v.Validate()
-	case *protocol.CommandRunResult:
-		if v == nil {
-			return nil
-		}
-		return v.Validate()
+		return (*v).Validate()
 	default:
 		return nil
 	}
