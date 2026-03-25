@@ -1,4 +1,4 @@
-package app
+package orchestration
 
 import (
 	"vocoding.net/vocode/v2/apps/daemon/internal/agent"

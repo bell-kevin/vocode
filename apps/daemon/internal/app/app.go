@@ -7,6 +7,7 @@ import (
 	"vocoding.net/vocode/v2/apps/daemon/internal/agent"
 	"vocoding.net/vocode/v2/apps/daemon/internal/commandexec"
 	"vocoding.net/vocode/v2/apps/daemon/internal/edits"
+	"vocoding.net/vocode/v2/apps/daemon/internal/orchestration"
 	"vocoding.net/vocode/v2/apps/daemon/internal/rpc"
 	"vocoding.net/vocode/v2/apps/daemon/internal/transcript"
 )
@@ -27,8 +28,9 @@ func New(opts Options) (*App, error) {
 	agentService := agent.NewService()
 	editService := edits.NewService()
 	voiceService := transcript.NewService()
-	editOrchestrator := NewEditOrchestrator(agentService, editService)
 	commandService := commandexec.NewService()
+
+	editOrchestrator := orchestration.NewEditOrchestrator(agentService, editService)
 
 	router := rpc.NewRouter(opts.Logger)
 	for _, def := range rpc.BuildHandlers(editOrchestrator, voiceService, commandService) {
