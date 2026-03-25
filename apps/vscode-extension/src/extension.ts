@@ -2,7 +2,10 @@ import * as vscode from "vscode";
 
 import { DaemonClient } from "./client/daemon-client";
 import { registerAllCommands } from "./commands";
-import type { ExtensionServices } from "./commands/services";
+import {
+  type ExtensionServices,
+  VoiceSessionController,
+} from "./commands/services";
 import { spawnDaemon } from "./daemon/spawn";
 import { VoiceStatusIndicator } from "./ui/status-bar";
 
@@ -17,6 +20,7 @@ function createServices(
     return {
       client: new DaemonClient(daemon.process),
       voiceStatus,
+      voiceSession: new VoiceSessionController(),
     };
   } catch (error) {
     const message =
@@ -30,6 +34,7 @@ function createServices(
     return {
       client: null,
       voiceStatus,
+      voiceSession: new VoiceSessionController(),
     };
   }
 }

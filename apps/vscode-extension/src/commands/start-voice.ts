@@ -5,34 +5,14 @@ import type { CommandDefinition } from "./types";
 export const startVoiceCommand: CommandDefinition = {
   id: "vocode.startVoice",
   requiresDaemon: true,
-  run: async (client, services) => {
-    services.voiceStatus.setListening();
-
-    const text = await vscode.window.showInputBox({
-      title: "Vocode Voice Transcript",
-      prompt: "Enter transcript text to send to the daemon",
-      placeHolder: "Refactor this function to handle empty input safely",
-      ignoreFocusOut: true,
-    });
-
-    if (!text) {
-      services.voiceStatus.setIdle();
+  run: (_client, services) => {
+    if (services.voiceSession.isRunning()) {
+      void vscode.window.showInformationMessage("Vocode is already listening.");
       return;
     }
 
-    try {
-      services.voiceStatus.setProcessing();
-      await client.voiceTranscript({ text });
-
-      void vscode.window.showInformationMessage(
-        "Vocode transcript sent to daemon.",
-      );
-    } catch (err) {
-      const message =
-        err instanceof Error ? err.message : "Failed to send transcript.";
-      void vscode.window.showWarningMessage(message);
-    } finally {
-      services.voiceStatus.setIdle();
-    }
+    services.voiceSession.start();
+    services.voiceStatus.setListening();
+    void vscode.window.showInformationMessage("Vocode started listening.");
   },
 };

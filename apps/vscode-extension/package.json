@@ -30,6 +30,10 @@
         "title": "Vocode: Stop Voice"
       },
       {
+        "command": "vocode.sendTranscript",
+        "title": "Vocode: Send Transcript"
+      },
+      {
         "command": "vocode.applyEdit",
         "title": "Vocode: Apply Edit"
       },

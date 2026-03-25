@@ -4,6 +4,7 @@ import { applyEditCommand } from "./apply-edit";
 import { registerCommands } from "./helpers";
 import { pingCommand } from "./ping";
 import { runCommand } from "./run-command";
+import { sendTranscriptCommand } from "./send-transcript";
 import type { ExtensionServices } from "./services";
 import { startVoiceCommand } from "./start-voice";
 import { stopVoiceCommand } from "./stop-voice";
@@ -14,6 +15,7 @@ const definitions: CommandDefinition[] = [
   applyEditCommand,
   startVoiceCommand,
   stopVoiceCommand,
+  sendTranscriptCommand,
   runCommand,
 ];
 

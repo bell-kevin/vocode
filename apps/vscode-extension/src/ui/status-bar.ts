@@ -66,6 +66,11 @@ export class VoiceStatusIndicator implements vscode.Disposable {
   private render(): void {
     const meta = STATE_META[this.state];
     this.item.text = `${meta.icon} Vocode: ${meta.label}`;
-    this.item.tooltip = meta.tooltip;
+    this.item.command =
+      this.state === "idle" ? "vocode.startVoice" : "vocode.stopVoice";
+    this.item.tooltip =
+      this.state === "idle"
+        ? `${meta.tooltip}. Click to start voice.`
+        : `${meta.tooltip}. Click to stop voice.`;
   }
 }
