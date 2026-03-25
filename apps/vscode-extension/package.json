@@ -12,7 +12,9 @@
     "AI"
   ],
   "main": "./dist/extension.js",
-  "activationEvents": ["onStartupFinished"],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
   "contributes": {
     "commands": [
       {

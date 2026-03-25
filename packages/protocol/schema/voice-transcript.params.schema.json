@@ -1,0 +1,11 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vocoding.net/schemas/voice-transcript.params.schema.json",
+  "title": "VoiceTranscriptParams",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "text": { "type": "string" }
+  },
+  "required": ["text"]
+}

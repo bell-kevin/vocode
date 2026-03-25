@@ -34,3 +34,11 @@ func (r EditApplyResult) Validate() error {
 
 	return nil
 }
+
+func (r VoiceTranscriptResult) Validate() error {
+	if !r.Accepted {
+		return errors.New("voice transcript result must have accepted=true")
+	}
+
+	return nil
+}

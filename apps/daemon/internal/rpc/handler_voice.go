@@ -2,32 +2,26 @@ package rpc
 
 import (
 	"encoding/json"
-	"strings"
 
 	protocol "vocoding.net/vocode/v2/packages/protocol/go"
 )
 
-type VoiceTranscriptParams struct {
-	Text string `json:"text"`
-}
-
-type VoiceTranscriptResult struct {
-	Accepted bool `json:"accepted"`
-}
-
-func NewVoiceTranscriptHandler() Handler {
+func NewVoiceTranscriptHandler(
+	voiceService VoiceTranscriptService,
+) Handler {
 	return func(
 		req protocol.JSONRPCRequest[json.RawMessage],
 	) (any, *protocol.JSONRPCErrorObject) {
-		params, rpcErr := DecodeParams[VoiceTranscriptParams](req.Params)
+		params, rpcErr := DecodeParams[protocol.VoiceTranscriptParams](req.Params)
 		if rpcErr != nil {
 			return nil, rpcErr
 		}
 
-		if strings.TrimSpace(params.Text) == "" {
+		result, ok := voiceService.AcceptTranscript(params)
+		if !ok {
 			return nil, NewInvalidParamsError()
 		}
 
-		return VoiceTranscriptResult{Accepted: true}, nil
+		return result, nil
 	}
 }

@@ -107,6 +107,13 @@ func (s *Server) validateResult(result any) error {
 			return nil
 		}
 		return v.Validate()
+	case protocol.VoiceTranscriptResult:
+		return v.Validate()
+	case *protocol.VoiceTranscriptResult:
+		if v == nil {
+			return nil
+		}
+		return v.Validate()
 	default:
 		return nil
 	}

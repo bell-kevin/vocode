@@ -4,14 +4,15 @@ import type {
   EditApplyResult,
   PingParams,
   PingResult,
+  VoiceTranscriptParams,
+  VoiceTranscriptResult,
 } from "@vocode/protocol";
-import { isEditApplyResult, isPingResult } from "@vocode/protocol";
-
 import {
+  isEditApplyResult,
+  isPingResult,
   isVoiceTranscriptResult,
-  type VoiceTranscriptParams,
-  type VoiceTranscriptResult,
-} from "./requests";
+} from "@vocode/protocol";
+
 import { RpcTransport } from "./rpc-transport";
 
 export class DaemonClient {
@@ -35,11 +36,11 @@ export class DaemonClient {
     return result as T;
   }
 
-  public async ping(params: PingParams = {}): Promise<PingResult> {
+  public ping(params: PingParams = {}): Promise<PingResult> {
     return this.sendRequest<PingResult>("ping", params, isPingResult);
   }
 
-  public async applyEdit(params: EditApplyParams): Promise<EditApplyResult> {
+  public applyEdit(params: EditApplyParams): Promise<EditApplyResult> {
     return this.sendRequest<EditApplyResult>(
       "edit/apply",
       params,
@@ -47,7 +48,7 @@ export class DaemonClient {
     );
   }
 
-  public async voiceTranscript(
+  public voiceTranscript(
     params: VoiceTranscriptParams,
   ): Promise<VoiceTranscriptResult> {
     return this.sendRequest<VoiceTranscriptResult>(

@@ -20,11 +20,24 @@ func (s *editApplyServiceStub) Apply(_ protocol.EditApplyParams) (protocol.EditA
 	return s.result, s.err
 }
 
-func runSingleRequest(t *testing.T, service EditApplyService, requestLine string) map[string]any {
+type voiceTranscriptServiceStub struct{}
+
+func (s *voiceTranscriptServiceStub) AcceptTranscript(
+	params protocol.VoiceTranscriptParams,
+) (protocol.VoiceTranscriptResult, bool) {
+	if strings.TrimSpace(params.Text) == "" {
+		return protocol.VoiceTranscriptResult{}, false
+	}
+
+	return protocol.VoiceTranscriptResult{Accepted: true}, true
+}
+
+func runSingleRequest(t *testing.T, editService EditApplyService, requestLine string) map[string]any {
 	t.Helper()
 
 	router := NewRouter(log.New(io.Discard, "", 0))
-	for _, def := range BuildHandlers(service) {
+	voiceService := &voiceTranscriptServiceStub{}
+	for _, def := range BuildHandlers(editService, voiceService) {
 		router.Register(def.Method, def.Handler)
 	}
 

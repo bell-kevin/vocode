@@ -25,9 +25,10 @@ func New(opts Options) (*App, error) {
 	agentService := agent.NewService()
 	editService := edits.NewService()
 	editOrchestrator := NewEditOrchestrator(agentService, editService)
+	voiceService := NewVoiceTranscriptService()
 
 	router := rpc.NewRouter(opts.Logger)
-	for _, def := range rpc.BuildHandlers(editOrchestrator) {
+	for _, def := range rpc.BuildHandlers(editOrchestrator, voiceService) {
 		router.Register(def.Method, def.Handler)
 	}
 

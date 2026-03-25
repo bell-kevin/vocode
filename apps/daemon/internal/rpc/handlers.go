@@ -11,7 +11,12 @@ type EditApplyService interface {
 	Apply(params protocol.EditApplyParams) (protocol.EditApplyResult, error)
 }
 
-func BuildHandlers(editService EditApplyService) []HandlerDefinition {
+type VoiceTranscriptService interface {
+	// AcceptTranscript returns ok=false for semantically invalid params.
+	AcceptTranscript(params protocol.VoiceTranscriptParams) (protocol.VoiceTranscriptResult, bool)
+}
+
+func BuildHandlers(editService EditApplyService, voiceService VoiceTranscriptService) []HandlerDefinition {
 	return []HandlerDefinition{
 		{
 			Method:  "ping",
@@ -23,7 +28,7 @@ func BuildHandlers(editService EditApplyService) []HandlerDefinition {
 		},
 		{
 			Method:  "voice.transcript",
-			Handler: NewVoiceTranscriptHandler(),
+			Handler: NewVoiceTranscriptHandler(voiceService),
 		},
 	}
 }

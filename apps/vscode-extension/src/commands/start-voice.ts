@@ -9,27 +9,24 @@ export const startVoiceCommand: CommandDefinition = {
     const text = await vscode.window.showInputBox({
       title: "Vocode Voice Transcript",
       prompt: "Enter transcript text to send to the daemon",
-      placeHolder: "Summarize the discussion about migrating our backend to a new database",
+      placeHolder: "Refactor this function to handle empty input safely",
       ignoreFocusOut: true,
-      validateInput: (value) =>
-        value.trim().length === 0 ? "Transcript text cannot be empty." : null,
     });
 
     if (!text) {
       return;
     }
 
-    const result = await client.voiceTranscript({ text });
+    try {
+      await client.voiceTranscript({ text });
 
-    if (result.accepted) {
       void vscode.window.showInformationMessage(
         "Vocode transcript sent to daemon.",
       );
-      return;
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Failed to send transcript.";
+      void vscode.window.showWarningMessage(message);
     }
-
-    void vscode.window.showWarningMessage(
-      "Daemon did not accept transcript.",
-    );
   },
 };

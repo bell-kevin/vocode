@@ -18,6 +18,14 @@ const entries = [
   { file: "ping.result.schema.json", name: "PingResult" },
   { file: "edit-apply.params.schema.json", name: "EditApplyParams" },
   { file: "edit-apply.result.schema.json", name: "EditApplyResult" },
+  {
+    file: "voice-transcript.params.schema.json",
+    name: "VoiceTranscriptParams",
+  },
+  {
+    file: "voice-transcript.result.schema.json",
+    name: "VoiceTranscriptResult",
+  },
 ];
 
 const schemaCache = new Map();

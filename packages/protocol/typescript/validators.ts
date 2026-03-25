@@ -2,6 +2,7 @@ import type {
   EditAction,
   EditApplyResult,
   PingResult,
+  VoiceTranscriptResult,
 } from "./types.generated";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -83,4 +84,14 @@ export function isEditApplyResult(value: unknown): value is EditApplyResult {
     default:
       return false;
   }
+}
+
+export function isVoiceTranscriptResult(
+  value: unknown,
+): value is VoiceTranscriptResult {
+  return (
+    isRecord(value) &&
+    hasOnlyKeys(value, ["accepted"]) &&
+    value.accepted === true
+  );
 }
