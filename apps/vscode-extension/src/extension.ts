@@ -15,11 +15,9 @@ function createServices(
   voiceStatus: VoiceStatusIndicator,
 ): ExtensionServices {
   const microphone = new MicrophoneCapture();
-  const debugAudioLogging =
-    vscode.workspace.getConfiguration("vocode").get<boolean>(
-      "debugAudioLogging",
-      false,
-    );
+  const debugAudioLogging = vscode.workspace
+    .getConfiguration("vocode")
+    .get<boolean>("debugAudioLogging", false);
 
   const audioChunkSubscription = microphone.onAudioChunk(({ data }) => {
     if (debugAudioLogging) {

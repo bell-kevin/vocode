@@ -1,0 +1,236 @@
+# Agent Guidance (Architecture Contract)
+
+This workspace is intentionally split into two execution hosts with strict ownership boundaries:
+
+1. **Daemon (`apps/daemon`)**: reasoning + semantic safety policy + converting model output into validated, protocol-shaped results.
+2. **VS Code extension (`apps/vscode-extension`)**: transport client calls + deterministic editor mechanical apply + executing allowed shell commands + user messaging.
+
+Agents must preserve these boundaries to keep behavior predictable and to avoid “side doors”.
+
+## End Goal Mental Model (Contract-First)
+
+One “turn” starts when the extension calls the daemon RPC:
+
+`voice.transcript(text, activeFile?)` → `VoiceTranscriptResult`
+
+### What the daemon guarantees
+
+1. The daemon turns the transcript into an `ActionPlan` (validated).
+2. The daemon executes the plan *step-by-step* using `actionplan/dispatch.Dispatcher`.
+3. The daemon returns a `VoiceTranscriptResult` where `steps` is an ordered list.
+4. Each step is exactly one of:
+   - `kind: "edit"` with an `editResult` (a single explicit variant of `EditApplyResult`)
+   - `kind: "run_command"` with `commandParams` (daemon-validated command shape; extension executes)
+
+### What the extension guarantees
+
+1. The extension iterates `VoiceTranscriptResult.steps` sequentially.
+2. For `edit` steps, it applies daemon-provided edit actions mechanically using `workspace.applyEdit`.
+3. For `run_command` steps, it runs the command parameters using an allowlisted runner (no additional semantic policy).
+4. If any step fails, the extension stops processing subsequent steps.
+
+### Invariant: no mixed-state payloads
+
+- `EditApplyResult` must be exactly one explicit variant: `success` (with `actions`) or `failure` (with `failure`) or `noop` (with `reason`).
+- “Mixed-state” (multiple variants at once) is invalid and must be rejected/avoided. Keep schema, generated types, and runtime validators aligned.
+
+### Invariant: no daemon “execution RPCs”
+
+- The extension does not call `edit.apply` or `command.run`.
+- The agent execution entrypoint is `voice.transcript`.
+
+## Layering and Ownership (Where Logic Belongs)
+
+### Daemon owns
+
+- Meaning and safety decisions (semantic validation, deterministic failure/noop behavior)
+- Action construction and orchestration
+- Converting intents into protocol-shaped result variants
+- Deterministic “what to do next” ordering via the dispatcher
+
+### Extension owns
+
+- VS Code lifecycle and transport client calls
+- Mechanical editor apply
+- User-facing status/error/warning messaging
+- Executing allowed commands and surfacing outputs
+- Runtime shape checks using `@vocode/protocol` validators
+
+### Protocol owns
+
+- JSON schema source of truth
+- Generated TypeScript and Go types
+- Runtime validators used at integration boundaries
+
+## Quick Ownership Guide
+
+- UI behavior, command flow, editor operations → extension.
+- Meaning/safety decisions, planning, action construction → daemon.
+- Payload shape and validation contract → protocol.
+
+One rule should have one owner. Duplicating ownership is a regression risk.
+
+## What agents must not do
+
+- Do not add daemon-side execution calls to run shell commands. The daemon should validate and return `commandParams`; the extension executes.
+- Do not add new RPC endpoints like `edit.apply` or `command.run`. Keep the main entrypoint as `voice.transcript`.
+- Do not move semantic policy logic into the extension (keep it in daemon-owned layers).
+- Do not mix editor/transport policy decisions with planning/orchestration.
+
+## Where to look (key files)
+
+### Daemon
+
+- Agent/runtime: `apps/daemon/internal/agent`
+- ActionPlan types + validation: `apps/daemon/internal/actionplan`
+- Step-by-step dispatcher: `apps/daemon/internal/actionplan/dispatch`
+- Edit intent → protocol edit actions: `apps/daemon/internal/edits`
+- Command safety validation: `apps/daemon/internal/commandexec`
+- RPC adapter: `apps/daemon/internal/transcript/service.go`
+
+### Extension
+
+- Send transcript: `apps/vscode-extension/src/commands/send-transcript/run.ts`
+- Present/execute steps: `apps/vscode-extension/src/commands/send-transcript/present-result.ts`
+- Mechanical edit apply: `apps/vscode-extension/src/edits/apply-workspace-edits.ts`
+- Allowed command execution runner: `apps/vscode-extension/src/commandexec/execute-command.ts`
+- Daemon client: `apps/vscode-extension/src/client/daemon-client.ts`
+- Audio capture (raw audio ingestion): `apps/vscode-extension/src/voice/microphone.ts`
+
+  Rule: downstream STT must eventually produce transcript text, which is sent to the daemon via `voice.transcript`.
+
+## Extending the system (checklist)
+
+### Add a new edit capability
+
+1. Add/extend `EditIntentKind` + validation in `apps/daemon/internal/actionplan`.
+2. Update `apps/daemon/internal/edits/ActionBuilder` to map intent + file snapshot → protocol edit actions.
+3. Update the extension mechanical apply logic if you introduce a new protocol action kind.
+4. Add tests in the owning layers:
+   - daemon: intent parsing/validation + action building
+   - extension: mechanical apply behavior for the new action kind
+   - protocol: validator acceptance/rejection if you updated schemas
+
+### Add a new command capability
+
+1. Ensure the model can emit a `RunCommandIntent` that maps to protocol `commandParams`.
+2. Update daemon allowlist in `apps/daemon/internal/commandexec/policy.go`.
+3. Update extension allowlist in `apps/vscode-extension/src/commandexec/execute-command.ts`.
+4. Keep execution semantics in the extension; keep command-shape validation in the daemon.
+
+### Change how step ordering/failure semantics works
+
+- Step ordering is contractually sequential: the dispatcher iterates in order and the extension processes returned steps in order.
+- If failure semantics change, update both:
+  - daemon: when it stops producing later step results
+  - extension: when it stops processing returned steps
+
+## Developer Playbooks (Short Summary)
+
+### Add a new extension command
+
+1. Add a new command file under `apps/vscode-extension/src/commands`.
+2. Register it in the extension command registry.
+3. If it talks to the daemon, call client methods only (no daemon policy logic in the command).
+4. Add/extend extension tests for the new command behavior.
+
+Rules:
+- Keep command logic orchestration/UI-level.
+- Any semantic safety logic belongs in daemon-owned layers.
+
+### Add a new RPC method
+
+1. Add protocol schema(s) for params/result in `packages/protocol/schema`.
+2. Run `pnpm codegen`.
+3. Update runtime validators if the schema requires it.
+4. Add a daemon handler under `apps/daemon/internal/rpc`:
+   - decode params
+   - call one daemon entrypoint (thin handler)
+   - return result or structured RPC error
+5. Update the extension daemon client and command usage.
+6. Add RPC-level tests for success/failure/noop and invalid-result rejection when invariants exist.
+
+Rules:
+- Handlers must stay thin.
+- Transport must not perform planning.
+- If a request crosses multiple daemon domains, route through app-level orchestration.
+
+### Add a new edit action type
+
+1. Add action schema in `packages/protocol/schema`.
+2. Wire the action union schema updates.
+3. Regenerate TS/Go protocol types with `pnpm codegen`.
+4. Implement daemon action building/validation in `apps/daemon/internal/edits`.
+5. Implement extension mechanical apply logic for the new action kind.
+6. Add tests:
+   - daemon action-building + validation tests
+   - extension action-application tests
+   - protocol validator acceptance/rejection tests
+
+Rules:
+- Daemon decides whether an action is safe/valid to emit.
+- Extension only applies actions deterministically (no semantic policy).
+
+### Add a new edit-planner capability
+
+1. Extend agent edit intent handling/validation in `apps/daemon/internal/agent`.
+2. Ensure the agent emits deterministic `EditIntent` (or structured `EditFailure`).
+3. Ensure `edits.Service.ApplyIntent` maps intent + file snapshot to the correct `EditApplyResult` variants.
+4. Add planner tests for supported/unsupported instruction expectations and failure codes.
+
+Rules:
+- Planner should fail closed when intent is unclear.
+- Edits layer should not parse natural language.
+- Keep failure codes intentional and tested.
+
+## Contributor Checklist (Boundary Safety)
+
+Before merging:
+
+- `internal/app` remains composition + orchestration owner.
+- `internal/rpc` remains transport/routing only (thin handlers).
+- `edits.Service.ApplyIntent` wraps `BuildActions` into protocol `EditApplyResult` (not an RPC).
+- Extension contains only mechanical apply + UI-level orchestration; no semantic policy duplication.
+- Protocol schema/types/validators/runtime behavior stay aligned.
+- Tests cover variant invariants and boundary behavior.
+
+## Protocol & Codegen Rules
+
+- Treat `packages/protocol/schema` as source of truth.
+- After schema changes, regenerate code/validators via `pnpm codegen`.
+- Never “hand edit” generated protocol files; keep schema/types/validators aligned.
+
+## Project Scripts (root `package.json`)
+
+These are the scripts you should run for cleanliness and correctness:
+
+- `pnpm build`: runs `turbo run build` across packages.
+- `pnpm test`: runs `turbo run test`.
+- `pnpm typecheck`: runs `turbo run typecheck`.
+- `pnpm lint`: `biome check .` (read-only; use for verification).
+- `pnpm lint:fix`: `biome check --write .` (auto-fix formatting/import/lint issues).
+- `pnpm format`: `biome format .` (format without writing lint fixes).
+- `pnpm format:write`: `biome format --write .` (write formatter output).
+- `pnpm fix`: `pnpm lint:fix && go fmt ./...`.
+- `pnpm codegen`: runs:
+  - `pnpm codegen:ts`: `node scripts/codegen/generate-protocol-ts.mjs && pnpm --filter @vocode/protocol build`
+  - `pnpm codegen:go`: `node scripts/codegen/generate-protocol-go.mjs`
+- `pnpm dev`: `turbo run dev --parallel`.
+
+## Anti-patterns (regression risks)
+
+- Handler doing planning or target resolution.
+- `internal/edits` orchestrating `internal/agent`.
+- Extension re-deciding semantic policy already owned by daemon.
+- Ambiguous/overloaded result shapes (breaks runtime validators and tests).
+- Adding “temporary” policy logic in the extension to unblock daemon work.
+
+## Testing expectations for boundary safety
+
+When touching architecture-sensitive code, add tests in the owning layer:
+
+- RPC/tests: transport behavior + invalid-result rejection.
+- Agent tests: supported parsing + unsupported/failure code expectations.
+- Edits tests: action building and safety validation behavior.
+- Extension tests: mechanical apply behavior + runtime shape handling.
+
