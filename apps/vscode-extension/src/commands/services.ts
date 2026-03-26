@@ -1,5 +1,6 @@
 import type { DaemonClient } from "../client/daemon-client";
 import type { VoiceStatusIndicator } from "../ui/status-bar";
+import type { MicrophoneCapture } from "../voice/microphone";
 
 export class VoiceSessionController {
   private activeSessionId: number | null = null;
@@ -30,4 +31,5 @@ export interface ExtensionServices {
   client: DaemonClient | null;
   voiceStatus: VoiceStatusIndicator;
   voiceSession: VoiceSessionController;
+  microphone: MicrophoneCapture;
 }
