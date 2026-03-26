@@ -8,7 +8,7 @@ import (
 	"vocoding.net/vocode/v2/apps/daemon/internal/agent/stub"
 	"vocoding.net/vocode/v2/apps/daemon/internal/commandexec"
 	"vocoding.net/vocode/v2/apps/daemon/internal/edits"
-	"vocoding.net/vocode/v2/apps/daemon/internal/orchestration"
+	"vocoding.net/vocode/v2/apps/daemon/internal/actionplan/dispatch"
 	"vocoding.net/vocode/v2/apps/daemon/internal/rpc"
 	"vocoding.net/vocode/v2/apps/daemon/internal/transcript"
 )
@@ -28,11 +28,7 @@ type App struct {
 func New(opts Options) (*App, error) {
 	agentRuntime := agent.New(stub.New())
 	editSvc := edits.NewService()
-	editPipeline := orchestration.NewEditApplyPipeline(editSvc)
-	dispatcher := orchestration.NewActionPlanDispatcher(
-		editPipeline,
-		commandexec.NewService(),
-	)
+	dispatcher := dispatch.NewDispatcher(editSvc, commandexec.NewService())
 	voiceService := transcript.NewService(agentRuntime, dispatcher)
 
 	router := rpc.NewRouter(opts.Logger)

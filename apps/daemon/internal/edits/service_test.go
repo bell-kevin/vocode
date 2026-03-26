@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"vocoding.net/vocode/v2/apps/daemon/internal/agent"
+	"vocoding.net/vocode/v2/apps/daemon/internal/actionplan"
 	protocol "vocoding.net/vocode/v2/packages/protocol/go"
 )
 
@@ -19,8 +19,8 @@ func TestApplyInsertStatementInCurrentFunction(t *testing.T) {
 		ActiveFile: "/tmp/single-function.ts",
 		FileText:   fileText,
 	}
-	intent := agent.EditIntent{
-		Kind:      agent.EditIntentInsertStatementInCurrentFunction,
+	intent := actionplan.EditIntent{
+		Kind:      actionplan.EditIntentInsertStatementInCurrentFunction,
 		Statement: `console.log("done")`,
 	}
 
@@ -50,8 +50,8 @@ func TestApplyReplaceCurrentFunctionBody(t *testing.T) {
 		ActiveFile: "/tmp/single-function.ts",
 		FileText:   fileText,
 	}
-	intent := agent.EditIntent{
-		Kind:    agent.EditIntentReplaceCurrentFunctionBody,
+	intent := actionplan.EditIntent{
+		Kind:    actionplan.EditIntentReplaceCurrentFunctionBody,
 		NewText: `console.log("hello from vocode");`,
 	}
 
@@ -79,8 +79,8 @@ func TestApplyFailsForAmbiguousCurrentFunction(t *testing.T) {
 		ActiveFile: "/tmp/multi-function.ts",
 		FileText:   fileText,
 	}
-	intent := agent.EditIntent{
-		Kind:      agent.EditIntentInsertStatementInCurrentFunction,
+	intent := actionplan.EditIntent{
+		Kind:      actionplan.EditIntentInsertStatementInCurrentFunction,
 		Statement: `console.log("done")`,
 	}
 
@@ -102,8 +102,8 @@ func TestApplyReplaceAnchoredBlock(t *testing.T) {
 		ActiveFile: "/tmp/anchored-block.ts",
 		FileText:   fileText,
 	}
-	intent := agent.EditIntent{
-		Kind:    agent.EditIntentReplaceAnchoredBlock,
+	intent := actionplan.EditIntent{
+		Kind:    actionplan.EditIntentReplaceAnchoredBlock,
 		Before:  "export function firstBraceAnchors() {",
 		After:   "}",
 		NewText: "\n  return \"updated\";\n",
@@ -130,8 +130,8 @@ func TestApplyAppendImportIfMissing(t *testing.T) {
 		ActiveFile: "/tmp/imports.go",
 		FileText:   fileText,
 	}
-	intent := agent.EditIntent{
-		Kind:   agent.EditIntentAppendImportIfMissing,
+	intent := actionplan.EditIntent{
+		Kind:   actionplan.EditIntentAppendImportIfMissing,
 		Import: `import "fmt"`,
 	}
 

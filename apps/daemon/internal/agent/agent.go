@@ -4,6 +4,7 @@ import (
 	"context"
 	"strings"
 
+	"vocoding.net/vocode/v2/apps/daemon/internal/actionplan"
 	protocol "vocoding.net/vocode/v2/packages/protocol/go"
 )
 
@@ -23,7 +24,7 @@ type HandleTranscriptResult struct {
 	// Valid is false when the transcript is empty (rejected before the model).
 	Valid bool
 	// Plan is set when the model returned a plan and validation succeeded.
-	Plan *ActionPlan
+	Plan *actionplan.ActionPlan
 	// Err is set when the model fails or the plan fails [ValidateActionPlan].
 	Err error
 }
@@ -39,7 +40,7 @@ func (a *Agent) HandleTranscript(ctx context.Context, params protocol.VoiceTrans
 	if err != nil {
 		return HandleTranscriptResult{Valid: true, Err: err}
 	}
-	if err := ValidateActionPlan(plan); err != nil {
+	if err := actionplan.ValidateActionPlan(plan); err != nil {
 		return HandleTranscriptResult{Valid: true, Plan: nil, Err: err}
 	}
 	return HandleTranscriptResult{Valid: true, Plan: &plan}

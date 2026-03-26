@@ -1,13 +1,10 @@
-// Package agent holds voice/agent runtime types and the edit intent model used
-// by internal/edits to build protocol EditActions. There is no edit.apply RPC;
-// integration is covered by Go tests (see internal/edits, internal/orchestration).
-package agent
+// Package actionplan defines the deterministic action plan domain contract
+// produced by the model and executed by the host.
+package actionplan
 
 import (
 	"fmt"
 	"strings"
-
-	protocol "vocoding.net/vocode/v2/packages/protocol/go"
 )
 
 // EditIntentKind identifies the small deterministic edit slice the daemon can
@@ -40,13 +37,6 @@ type EditIntent struct {
 	Import    string `json:"import,omitempty"`
 }
 
-// PlanEditResult is the outcome of planning (or a stub planner in tests): either
-// a concrete intent or a structured failure.
-type PlanEditResult struct {
-	Intent  *EditIntent
-	Failure *protocol.EditFailure
-}
-
 // ValidateEditIntent checks required fields per EditIntentKind.
 func ValidateEditIntent(intent EditIntent) error {
 	switch intent.Kind {
@@ -74,3 +64,4 @@ func ValidateEditIntent(intent EditIntent) error {
 	}
 	return nil
 }
+

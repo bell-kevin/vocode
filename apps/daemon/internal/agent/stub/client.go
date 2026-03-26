@@ -6,9 +6,10 @@ import (
 	"runtime"
 
 	"vocoding.net/vocode/v2/apps/daemon/internal/agent"
+	"vocoding.net/vocode/v2/apps/daemon/internal/actionplan"
 )
 
-// Client ignores input and always returns the same hardcoded [agent.ActionPlan].
+// Client ignores input and always returns the same hardcoded [actionplan.ActionPlan].
 type Client struct{}
 
 // New returns a [Client] that satisfies [agent.ModelClient].
@@ -17,20 +18,20 @@ func New() *Client {
 }
 
 // Plan implements [agent.ModelClient].
-func (*Client) Plan(ctx context.Context, in agent.ModelInput) (agent.ActionPlan, error) {
+func (*Client) Plan(ctx context.Context, in agent.ModelInput) (actionplan.ActionPlan, error) {
 	_ = ctx
 	_ = in
-	return agent.ActionPlan{
-		Steps: []agent.Step{
+	return actionplan.ActionPlan{
+		Steps: []actionplan.Step{
 			{
-				Kind: agent.StepKindEdit,
-				Edit: &agent.EditIntent{
-					Kind:    agent.EditIntentReplaceCurrentFunctionBody,
+				Kind: actionplan.StepKindEdit,
+				Edit: &actionplan.EditIntent{
+					Kind:    actionplan.EditIntentReplaceCurrentFunctionBody,
 					NewText: `console.log("hello from vocode");`,
 				},
 			},
 			{
-				Kind:       agent.StepKindRunCommand,
+				Kind:       actionplan.StepKindRunCommand,
 				RunCommand: stubEchoRunCommand(),
 			},
 		},
@@ -39,14 +40,14 @@ func (*Client) Plan(ctx context.Context, in agent.ModelInput) (agent.ActionPlan,
 
 // stubEchoRunCommand: on Windows, `echo` is a cmd builtin (no echo.exe on PATH);
 // Go's exec needs cmd.exe /c. On Unix, /bin/echo (or PATH) is a real binary.
-func stubEchoRunCommand() *agent.RunCommandIntent {
+func stubEchoRunCommand() *actionplan.RunCommandIntent {
 	if runtime.GOOS == "windows" {
-		return &agent.RunCommandIntent{
+		return &actionplan.RunCommandIntent{
 			Command: "cmd.exe",
 			Args:    []string{"/c", "echo", "stub-model-client"},
 		}
 	}
-	return &agent.RunCommandIntent{
+	return &actionplan.RunCommandIntent{
 		Command: "echo",
 		Args:    []string{"stub-model-client"},
 	}

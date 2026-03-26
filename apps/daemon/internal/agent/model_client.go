@@ -1,6 +1,10 @@
 package agent
 
-import "context"
+import (
+	"context"
+
+	"vocoding.net/vocode/v2/apps/daemon/internal/actionplan"
+)
 
 // ModelInput is everything the model needs to propose an [ActionPlan] for one
 // user turn. Fields may grow (active file, selection, workspace roots, etc.).
@@ -12,5 +16,5 @@ type ModelInput struct {
 // validated-shaped [ActionPlan]. Vendor implementations live in subpackages
 // (e.g. agent/stub, agent/openai, agent/anthropic); compose with [New] at the app boundary.
 type ModelClient interface {
-	Plan(ctx context.Context, in ModelInput) (ActionPlan, error)
+	Plan(ctx context.Context, in ModelInput) (actionplan.ActionPlan, error)
 }

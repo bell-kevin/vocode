@@ -1,4 +1,4 @@
-package agent
+package actionplan
 
 import (
 	"fmt"
@@ -86,3 +86,4 @@ func ValidateActionPlan(p ActionPlan) error {
 	}
 	return nil
 }
+

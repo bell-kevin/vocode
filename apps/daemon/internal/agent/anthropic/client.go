@@ -7,6 +7,7 @@ import (
 	"errors"
 
 	"vocoding.net/vocode/v2/apps/daemon/internal/agent"
+	"vocoding.net/vocode/v2/apps/daemon/internal/actionplan"
 )
 
 // ErrNotImplemented is returned by [Client.Plan] until the provider is implemented.
@@ -21,8 +22,8 @@ func New() *Client {
 }
 
 // Plan implements [agent.ModelClient].
-func (*Client) Plan(ctx context.Context, in agent.ModelInput) (agent.ActionPlan, error) {
+func (*Client) Plan(ctx context.Context, in agent.ModelInput) (actionplan.ActionPlan, error) {
 	_ = ctx
 	_ = in
-	return agent.ActionPlan{}, ErrNotImplemented
+	return actionplan.ActionPlan{}, ErrNotImplemented
 }

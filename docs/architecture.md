@@ -15,9 +15,9 @@ Expected daemon flow:
 `cmd/vocoded/main.go`  
 → `internal/app` (composition root)  
 → `internal/rpc` (transport/routing only)  
-→ `internal/agent` — `Agent.HandleTranscript` for voice turns (stub; will dispatch `ActionPlan`); `EditIntent` / `Step` types for the edit model  
-→ `internal/orchestration/EditApplyPipeline` (plan → actions; used from tests and future agent dispatch, not an RPC)  
-→ `internal/edits` (action building + validation)
+→ `internal/agent` — `Agent.HandleTranscript` for voice turns (stub; returns an `ActionPlan`)  
+→ `internal/actionplan` — owns the `ActionPlan` / `Step` / `EditIntent` / validation; `Dispatcher` runs validated steps (edit steps use `edits.Service.ApplyIntent`)  
+→ `internal/edits` — `Service` (`BuildActions`, `ApplyIntent` → protocol edit results; not an RPC)
 
 ### Extension (`apps/vscode-extension`)
 
@@ -146,7 +146,7 @@ Rules:
 1. Extend `internal/agent` edit intent handling (or model output validation) as needed.
 2. Return deterministic `EditIntent` or structured `EditFailure`.
 3. Keep intent-level semantics in agent, not in `internal/edits`.
-4. Ensure `EditApplyPipeline` maps planner/builder outcomes to result variants.
+4. Ensure `edits.Service.ApplyIntent` maps intent + file snapshot to `EditApplyResult` variants.
 5. Add planner tests for:
    - supported instruction parsing
    - unsupported instruction failures
@@ -183,7 +183,7 @@ Before merging:
 - `main.go` remains bootstrap-only
 - `internal/app` remains composition + orchestration owner
 - `internal/rpc` remains transport/routing only
-- `EditApplyPipeline` owns plan→actions coordination (tests / future agent path; not an RPC)
+- `edits.Service.ApplyIntent` wraps `BuildActions` into protocol `EditApplyResult` (not an RPC)
 - Extension contains only mechanical apply + UI policy
 - Protocol schema/types/validators/runtime behavior stay aligned
 - Tests cover variant invariants and boundary behavior

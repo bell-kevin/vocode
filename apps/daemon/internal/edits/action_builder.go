@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"vocoding.net/vocode/v2/apps/daemon/internal/agent"
+	"vocoding.net/vocode/v2/apps/daemon/internal/actionplan"
 	protocol "vocoding.net/vocode/v2/packages/protocol/go"
 )
 
@@ -17,21 +17,21 @@ func NewActionBuilder() *ActionBuilder {
 	return &ActionBuilder{validator: NewValidator()}
 }
 
-func (b *ActionBuilder) BuildActions(params protocol.EditApplyParams, intent agent.EditIntent) ([]protocol.EditAction, *protocol.EditFailure) {
+func (b *ActionBuilder) BuildActions(params protocol.EditApplyParams, intent actionplan.EditIntent) ([]protocol.EditAction, *protocol.EditFailure) {
 	switch intent.Kind {
-	case agent.EditIntentInsertStatementInCurrentFunction:
+	case actionplan.EditIntentInsertStatementInCurrentFunction:
 		action, failure := b.buildInsertStatementAction(params, intent)
 		if failure != nil {
 			return nil, failure
 		}
 		return []protocol.EditAction{action}, nil
-	case agent.EditIntentReplaceCurrentFunctionBody:
+	case actionplan.EditIntentReplaceCurrentFunctionBody:
 		action, failure := b.buildReplaceCurrentFunctionBodyAction(params, intent)
 		if failure != nil {
 			return nil, failure
 		}
 		return []protocol.EditAction{action}, nil
-	case agent.EditIntentReplaceAnchoredBlock:
+	case actionplan.EditIntentReplaceAnchoredBlock:
 		action := protocol.ReplaceBetweenAnchorsAction{
 			Kind: "replace_between_anchors",
 			Path: params.ActiveFile,
@@ -45,7 +45,7 @@ func (b *ActionBuilder) BuildActions(params protocol.EditApplyParams, intent age
 			return nil, failure
 		}
 		return []protocol.EditAction{action}, nil
-	case agent.EditIntentAppendImportIfMissing:
+	case actionplan.EditIntentAppendImportIfMissing:
 		action, failure := b.buildAppendImportAction(params, intent)
 		if failure != nil {
 			return nil, failure
@@ -59,7 +59,7 @@ func (b *ActionBuilder) BuildActions(params protocol.EditApplyParams, intent age
 	}
 }
 
-func (b *ActionBuilder) buildInsertStatementAction(params protocol.EditApplyParams, intent agent.EditIntent) (protocol.ReplaceBetweenAnchorsAction, *protocol.EditFailure) {
+func (b *ActionBuilder) buildInsertStatementAction(params protocol.EditApplyParams, intent actionplan.EditIntent) (protocol.ReplaceBetweenAnchorsAction, *protocol.EditFailure) {
 	block, failure := findSingleFunctionBlock(params.FileText)
 	if failure != nil {
 		return protocol.ReplaceBetweenAnchorsAction{}, failure
@@ -101,7 +101,7 @@ func (b *ActionBuilder) buildInsertStatementAction(params protocol.EditApplyPara
 	return action, nil
 }
 
-func (b *ActionBuilder) buildReplaceCurrentFunctionBodyAction(params protocol.EditApplyParams, intent agent.EditIntent) (protocol.ReplaceBetweenAnchorsAction, *protocol.EditFailure) {
+func (b *ActionBuilder) buildReplaceCurrentFunctionBodyAction(params protocol.EditApplyParams, intent actionplan.EditIntent) (protocol.ReplaceBetweenAnchorsAction, *protocol.EditFailure) {
 	block, failure := findSingleFunctionBlock(params.FileText)
 	if failure != nil {
 		return protocol.ReplaceBetweenAnchorsAction{}, failure
@@ -144,7 +144,7 @@ func formatReplacementFunctionBody(indent, body string) string {
 	return out.String()
 }
 
-func (b *ActionBuilder) buildAppendImportAction(params protocol.EditApplyParams, intent agent.EditIntent) (*protocol.ReplaceBetweenAnchorsAction, *protocol.EditFailure) {
+func (b *ActionBuilder) buildAppendImportAction(params protocol.EditApplyParams, intent actionplan.EditIntent) (*protocol.ReplaceBetweenAnchorsAction, *protocol.EditFailure) {
 	if strings.Contains(params.FileText, intent.Import) {
 		return nil, editFailure("no_change_needed", fmt.Sprintf("Import %q is already present.", intent.Import))
 	}

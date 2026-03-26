@@ -6,8 +6,9 @@ import (
 	"os"
 	"strings"
 
+	"vocoding.net/vocode/v2/apps/daemon/internal/actionplan"
 	"vocoding.net/vocode/v2/apps/daemon/internal/agent"
-	"vocoding.net/vocode/v2/apps/daemon/internal/orchestration"
+	"vocoding.net/vocode/v2/apps/daemon/internal/actionplan/dispatch"
 	protocol "vocoding.net/vocode/v2/packages/protocol/go"
 )
 
@@ -16,12 +17,12 @@ import (
 // commands on the daemon).
 type TranscriptService struct {
 	agent    *agent.Agent
-	dispatch *orchestration.ActionPlanDispatcher
+	dispatch *dispatch.Dispatcher
 }
 
 func NewService(
 	agentRuntime *agent.Agent,
-	dispatch *orchestration.ActionPlanDispatcher,
+	dispatch *dispatch.Dispatcher,
 ) *TranscriptService {
 	return &TranscriptService{agent: agentRuntime, dispatch: dispatch}
 }
@@ -91,9 +92,9 @@ func (s *TranscriptService) AcceptTranscript(
 	return result, true
 }
 
-func planHasEditStep(p *agent.ActionPlan) bool {
+func planHasEditStep(p *actionplan.ActionPlan) bool {
 	for _, s := range p.Steps {
-		if s.Kind == agent.StepKindEdit {
+		if s.Kind == actionplan.StepKindEdit {
 			return true
 		}
 	}
@@ -102,7 +103,7 @@ func planHasEditStep(p *agent.ActionPlan) bool {
 
 // buildEditApplyParams loads file text on the daemon when activeFile is set.
 // Unsaved editor buffers are not visible until workspace indexing supplies them.
-func buildEditApplyParams(params protocol.VoiceTranscriptParams, plan *agent.ActionPlan) (protocol.EditApplyParams, string) {
+func buildEditApplyParams(params protocol.VoiceTranscriptParams, plan *actionplan.ActionPlan) (protocol.EditApplyParams, string) {
 	active := strings.TrimSpace(params.ActiveFile)
 	if planHasEditStep(plan) && active == "" {
 		return protocol.EditApplyParams{}, "activeFile is required when the plan includes edit steps"

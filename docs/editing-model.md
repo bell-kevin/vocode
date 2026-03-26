@@ -9,7 +9,7 @@ users describe changes naturally; the system turns them into structured actions 
 
 ## Current Implemented Slice
 
-The daemon builds **`EditAction[]`** from a structured **`EditIntent`** plus the active file snapshot. Integration is covered by **Go tests** (`internal/edits`, `internal/orchestration`); there is no `edit.apply` RPC. A future LLM will emit an **`ActionPlan`**: ordered **`Step`** values, each either an **`EditIntent`** (kind `edit`) or **`RunCommandIntent`** (kind `run_command`).
+The daemon builds **`EditAction[]`** from a structured **`EditIntent`** plus the active file snapshot. Integration is covered by **Go tests** (`internal/edits`, `internal/actionplan`); there is no `edit.apply` RPC. A future LLM will emit an **`ActionPlan`**: ordered **`Step`** values, each either an **`EditIntent`** (kind `edit`) or **`RunCommandIntent`** (kind `run_command`).
 
 The **`internal/edits`** layer supports these intent kinds:
 

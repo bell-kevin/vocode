@@ -1,8 +1,6 @@
-package agent
+package actionplan
 
-import (
-	"testing"
-)
+import "testing"
 
 func TestValidateActionPlanSingleEdit(t *testing.T) {
 	err := ValidateActionPlan(ActionPlan{
@@ -96,3 +94,4 @@ func TestValidateActionPlanEmptySteps(t *testing.T) {
 		t.Fatalf("empty plan should be valid: %v", err)
 	}
 }
+
