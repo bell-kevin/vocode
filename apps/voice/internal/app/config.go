@@ -35,21 +35,6 @@ func sttMode() string {
 	}
 }
 
-func vadEnabled() bool {
-	v := strings.TrimSpace(strings.ToLower(os.Getenv("VOCODE_VOICE_VAD_ENABLED")))
-	if v == "" {
-		return true
-	}
-	switch v {
-	case "1", "true", "yes", "y", "on", "enabled":
-		return true
-	case "0", "false", "no", "n", "off", "disabled":
-		return false
-	default:
-		return true
-	}
-}
-
 func vadThresholdMultiplier() float64 {
 	return envFloat("VOCODE_VOICE_VAD_THRESHOLD_MULTIPLIER", 2.0, 1.0, 10.0)
 }
@@ -64,6 +49,18 @@ func vadEndMS() int {
 
 func vadPrerollMS() int {
 	return envInt("VOCODE_VOICE_VAD_PREROLL_MS", 200, 0, 1000)
+}
+
+func streamMinChunkMS() int {
+	return envInt("VOCODE_VOICE_STREAM_MIN_CHUNK_MS", 200, 50, 2000)
+}
+
+func streamMaxChunkMS() int {
+	return envInt("VOCODE_VOICE_STREAM_MAX_CHUNK_MS", 500, 50, 3000)
+}
+
+func streamMaxUtteranceMS() int {
+	return envInt("VOCODE_VOICE_STREAM_MAX_UTTERANCE_MS", 4000, 500, 20000)
 }
 
 func envInt(name string, defaultValue int, minValue int, maxValue int) int {

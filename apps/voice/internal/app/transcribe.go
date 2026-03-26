@@ -82,19 +82,19 @@ func (a *App) transcribeLoopStream(ctx context.Context, apiKey string, rec *mic.
 	}()
 
 	bytesPerSecond := int64(16000 * 1 * 2) // 16kHz * mono * int16
-	chunkBytes := bytesPerSecond * 300 / 1000
-	if chunkBytes <= 0 {
-		chunkBytes = 9600
+	minChunkBytes := bytesPerSecond * int64(streamMinChunkMS()) / 1000
+	if minChunkBytes <= 0 {
+		minChunkBytes = 6400
+	}
+	maxChunkBytes := bytesPerSecond * int64(streamMaxChunkMS()) / 1000
+	if maxChunkBytes < minChunkBytes {
+		maxChunkBytes = minChunkBytes
 	}
 
 	buf := make([]byte, 32*1024)
 	var chunk []byte
 	previousText := ""
-	useVAD := vadEnabled()
-	var vad *localVAD
-	if useVAD {
-		vad = newLocalVAD(16000, int(chunkBytes))
-	}
+	vad := newLocalVAD(16000, int(minChunkBytes), int(maxChunkBytes), streamMaxUtteranceMS())
 
 	for {
 		select {
@@ -108,22 +108,11 @@ func (a *App) transcribeLoopStream(ctx context.Context, apiKey string, rec *mic.
 			chunk = append(chunk, buf[:n]...)
 		}
 
-		if useVAD {
-			for len(chunk) >= vad.frameBytes {
-				frame := chunk[:vad.frameBytes]
-				chunk = chunk[vad.frameBytes:]
-				for _, c := range vad.process(frame) {
-					if err := client.SendInputAudioChunk(c.pcm, c.commit, previousText); err != nil {
-						_ = a.write(Event{Type: "error", Message: fmt.Sprintf("elevenlabs streaming send failed: %v", err)})
-						return
-					}
-				}
-			}
-		} else {
-			for int64(len(chunk)) >= chunkBytes {
-				toSend := chunk[:chunkBytes]
-				chunk = chunk[chunkBytes:]
-				if err := client.SendInputAudioChunk(toSend, true, previousText); err != nil {
+		for len(chunk) >= vad.frameBytes {
+			frame := chunk[:vad.frameBytes]
+			chunk = chunk[vad.frameBytes:]
+			for _, c := range vad.process(frame) {
+				if err := client.SendInputAudioChunk(c.pcm, c.commit, previousText); err != nil {
 					_ = a.write(Event{Type: "error", Message: fmt.Sprintf("elevenlabs streaming send failed: %v", err)})
 					return
 				}
@@ -148,12 +137,10 @@ func (a *App) transcribeLoopStream(ctx context.Context, apiKey string, rec *mic.
 
 		if readErr != nil {
 			if readErr == io.EOF {
-				if useVAD {
-					for _, c := range vad.flush() {
-						if err := client.SendInputAudioChunk(c.pcm, c.commit, previousText); err != nil {
-							_ = a.write(Event{Type: "error", Message: fmt.Sprintf("elevenlabs streaming send failed: %v", err)})
-							return
-						}
+				for _, c := range vad.flush() {
+					if err := client.SendInputAudioChunk(c.pcm, c.commit, previousText); err != nil {
+						_ = a.write(Event{Type: "error", Message: fmt.Sprintf("elevenlabs streaming send failed: %v", err)})
+						return
 					}
 				}
 				return

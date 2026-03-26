@@ -48,17 +48,18 @@ func TestSttMode_InvalidFallsBackToBatch(t *testing.T) {
 	}
 }
 
-func TestVADEnabled_DefaultTrue(t *testing.T) {
-	t.Setenv("VOCODE_VOICE_VAD_ENABLED", "")
-	if !vadEnabled() {
-		t.Fatalf("expected VAD enabled by default")
+func TestStreamChunkConfig_Defaults(t *testing.T) {
+	t.Setenv("VOCODE_VOICE_STREAM_MIN_CHUNK_MS", "")
+	t.Setenv("VOCODE_VOICE_STREAM_MAX_CHUNK_MS", "")
+	t.Setenv("VOCODE_VOICE_STREAM_MAX_UTTERANCE_MS", "")
+	if got := streamMinChunkMS(); got != 200 {
+		t.Fatalf("expected default min chunk 200ms, got %d", got)
 	}
-}
-
-func TestVADEnabled_ParsesFalse(t *testing.T) {
-	t.Setenv("VOCODE_VOICE_VAD_ENABLED", "false")
-	if vadEnabled() {
-		t.Fatalf("expected VAD disabled")
+	if got := streamMaxChunkMS(); got != 500 {
+		t.Fatalf("expected default max chunk 500ms, got %d", got)
+	}
+	if got := streamMaxUtteranceMS(); got != 4000 {
+		t.Fatalf("expected default max utterance 4000ms, got %d", got)
 	}
 }
 

@@ -24,7 +24,7 @@ func TestLocalVAD_SpeechThenSilenceProducesCommit(t *testing.T) {
 	t.Setenv("VOCODE_VOICE_VAD_PREROLL_MS", "20")
 	t.Setenv("VOCODE_VOICE_VAD_THRESHOLD_MULTIPLIER", "1.2")
 
-	v := newLocalVAD(16000, 640)
+	v := newLocalVAD(16000, 640, 1280, 2000)
 	speech := makeFrame(640, 1600)
 	silence := makeFrame(640, 0)
 
@@ -45,6 +45,27 @@ func TestLocalVAD_SpeechThenSilenceProducesCommit(t *testing.T) {
 	}
 	if commits == 0 {
 		t.Fatalf("expected at least one commit chunk")
+	}
+}
+
+func TestLocalVAD_ForceCommitOnLongUtterance(t *testing.T) {
+	t.Setenv("VOCODE_VOICE_VAD_START_MS", "20")
+	t.Setenv("VOCODE_VOICE_VAD_END_MS", "500")
+	t.Setenv("VOCODE_VOICE_VAD_PREROLL_MS", "0")
+	t.Setenv("VOCODE_VOICE_VAD_THRESHOLD_MULTIPLIER", "1.1")
+
+	v := newLocalVAD(16000, 640, 1280, 100)
+	speech := makeFrame(640, 2000)
+	commits := 0
+	for i := 0; i < 20; i++ {
+		for _, c := range v.process(speech) {
+			if c.commit {
+				commits++
+			}
+		}
+	}
+	if commits == 0 {
+		t.Fatalf("expected forced commit on long utterance")
 	}
 }
 
