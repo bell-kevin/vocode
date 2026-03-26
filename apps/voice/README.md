@@ -25,6 +25,21 @@ To enable real mic capture:
 - Ensure `CGO_ENABLED=1`
 - Install PortAudio *and* `pkg-config` support for `portaudio-2.0`
 
+### Linux (Ubuntu/Debian)
+
+Install native deps:
+
+```bash
+sudo apt-get update
+sudo apt-get install -y pkg-config portaudio19-dev
+```
+
+Then build:
+
+```bash
+pnpm --filter @vocode/voice build
+```
+
 ### Windows (Manual Setup)
 
 1. Install MSYS2 via Chocolatey:

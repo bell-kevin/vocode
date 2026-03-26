@@ -82,6 +82,14 @@ If your MSYS2 install is not at `C:\tools\msys64`, pass your MSYS2 root:
 pwsh -ExecutionPolicy Bypass -File scripts/dev/setup-portaudio.ps1 -Msys2Root "D:\msys64"
 ```
 
+### Native voice dependencies (Linux only)
+On Ubuntu/Debian, install PortAudio dev headers + pkg-config:
+
+```bash
+sudo apt-get update
+sudo apt-get install -y pkg-config portaudio19-dev
+```
+
 2. Generate protocol types
 
 ```bash

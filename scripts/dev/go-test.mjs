@@ -15,6 +15,15 @@ function ensureDir(p) {
 
 function main() {
   const env = { ...process.env };
+  const isWin = process.platform === "win32";
+
+  // Windows uses "Path" (case-insensitive) but Node's env object keys can vary.
+  // Preserve whichever one exists, and keep them in sync when we modify PATH.
+  const getPath = () => env.Path ?? env.PATH ?? "";
+  const setPath = (value) => {
+    if ("Path" in env || isWin) env.Path = value;
+    env.PATH = value;
+  };
 
   const args = process.argv.slice(2);
   const forceCgo = args.includes("--force-cgo");
@@ -53,7 +62,7 @@ function main() {
 
     if (ok) {
       const pathSep = ";";
-      env.PATH = mingwBin + pathSep + (env.PATH ?? "");
+      setPath(mingwBin + pathSep + getPath());
       env.PKG_CONFIG_PATH =
         mingwPkgConfigDir +
         (env.PKG_CONFIG_PATH ? pathSep + env.PKG_CONFIG_PATH : "");

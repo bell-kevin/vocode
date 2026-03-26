@@ -35,11 +35,13 @@ function configurePortAudioCgoEnv() {
 
   const pathSep = ";";
   const pathPrefix = mingwBin + pathSep;
-  const existingPath = process.env.PATH ?? "";
+  const existingPath = process.env.Path ?? process.env.PATH ?? "";
 
   const env = {
     CGO_ENABLED: "1",
+    // Set both PATH and Path so child process sees it reliably on Windows.
     PATH: pathPrefix + existingPath,
+    Path: pathPrefix + existingPath,
     PKG_CONFIG_PATH:
       mingwPkgConfigDir +
       (process.env.PKG_CONFIG_PATH
