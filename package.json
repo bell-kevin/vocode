@@ -16,7 +16,7 @@
     "codegen:ts": "node scripts/codegen/generate-protocol-ts.mjs && pnpm --filter @vocode/protocol build",
     "codegen:go": "node scripts/codegen/generate-protocol-go.mjs",
     "codegen": "pnpm codegen:ts && pnpm codegen:go",
-    "setup-portaudio:win": "pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/dev/setup-portaudio-win.ps1"
+    "setup-portaudio:win": "pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/dev/setup-portaudio.pnpm.ps1"
   },
   "devDependencies": {
     "@apidevtools/json-schema-ref-parser": "^15.3.1",

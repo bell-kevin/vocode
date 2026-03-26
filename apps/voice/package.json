@@ -4,7 +4,7 @@
   "scripts": {
     "build": "node ../../scripts/dev/build-voice.mjs",
     "dev": "go run ./cmd/vocode-voiced",
-    "setup-portaudio:win": "pwsh -NoProfile -ExecutionPolicy Bypass -File ../../scripts/dev/setup-portaudio-win.ps1",
+    "setup-portaudio:win": "pwsh -NoProfile -ExecutionPolicy Bypass -File ../../scripts/dev/setup-portaudio.pnpm.ps1",
     "test": "node ../../scripts/dev/go-test.mjs --force-cgo",
     "lint": "golangci-lint run",
     "typecheck": "node ../../scripts/dev/go-test.mjs --force-cgo"
