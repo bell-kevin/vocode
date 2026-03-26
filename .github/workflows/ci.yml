@@ -99,12 +99,6 @@ jobs:
   voice-windows:
     name: Build voice sidecar (Windows)
     runs-on: windows-latest
-    env:
-      MSYS2_ROOT: C:\msys64
-      CGO_ENABLED: "1"
-      CC: C:\msys64\mingw64\bin\gcc.exe
-      PKG_CONFIG: C:\msys64\mingw64\bin\pkgconf.exe
-      PKG_CONFIG_PATH: C:\msys64\mingw64\lib\pkgconfig
 
     steps:
       - name: Check out repository
@@ -129,6 +123,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Set up MSYS2 (cached)
+        id: msys2
         uses: msys2/setup-msys2@v2
         with:
           msystem: MINGW64
@@ -142,12 +137,20 @@ jobs:
       - name: Configure MSYS2_ROOT for build scripts
         shell: pwsh
         run: |
-          echo "MSYS2_ROOT=C:\msys64" >> $env:GITHUB_ENV
-          echo "CGO_ENABLED=1" >> $env:GITHUB_ENV
-          echo "CC=C:\msys64\mingw64\bin\gcc.exe" >> $env:GITHUB_ENV
-          echo "PKG_CONFIG=C:\msys64\mingw64\bin\pkgconf.exe" >> $env:GITHUB_ENV
-          echo "PKG_CONFIG_PATH=C:\msys64\mingw64\lib\pkgconfig" >> $env:GITHUB_ENV
-          echo "Path=C:\msys64\mingw64\bin;$env:Path" >> $env:GITHUB_ENV
+          $msysRoot = "${{ steps.msys2.outputs.msys2-location }}"
+          $mingwBin = Join-Path $msysRoot "mingw64\bin"
+          $pkgConfigPath = Join-Path $msysRoot "mingw64\lib\pkgconfig"
+          $gcc = Join-Path $mingwBin "gcc.exe"
+          $pkgConfig = Join-Path $mingwBin "pkg-config.exe"
+          $pkgConf = Join-Path $mingwBin "pkgconf.exe"
+          $pkgTool = if (Test-Path $pkgConfig) { $pkgConfig } else { $pkgConf }
+
+          "MSYS2_ROOT=$msysRoot" >> $env:GITHUB_ENV
+          "CGO_ENABLED=1" >> $env:GITHUB_ENV
+          "CC=$gcc" >> $env:GITHUB_ENV
+          "PKG_CONFIG=$pkgTool" >> $env:GITHUB_ENV
+          "PKG_CONFIG_PATH=$pkgConfigPath" >> $env:GITHUB_ENV
+          "Path=$mingwBin;$env:Path" >> $env:GITHUB_ENV
 
       - name: Build voice sidecar
         run: pnpm --filter @vocode/voice build
