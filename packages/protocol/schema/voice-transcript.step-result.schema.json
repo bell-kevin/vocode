@@ -12,8 +12,8 @@
     "editResult": {
       "$ref": "./edit-apply.result.schema.json"
     },
-    "commandResult": {
-      "$ref": "./command-run.result.schema.json"
+    "commandParams": {
+      "$ref": "./command-run.params.schema.json"
     }
   },
   "required": ["kind"]

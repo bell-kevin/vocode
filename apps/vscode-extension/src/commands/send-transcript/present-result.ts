@@ -1,10 +1,8 @@
-import type {
-  VoiceTranscriptResult,
-  VoiceTranscriptStepResult,
-} from "@vocode/protocol";
+import type { VoiceTranscriptResult } from "@vocode/protocol";
 import * as vscode from "vscode";
 
-import { applyWorkspaceEdits } from "../apply-workspace-edits";
+import { runAllowedCommand } from "../../commandexec/execute-command";
+import { applyEditResultWorkspaceEdits } from "../../edits/apply-workspace-edits";
 
 /** Applies workspace edits and surfaces per-step edit/command outcomes in the UI. */
 export async function presentTranscriptResult(
@@ -16,31 +14,53 @@ export async function presentTranscriptResult(
     return;
   }
 
-  await applyWorkspaceEdits(result, activeDocumentPath);
-  presentTranscriptStepMessages(result.steps ?? []);
-}
+  for (const step of result.steps ?? []) {
+    switch (step.kind) {
+      case "edit": {
+        const edit = step.editResult;
+        if (!edit) {
+          void vscode.window.showWarningMessage("Vocode: missing editResult.");
+          return;
+        }
 
-function presentTranscriptStepMessages(
-  steps: VoiceTranscriptStepResult[],
-): void {
-  for (const step of steps) {
-    if (step.kind === "edit" && step.editResult?.kind === "failure") {
-      void vscode.window.showErrorMessage(
-        `Vocode edit: ${step.editResult.failure.message}`,
-      );
-    }
+        if (edit.kind === "failure") {
+          void vscode.window.showErrorMessage(
+            `Vocode edit: ${edit.failure.message}`,
+          );
+          return;
+        }
 
-    if (step.kind === "run_command" && step.commandResult?.kind === "success") {
-      const line = step.commandResult.stdout.trim();
-      if (line.length > 0) {
-        void vscode.window.showInformationMessage(`Vocode: ${line}`);
+        if (!(await applyEditResultWorkspaceEdits(edit, activeDocumentPath))) {
+          return;
+        }
+        break;
       }
-    }
 
-    if (step.kind === "run_command" && step.commandResult?.kind === "failure") {
-      void vscode.window.showErrorMessage(
-        `Vocode command: ${step.commandResult.failure.message}`,
-      );
+      case "run_command": {
+        const params = step.commandParams;
+        if (!params) {
+          void vscode.window.showWarningMessage(
+            "Vocode: missing commandParams.",
+          );
+          return;
+        }
+
+        const outcome = await runAllowedCommand(params);
+        if (!outcome.ok) {
+          void vscode.window.showErrorMessage(
+            `Vocode command: ${outcome.message}`,
+          );
+          return;
+        }
+
+        const line = outcome.stdout.trim();
+        if (line.length > 0) {
+          void vscode.window.showInformationMessage(`Vocode: ${line}`);
+        }
+        break;
+      }
     }
   }
 }
+
+// Command execution lives in `commandexec/execute-command.ts`.

@@ -48,12 +48,7 @@ test("isVoiceTranscriptResult rejects planError together with steps", () => {
       steps: [
         {
           kind: "run_command",
-          commandResult: {
-            kind: "success",
-            exitCode: 0,
-            stdout: "",
-            stderr: "",
-          },
+          commandParams: { command: "echo", args: ["stub"] },
         },
       ],
     }),

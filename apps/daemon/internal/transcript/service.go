@@ -71,10 +71,10 @@ func (s *TranscriptService) AcceptTranscript(
 				Kind:       "edit",
 				EditResult: st.EditResult,
 			})
-		case st.CommandResult != nil:
+		case st.CommandParams != nil:
 			steps = append(steps, protocol.VoiceTranscriptStepResult{
 				Kind:          "run_command",
-				CommandResult: st.CommandResult,
+				CommandParams: st.CommandParams,
 			})
 		}
 	}

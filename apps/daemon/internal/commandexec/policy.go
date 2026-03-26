@@ -6,11 +6,11 @@ import (
 	protocol "vocoding.net/vocode/v2/packages/protocol/go"
 )
 
-// Policy owns the daemon-side safety rules for command execution.
+// Policy owns the daemon-side safety rules for command "execution requests".
 //
-// This is intentionally conservative for now: it only allows execution of a
-// small set of known shell entry points, and it requires the command name to
-// match exactly (case-insensitive).
+// Even though the extension performs actual execution, we still validate
+// command shape against an allowlist so the daemon never emits unsafe
+// instructions.
 type Policy struct {
 	allowed map[string]struct{}
 }
@@ -21,7 +21,7 @@ func NewPolicy() *Policy {
 			"cmd.exe":        {},
 			"powershell.exe": {},
 			"powershell":     {},
-			"pwsh": {},
+			"pwsh":           {},
 			// Unix stub smoke test; on Windows the stub uses cmd.exe instead.
 			"echo": {},
 		},

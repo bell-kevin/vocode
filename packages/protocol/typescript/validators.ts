@@ -1,5 +1,6 @@
 import type {
   CommandRunResult,
+  CommandRunParams,
   EditAction,
   EditApplyResult,
   PingResult,
@@ -125,6 +126,34 @@ export function isCommandRunResult(value: unknown): value is CommandRunResult {
   }
 }
 
+function isCommandRunParams(value: unknown): value is CommandRunParams {
+  if (!isRecord(value)) {
+    return false;
+  }
+
+  if (!hasOnlyKeys(value as Record<string, unknown>, ["command", "args", "timeoutMs"])) {
+    return false;
+  }
+
+  if (typeof (value as Record<string, unknown>).command !== "string") {
+    return false;
+  }
+
+  const args = (value as Record<string, unknown>).args;
+  if (args !== undefined) {
+    if (!Array.isArray(args) || !args.every((x) => typeof x === "string")) {
+      return false;
+    }
+  }
+
+  const timeoutMs = (value as Record<string, unknown>).timeoutMs;
+  if (timeoutMs !== undefined && typeof timeoutMs !== "number") {
+    return false;
+  }
+
+  return true;
+}
+
 export function isVoiceTranscriptStepResult(
   value: unknown,
 ): value is VoiceTranscriptStepResult {
@@ -139,8 +168,8 @@ export function isVoiceTranscriptStepResult(
   }
   if (value.kind === "run_command") {
     return (
-      hasOnlyKeys(value, ["kind", "commandResult"]) &&
-      isCommandRunResult(value.commandResult)
+      hasOnlyKeys(value, ["kind", "commandParams"]) &&
+      isCommandRunParams(value.commandParams)
     );
   }
   return false;

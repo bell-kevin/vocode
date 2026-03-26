@@ -11,18 +11,18 @@ import (
 
 // Dispatcher runs a validated [actionplan.ActionPlan] step-by-step.
 type Dispatcher struct {
-	edits   *edits.Service
-	command *commandexec.Service
+	edits    *edits.Service
+	commands *commandexec.Service
 }
 
-func NewDispatcher(editsSvc *edits.Service, commandSvc *commandexec.Service) *Dispatcher {
-	return &Dispatcher{edits: editsSvc, command: commandSvc}
+func NewDispatcher(editsService *edits.Service, commandService *commandexec.Service) *Dispatcher {
+	return &Dispatcher{edits: editsService, commands: commandService}
 }
 
 // StepResult is the outcome of executing one plan step (exactly one pointer is non-nil).
 type StepResult struct {
 	EditResult    *protocol.EditApplyResult
-	CommandResult *protocol.CommandRunResult
+	CommandParams *protocol.CommandRunParams
 }
 
 // ExecuteResult lists execution outcomes in order. If Execute returns a non-nil
@@ -53,15 +53,16 @@ func (d *Dispatcher) Execute(plan actionplan.ActionPlan, editParams protocol.Edi
 				return out, nil
 			}
 		case actionplan.StepKindRunCommand:
-			cmd := d.command.Run(step.RunCommand.CommandParams())
-			out.Steps = append(out.Steps, StepResult{CommandResult: &cmd})
-			if cmd.Kind == "failure" {
-				return out, nil
+			params := step.RunCommand.CommandParams()
+			if d.commands != nil {
+				if err := d.commands.Validate(params); err != nil {
+					return out, fmt.Errorf("action plan: step %d: %w", i, err)
+				}
 			}
+			out.Steps = append(out.Steps, StepResult{CommandParams: &params})
 		default:
 			return out, fmt.Errorf("action plan: step %d: unreachable kind %q", i, step.Kind)
 		}
 	}
 	return out, nil
 }
-

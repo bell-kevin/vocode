@@ -27,7 +27,9 @@ function findUniqueOccurrence(
   const duplicateIndex = text.indexOf(needle, relativeIndex + 1);
   if (duplicateIndex !== -1) {
     throw new Error(
-      `The ${label} anchor matched multiple locations: ${JSON.stringify(needle)}`,
+      `The ${label} anchor matched multiple locations: ${JSON.stringify(
+        needle,
+      )}`,
     );
   }
 
