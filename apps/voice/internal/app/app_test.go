@@ -48,6 +48,20 @@ func TestSttMode_InvalidFallsBackToBatch(t *testing.T) {
 	}
 }
 
+func TestVADEnabled_DefaultTrue(t *testing.T) {
+	t.Setenv("VOCODE_VOICE_VAD_ENABLED", "")
+	if !vadEnabled() {
+		t.Fatalf("expected VAD enabled by default")
+	}
+}
+
+func TestVADEnabled_ParsesFalse(t *testing.T) {
+	t.Setenv("VOCODE_VOICE_VAD_ENABLED", "false")
+	if vadEnabled() {
+		t.Fatalf("expected VAD disabled")
+	}
+}
+
 func TestAppendRollingContext(t *testing.T) {
 	got := appendRollingContext("", "hello world", 500)
 	if got != "hello world" {
