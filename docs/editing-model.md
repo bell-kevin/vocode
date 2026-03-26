@@ -9,23 +9,23 @@ users describe changes naturally; the system turns them into structured actions 
 
 ## Current Implemented Slice
 
-Today's daemon ships a deliberately small, rule-based planning layer. It is not the final editing system, but it is a safe vertical slice that proves the daemon-first architecture.
+The daemon builds **`EditAction[]`** from a structured **`EditIntent`** plus the active file snapshot. Integration is covered by **Go tests** (`internal/edits`, `internal/orchestration`); there is no `edit.apply` RPC. A future LLM will emit an **`ActionPlan`**: ordered **`Step`** values, each either an **`EditIntent`** (kind `edit`) or **`RunCommandIntent`** (kind `run_command`).
 
-The currently supported intents are:
+The **`internal/edits`** layer supports these intent kinds:
 
-- `insert statement "..." inside current function`
+- **Insert statement in current function**
   - Only succeeds when the active file contains exactly one supported function-shaped block.
   - The inserted statement is appended just before that function's closing brace.
-- `replace block after "..." before "..." with "..."`
+- **Replace anchored block** (`before` / `after` / `newText`)
   - Both anchors must resolve uniquely in the active file.
   - Ambiguous or missing anchors produce a structured failure instead of guessing.
-- `append import "..." if missing`
-  - Currently supported for Go files and top-of-file JS/TS import sections.
+- **Append import if missing**
+  - Supported for Go files and top-of-file JS/TS import sections.
   - If the import already exists, the daemon returns a structured no-change response.
 
-These rules intentionally fail closed when the daemon cannot map the instruction to a unique edit.
+These rules intentionally fail closed when the daemon cannot map the plan to a unique edit.
 
-`edit.apply` now returns an explicit outcome kind so clients never infer semantics from field combinations:
+**`EditApplyResult`** (protocol) remains the explicit outcome shape for tests and future callers:
 
 - `success` with `actions`
 - `failure` with structured `failure`

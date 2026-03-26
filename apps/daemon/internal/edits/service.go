@@ -15,8 +15,8 @@ func NewService() *Service {
 	}
 }
 
-func (s *Service) BuildActions(params protocol.EditApplyParams, plan agent.EditPlan) ([]protocol.EditAction, *protocol.EditFailure) {
-	return s.actionBuilder.BuildActions(params, plan)
+func (s *Service) BuildActions(params protocol.EditApplyParams, intent agent.EditIntent) ([]protocol.EditAction, *protocol.EditFailure) {
+	return s.actionBuilder.BuildActions(params, intent)
 }
 
 func editFailure(code string, message string) *protocol.EditFailure {

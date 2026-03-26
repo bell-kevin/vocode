@@ -1,5 +1,6 @@
 import * as vscode from "vscode";
 
+import { applyWorkspaceEdits } from "./apply-workspace-edits";
 import type { CommandDefinition } from "./types";
 
 export const sendTranscriptCommand: CommandDefinition = {
@@ -9,6 +10,14 @@ export const sendTranscriptCommand: CommandDefinition = {
     if (!services.voiceSession.isRunning()) {
       void vscode.window.showWarningMessage(
         "Voice is not active. Run 'Vocode: Start Voice' first.",
+      );
+      return;
+    }
+
+    const editor = vscode.window.activeTextEditor;
+    if (!editor) {
+      void vscode.window.showWarningMessage(
+        "Open a text editor so Vocode can run edit steps against the active file.",
       );
       return;
     }
@@ -30,9 +39,44 @@ export const sendTranscriptCommand: CommandDefinition = {
       return;
     }
 
+    const activePath = editor.document.uri.fsPath;
+
     try {
       services.voiceStatus.setProcessing();
-      await client.voiceTranscript({ text: trimmedText });
+      const result = await client.voiceTranscript({
+        text: trimmedText,
+        activeFile: activePath,
+      });
+
+      if (result.planError) {
+        void vscode.window.showErrorMessage(`Vocode: ${result.planError}`);
+      } else {
+        await applyWorkspaceEdits(result, activePath);
+        for (const step of result.steps ?? []) {
+          if (step.kind === "edit" && step.editResult?.kind === "failure") {
+            void vscode.window.showErrorMessage(
+              `Vocode edit: ${step.editResult.failure.message}`,
+            );
+          }
+          if (
+            step.kind === "run_command" &&
+            step.commandResult?.kind === "success"
+          ) {
+            const line = step.commandResult.stdout.trim();
+            if (line.length > 0) {
+              void vscode.window.showInformationMessage(`Vocode: ${line}`);
+            }
+          }
+          if (
+            step.kind === "run_command" &&
+            step.commandResult?.kind === "failure"
+          ) {
+            void vscode.window.showErrorMessage(
+              `Vocode command: ${step.commandResult.failure.message}`,
+            );
+          }
+        }
+      }
     } catch (err) {
       const message =
         err instanceof Error ? err.message : "Failed to send transcript.";

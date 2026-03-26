@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vocoding.net/schemas/voice-transcript.step-result.schema.json",
+  "title": "VoiceTranscriptStepResult",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "kind": {
+      "type": "string",
+      "enum": ["edit", "run_command"]
+    },
+    "editResult": {
+      "$ref": "./edit-apply.result.schema.json"
+    },
+    "commandResult": {
+      "$ref": "./command-run.result.schema.json"
+    }
+  },
+  "required": ["kind"]
+}

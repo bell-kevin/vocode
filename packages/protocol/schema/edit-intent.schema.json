@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vocoding.net/schemas/edit-intent.schema.json",
+  "title": "EditIntent",
+  "oneOf": [
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "statement"],
+      "properties": {
+        "kind": { "const": "insert_statement_in_current_function" },
+        "statement": { "type": "string", "minLength": 1 }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "newText"],
+      "properties": {
+        "kind": { "const": "replace_current_function_body" },
+        "newText": { "type": "string", "minLength": 1 }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "before", "after", "newText"],
+      "properties": {
+        "kind": { "const": "replace_anchored_block" },
+        "before": { "type": "string", "minLength": 1 },
+        "after": { "type": "string", "minLength": 1 },
+        "newText": { "type": "string" }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "import"],
+      "properties": {
+        "kind": { "const": "append_import_if_missing" },
+        "import": { "type": "string", "minLength": 1 }
+      }
+    }
+  ]
+}

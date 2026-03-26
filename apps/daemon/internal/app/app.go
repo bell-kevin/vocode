@@ -5,6 +5,7 @@ import (
 	"log"
 
 	"vocoding.net/vocode/v2/apps/daemon/internal/agent"
+	"vocoding.net/vocode/v2/apps/daemon/internal/agent/stub"
 	"vocoding.net/vocode/v2/apps/daemon/internal/commandexec"
 	"vocoding.net/vocode/v2/apps/daemon/internal/edits"
 	"vocoding.net/vocode/v2/apps/daemon/internal/orchestration"
@@ -25,15 +26,17 @@ type App struct {
 }
 
 func New(opts Options) (*App, error) {
-	agentService := agent.NewService()
-	editService := edits.NewService()
-	voiceService := transcript.NewService()
-	commandService := commandexec.NewService()
-
-	editOrchestrator := orchestration.NewEditOrchestrator(agentService, editService)
+	agentRuntime := agent.New(stub.New())
+	editSvc := edits.NewService()
+	editPipeline := orchestration.NewEditApplyPipeline(editSvc)
+	dispatcher := orchestration.NewActionPlanDispatcher(
+		editPipeline,
+		commandexec.NewService(),
+	)
+	voiceService := transcript.NewService(agentRuntime, dispatcher)
 
 	router := rpc.NewRouter(opts.Logger)
-	for _, def := range rpc.BuildHandlers(editOrchestrator, voiceService, commandService) {
+	for _, def := range rpc.BuildHandlers(voiceService) {
 		router.Register(def.Method, def.Handler)
 	}
 

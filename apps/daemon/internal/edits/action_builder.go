@@ -17,10 +17,16 @@ func NewActionBuilder() *ActionBuilder {
 	return &ActionBuilder{validator: NewValidator()}
 }
 
-func (b *ActionBuilder) BuildActions(params protocol.EditApplyParams, plan agent.EditPlan) ([]protocol.EditAction, *protocol.EditFailure) {
-	switch plan.Intent.Kind {
+func (b *ActionBuilder) BuildActions(params protocol.EditApplyParams, intent agent.EditIntent) ([]protocol.EditAction, *protocol.EditFailure) {
+	switch intent.Kind {
 	case agent.EditIntentInsertStatementInCurrentFunction:
-		action, failure := b.buildInsertStatementAction(params, plan.Intent)
+		action, failure := b.buildInsertStatementAction(params, intent)
+		if failure != nil {
+			return nil, failure
+		}
+		return []protocol.EditAction{action}, nil
+	case agent.EditIntentReplaceCurrentFunctionBody:
+		action, failure := b.buildReplaceCurrentFunctionBodyAction(params, intent)
 		if failure != nil {
 			return nil, failure
 		}
@@ -30,17 +36,17 @@ func (b *ActionBuilder) BuildActions(params protocol.EditApplyParams, plan agent
 			Kind: "replace_between_anchors",
 			Path: params.ActiveFile,
 			Anchor: protocol.Anchor{
-				Before: plan.Intent.Before,
-				After:  plan.Intent.After,
+				Before: intent.Before,
+				After:  intent.After,
 			},
-			NewText: plan.Intent.NewText,
+			NewText: intent.NewText,
 		}
 		if failure := b.validator.ValidateAction(params.FileText, action); failure != nil {
 			return nil, failure
 		}
 		return []protocol.EditAction{action}, nil
 	case agent.EditIntentAppendImportIfMissing:
-		action, failure := b.buildAppendImportAction(params, plan.Intent)
+		action, failure := b.buildAppendImportAction(params, intent)
 		if failure != nil {
 			return nil, failure
 		}
@@ -49,7 +55,7 @@ func (b *ActionBuilder) BuildActions(params protocol.EditApplyParams, plan agent
 		}
 		return []protocol.EditAction{*action}, nil
 	default:
-		return nil, editFailure("unsupported_instruction", fmt.Sprintf("Unsupported intent kind %q.", plan.Intent.Kind))
+		return nil, editFailure("unsupported_instruction", fmt.Sprintf("Unsupported intent kind %q.", intent.Kind))
 	}
 }
 
@@ -93,6 +99,49 @@ func (b *ActionBuilder) buildInsertStatementAction(params protocol.EditApplyPara
 	}
 
 	return action, nil
+}
+
+func (b *ActionBuilder) buildReplaceCurrentFunctionBodyAction(params protocol.EditApplyParams, intent agent.EditIntent) (protocol.ReplaceBetweenAnchorsAction, *protocol.EditFailure) {
+	block, failure := findSingleFunctionBlock(params.FileText)
+	if failure != nil {
+		return protocol.ReplaceBetweenAnchorsAction{}, failure
+	}
+	newText := formatReplacementFunctionBody(block.indent, intent.NewText)
+	action := protocol.ReplaceBetweenAnchorsAction{
+		Kind: "replace_between_anchors",
+		Path: params.ActiveFile,
+		Anchor: protocol.Anchor{
+			Before: block.beforeLine,
+			After:  block.afterAnchor,
+		},
+		NewText: newText,
+	}
+	if failure := b.validator.ValidateAction(params.FileText, action); failure != nil {
+		return protocol.ReplaceBetweenAnchorsAction{}, failure
+	}
+	return action, nil
+}
+
+func formatReplacementFunctionBody(indent, body string) string {
+	body = strings.TrimSpace(body)
+	if body == "" {
+		return "\n"
+	}
+	lines := strings.Split(body, "\n")
+	var out strings.Builder
+	out.WriteByte('\n')
+	for _, line := range lines {
+		line = strings.TrimRight(line, "\r")
+		trimmed := strings.TrimLeft(line, " \t")
+		if trimmed == "" {
+			out.WriteByte('\n')
+			continue
+		}
+		out.WriteString(indent)
+		out.WriteString(trimmed)
+		out.WriteByte('\n')
+	}
+	return out.String()
 }
 
 func (b *ActionBuilder) buildAppendImportAction(params protocol.EditApplyParams, intent agent.EditIntent) (*protocol.ReplaceBetweenAnchorsAction, *protocol.EditFailure) {

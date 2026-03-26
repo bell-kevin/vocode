@@ -1,6 +1,9 @@
 package protocol
 
-import "errors"
+import (
+	"errors"
+	"fmt"
+)
 
 // EditApplyResult validation lives here alongside future protocol-level validators
 // (mirrors typescript/validators.ts conceptually).
@@ -35,11 +38,35 @@ func (r EditApplyResult) Validate() error {
 	return nil
 }
 
+func (s VoiceTranscriptStepResult) Validate() error {
+	switch s.Kind {
+	case "edit":
+		if s.EditResult == nil || s.CommandResult != nil {
+			return errors.New("voice transcript step: kind edit requires editResult and no commandResult")
+		}
+		return s.EditResult.Validate()
+	case "run_command":
+		if s.CommandResult == nil || s.EditResult != nil {
+			return errors.New("voice transcript step: kind run_command requires commandResult and no editResult")
+		}
+		return s.CommandResult.Validate()
+	default:
+		return fmt.Errorf("voice transcript step: unknown kind %q", s.Kind)
+	}
+}
+
 func (r VoiceTranscriptResult) Validate() error {
 	if !r.Accepted {
 		return errors.New("voice transcript result must have accepted=true")
 	}
-
+	if r.PlanError != "" && len(r.Steps) > 0 {
+		return errors.New("voice transcript result must not include both planError and steps")
+	}
+	for i := range r.Steps {
+		if err := r.Steps[i].Validate(); err != nil {
+			return fmt.Errorf("voice transcript result steps[%d]: %w", i, err)
+		}
+	}
 	return nil
 }
 

@@ -7,37 +7,20 @@ import (
 	protocol "vocoding.net/vocode/v2/packages/protocol/go"
 )
 
-type plannerStub struct {
-	result agent.EditPlanResult
-	called bool
-}
-
-func (s *plannerStub) PlanEdit(_ protocol.EditApplyParams) agent.EditPlanResult {
-	s.called = true
-	return s.result
-}
-
 type editsStub struct {
 	actions []protocol.EditAction
 	failure *protocol.EditFailure
 	called  bool
 }
 
-func (s *editsStub) BuildActions(_ protocol.EditApplyParams, _ agent.EditPlan) ([]protocol.EditAction, *protocol.EditFailure) {
+func (s *editsStub) BuildActions(_ protocol.EditApplyParams, _ agent.EditIntent) ([]protocol.EditAction, *protocol.EditFailure) {
 	s.called = true
 	return s.actions, s.failure
 }
 
-func TestEditOrchestratorApplyCallsPlannerThenBuildsActions(t *testing.T) {
+func TestEditApplyPipelineApplyWithIntentBuildsActions(t *testing.T) {
 	t.Parallel()
 
-	planner := &plannerStub{
-		result: agent.EditPlanResult{
-			Plan: &agent.EditPlan{
-				Intent: agent.EditIntent{Kind: agent.EditIntentReplaceAnchoredBlock},
-			},
-		},
-	}
 	editsService := &editsStub{
 		actions: []protocol.EditAction{
 			{
@@ -51,21 +34,23 @@ func TestEditOrchestratorApplyCallsPlannerThenBuildsActions(t *testing.T) {
 			},
 		},
 	}
-	orchestrator := &EditOrchestrator{
-		agent: planner,
-		edits: editsService,
-	}
+	pipeline := &EditApplyPipeline{edits: editsService}
 
-	result, err := orchestrator.Apply(protocol.EditApplyParams{
+	params := protocol.EditApplyParams{
 		Instruction: "replace block after \"before\" before \"after\" with \"updated\"",
 		ActiveFile:  "/tmp/example.ts",
 		FileText:    "beforeoldafter",
-	})
-	if err != nil {
-		t.Fatalf("Apply returned error: %v", err)
 	}
-	if !planner.called {
-		t.Fatal("expected planner to be called")
+	intent := agent.EditIntent{
+		Kind:    agent.EditIntentReplaceAnchoredBlock,
+		Before:  "before",
+		After:   "after",
+		NewText: "updated",
+	}
+
+	result, err := pipeline.ApplyWithIntent(params, intent)
+	if err != nil {
+		t.Fatalf("ApplyWithIntent returned error: %v", err)
 	}
 	if !editsService.called {
 		t.Fatal("expected edits service to be called")
@@ -78,30 +63,30 @@ func TestEditOrchestratorApplyCallsPlannerThenBuildsActions(t *testing.T) {
 	}
 }
 
-func TestEditOrchestratorApplyReturnsNoopForNoChangeNeeded(t *testing.T) {
+func TestEditApplyPipelineApplyWithIntentReturnsNoopForNoChangeNeeded(t *testing.T) {
 	t.Parallel()
 
-	planner := &plannerStub{
-		result: agent.EditPlanResult{
-			Plan: &agent.EditPlan{
-				Intent: agent.EditIntent{Kind: agent.EditIntentAppendImportIfMissing},
-			},
-		},
-	}
 	editsService := &editsStub{
 		failure: &protocol.EditFailure{
 			Code:    "no_change_needed",
 			Message: "Import is already present.",
 		},
 	}
-	orchestrator := &EditOrchestrator{
-		agent: planner,
-		edits: editsService,
-	}
+	pipeline := &EditApplyPipeline{edits: editsService}
 
-	result, err := orchestrator.Apply(protocol.EditApplyParams{})
+	result, err := pipeline.ApplyWithIntent(
+		protocol.EditApplyParams{
+			Instruction: "add import",
+			ActiveFile:    "/tmp/x.go",
+			FileText:      "package p\n",
+		},
+		agent.EditIntent{
+			Kind:   agent.EditIntentAppendImportIfMissing,
+			Import: `import "fmt"`,
+		},
+	)
 	if err != nil {
-		t.Fatalf("Apply returned error: %v", err)
+		t.Fatalf("ApplyWithIntent returned error: %v", err)
 	}
 	if result.Kind != "noop" {
 		t.Fatalf("expected noop result, got %q", result.Kind)

@@ -15,8 +15,8 @@ Expected daemon flow:
 `cmd/vocoded/main.go`  
 → `internal/app` (composition root)  
 → `internal/rpc` (transport/routing only)  
-→ `internal/app/EditOrchestrator` (application orchestration)  
-→ `internal/agent` (intent planning)  
+→ `internal/agent` — `Agent.HandleTranscript` for voice turns (stub; will dispatch `ActionPlan`); `EditIntent` / `Step` types for the edit model  
+→ `internal/orchestration/EditApplyPipeline` (plan → actions; used from tests and future agent dispatch, not an RPC)  
 → `internal/edits` (action building + validation)
 
 ### Extension (`apps/vscode-extension`)
@@ -63,16 +63,17 @@ Does not own:
 - Planning/orchestration/business logic
 - Editor or transport implementations
 
-## edit.apply contract
+## Edit apply result shape (`EditApplyResult`)
 
-`edit.apply` returns one explicit variant:
+There is **no** `edit.apply` or **`command.run`** JSON-RPC method; the extension does not call them. **`EditApplyResult`** and **`CommandRunResult`** remain in the protocol for generated types, validators, and **Go tests**.
+
+**`EditApplyResult`** must be one explicit variant:
 
 - `success` with `actions`
 - `failure` with `failure`
 - `noop` with `reason`
 
-Mixed-state payloads are invalid (examples: `success + failure`, `failure + actions`, `noop + actions`, `noop + failure`).  
-Schema, generated types, validators, and runtime behavior must remain aligned.
+Mixed-state payloads are invalid. Schema, generated types, validators, and runtime behavior must remain aligned.
 
 ## Quick ownership guide
 
@@ -140,12 +141,12 @@ Rules:
 - Daemon decides whether action is safe/valid to emit.
 - Extension only performs deterministic mechanical apply + sanity checks.
 
-### How to add a new intent/planner capability
+### How to add a new edit-planner capability
 
-1. Extend `internal/agent/IntentPlanner` with explicit parsing rules.
-2. Return deterministic `EditPlan` or structured `EditFailure`.
+1. Extend `internal/agent` edit intent handling (or model output validation) as needed.
+2. Return deterministic `EditIntent` or structured `EditFailure`.
 3. Keep intent-level semantics in agent, not in `internal/edits`.
-4. Ensure `EditOrchestrator` maps planner/builder outcomes to result variants.
+4. Ensure `EditApplyPipeline` maps planner/builder outcomes to result variants.
 5. Add planner tests for:
    - supported instruction parsing
    - unsupported instruction failures
@@ -182,7 +183,7 @@ Before merging:
 - `main.go` remains bootstrap-only
 - `internal/app` remains composition + orchestration owner
 - `internal/rpc` remains transport/routing only
-- `EditOrchestrator` owns agent+edits coordination
+- `EditApplyPipeline` owns plan→actions coordination (tests / future agent path; not an RPC)
 - Extension contains only mechanical apply + UI policy
 - Protocol schema/types/validators/runtime behavior stay aligned
 - Tests cover variant invariants and boundary behavior

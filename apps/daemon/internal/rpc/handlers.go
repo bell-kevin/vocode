@@ -7,40 +7,20 @@ type HandlerDefinition struct {
 	Handler Handler
 }
 
-type EditApplyService interface {
-	Apply(params protocol.EditApplyParams) (protocol.EditApplyResult, error)
-}
-
 type VoiceTranscriptService interface {
 	// AcceptTranscript returns ok=false for semantically invalid params.
 	AcceptTranscript(params protocol.VoiceTranscriptParams) (protocol.VoiceTranscriptResult, bool)
 }
 
-type CommandRunService interface {
-	Run(params protocol.CommandRunParams) protocol.CommandRunResult
-}
-
-func BuildHandlers(
-	editService EditApplyService,
-	voiceService VoiceTranscriptService,
-	commandService CommandRunService,
-) []HandlerDefinition {
+func BuildHandlers(voiceService VoiceTranscriptService) []HandlerDefinition {
 	return []HandlerDefinition{
 		{
 			Method:  "ping",
 			Handler: NewPingHandler(),
 		},
 		{
-			Method:  "edit.apply",
-			Handler: NewEditApplyHandler(editService),
-		},
-		{
 			Method:  "voice.transcript",
 			Handler: NewVoiceTranscriptHandler(voiceService),
-		},
-		{
-			Method:  "command.run",
-			Handler: NewCommandRunHandler(commandService),
 		},
 	}
 }

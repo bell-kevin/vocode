@@ -32,6 +32,8 @@ func (s *Service) Run(params protocol.CommandRunParams) protocol.CommandRunResul
 		return protocol.CommandRunResult{
 			Kind:    "failure",
 			Failure: &failure,
+			Stdout:  "",
+			Stderr:  "",
 		}
 	}
 
@@ -43,6 +45,8 @@ func (s *Service) Run(params protocol.CommandRunParams) protocol.CommandRunResul
 				Code:    "execution_failed",
 				Message: fmt.Sprintf("command failed to execute: %v", err),
 			},
+			Stdout: "",
+			Stderr: "",
 		}
 	}
 
@@ -53,6 +57,8 @@ func (s *Service) Run(params protocol.CommandRunParams) protocol.CommandRunResul
 				Code:    "timeout",
 				Message: "command timed out",
 			},
+			Stdout: out.stdout,
+			Stderr: out.stderr,
 		}
 	}
 

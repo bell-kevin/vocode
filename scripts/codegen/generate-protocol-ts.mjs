@@ -23,6 +23,10 @@ const entries = [
     name: "VoiceTranscriptParams",
   },
   {
+    file: "voice-transcript.step-result.schema.json",
+    name: "VoiceTranscriptStepResult",
+  },
+  {
     file: "voice-transcript.result.schema.json",
     name: "VoiceTranscriptResult",
   },

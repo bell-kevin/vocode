@@ -32,14 +32,6 @@
       {
         "command": "vocode.sendTranscript",
         "title": "Vocode: Send Transcript"
-      },
-      {
-        "command": "vocode.applyEdit",
-        "title": "Vocode: Apply Edit"
-      },
-      {
-        "command": "vocode.runCommand",
-        "title": "Vocode: Run Command"
       }
     ]
   },

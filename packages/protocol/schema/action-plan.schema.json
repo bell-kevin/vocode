@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vocoding.net/schemas/action-plan.schema.json",
+  "title": "ActionPlan",
+  "description": "Ordered list of edit and/or command steps produced by the model.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["steps"],
+  "properties": {
+    "steps": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/step" }
+    }
+  },
+  "definitions": {
+    "step": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "edit"],
+          "properties": {
+            "kind": { "const": "edit" },
+            "edit": { "$ref": "./edit-intent.schema.json" }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "runCommand"],
+          "properties": {
+            "kind": { "const": "run_command" },
+            "runCommand": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["command"],
+              "properties": {
+                "command": { "type": "string" },
+                "args": {
+                  "type": "array",
+                  "items": { "type": "string" }
+                },
+                "timeoutMs": { "type": "integer" }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

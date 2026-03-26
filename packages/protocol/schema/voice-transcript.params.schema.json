@@ -5,7 +5,11 @@
   "type": "object",
   "additionalProperties": false,
   "properties": {
-    "text": { "type": "string" }
+    "text": { "type": "string" },
+    "activeFile": {
+      "type": "string",
+      "description": "Absolute path of the active editor file; the daemon loads content (indexing / snapshot later)."
+    }
   },
   "required": ["text"]
 }

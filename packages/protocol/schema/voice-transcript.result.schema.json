@@ -5,7 +5,17 @@
   "type": "object",
   "additionalProperties": false,
   "properties": {
-    "accepted": { "type": "boolean" }
+    "accepted": { "type": "boolean" },
+    "planError": {
+      "type": "string",
+      "description": "Set when the transcript was accepted but the model or plan validation failed before execution."
+    },
+    "steps": {
+      "type": "array",
+      "items": {
+        "$ref": "./voice-transcript.step-result.schema.json"
+      }
+    }
   },
   "required": ["accepted"]
 }

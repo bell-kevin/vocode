@@ -18,10 +18,12 @@ type Policy struct {
 func NewPolicy() *Policy {
 	return &Policy{
 		allowed: map[string]struct{}{
-			"cmd.exe":          {},
-			"powershell.exe":   {},
-			"powershell":      {},
-			"pwsh":            {},
+			"cmd.exe":        {},
+			"powershell.exe": {},
+			"powershell":     {},
+			"pwsh": {},
+			// Unix stub smoke test; on Windows the stub uses cmd.exe instead.
+			"echo": {},
 		},
 	}
 }

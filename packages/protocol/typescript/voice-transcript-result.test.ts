@@ -14,3 +14,49 @@ test("isVoiceTranscriptResult rejects accepted=false shape", () => {
 test("isVoiceTranscriptResult rejects extra keys", () => {
   assert.equal(isVoiceTranscriptResult({ accepted: true, extra: 123 }), false);
 });
+
+test("isVoiceTranscriptResult accepts steps with edit success", () => {
+  assert.equal(
+    isVoiceTranscriptResult({
+      accepted: true,
+      steps: [
+        {
+          kind: "edit",
+          editResult: {
+            kind: "success",
+            actions: [
+              {
+                kind: "replace_between_anchors",
+                path: "/tmp/x.ts",
+                anchor: { before: "a", after: "b" },
+                newText: "\n",
+              },
+            ],
+          },
+        },
+      ],
+    }),
+    true,
+  );
+});
+
+test("isVoiceTranscriptResult rejects planError together with steps", () => {
+  assert.equal(
+    isVoiceTranscriptResult({
+      accepted: true,
+      planError: "bad",
+      steps: [
+        {
+          kind: "run_command",
+          commandResult: {
+            kind: "success",
+            exitCode: 0,
+            stdout: "",
+            stderr: "",
+          },
+        },
+      ],
+    }),
+    false,
+  );
+});

@@ -4,6 +4,7 @@ import type {
   EditApplyResult,
   PingResult,
   VoiceTranscriptResult,
+  VoiceTranscriptStepResult,
 } from "./types.generated";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -87,16 +88,6 @@ export function isEditApplyResult(value: unknown): value is EditApplyResult {
   }
 }
 
-export function isVoiceTranscriptResult(
-  value: unknown,
-): value is VoiceTranscriptResult {
-  return (
-    isRecord(value) &&
-    hasOnlyKeys(value, ["accepted"]) &&
-    value.accepted === true
-  );
-}
-
 export function isCommandRunResult(value: unknown): value is CommandRunResult {
   if (!isRecord(value) || typeof value.kind !== "string") {
     return false;
@@ -119,7 +110,9 @@ export function isCommandRunResult(value: unknown): value is CommandRunResult {
       ]);
 
       return (
-        hasOnlyKeys(value, ["kind", "failure"]) &&
+        hasOnlyKeys(value, ["kind", "failure", "stdout", "stderr"]) &&
+        typeof value.stdout === "string" &&
+        typeof value.stderr === "string" &&
         isRecord(failure) &&
         hasOnlyKeys(failure, ["code", "message"]) &&
         typeof failure.code === "string" &&
@@ -130,4 +123,58 @@ export function isCommandRunResult(value: unknown): value is CommandRunResult {
     default:
       return false;
   }
+}
+
+export function isVoiceTranscriptStepResult(
+  value: unknown,
+): value is VoiceTranscriptStepResult {
+  if (!isRecord(value) || typeof value.kind !== "string") {
+    return false;
+  }
+  if (value.kind === "edit") {
+    return (
+      hasOnlyKeys(value, ["kind", "editResult"]) &&
+      isEditApplyResult(value.editResult)
+    );
+  }
+  if (value.kind === "run_command") {
+    return (
+      hasOnlyKeys(value, ["kind", "commandResult"]) &&
+      isCommandRunResult(value.commandResult)
+    );
+  }
+  return false;
+}
+
+export function isVoiceTranscriptResult(
+  value: unknown,
+): value is VoiceTranscriptResult {
+  if (!isRecord(value) || value.accepted !== true) {
+    return false;
+  }
+  const allowedKeys = new Set(["accepted", "planError", "steps"]);
+  if (!Object.keys(value).every((k) => allowedKeys.has(k))) {
+    return false;
+  }
+  if (value.planError !== undefined && typeof value.planError !== "string") {
+    return false;
+  }
+  if (value.steps !== undefined) {
+    if (!Array.isArray(value.steps)) {
+      return false;
+    }
+    if (!value.steps.every(isVoiceTranscriptStepResult)) {
+      return false;
+    }
+  }
+  const planErr = value.planError;
+  if (
+    typeof planErr === "string" &&
+    planErr !== "" &&
+    Array.isArray(value.steps) &&
+    value.steps.length > 0
+  ) {
+    return false;
+  }
+  return true;
 }
