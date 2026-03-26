@@ -26,9 +26,7 @@ function configurePortAudioCgoEnv() {
   const gccExe = path.join(mingwBin, "gcc.exe");
 
   const ok =
-    pkgTool !== "" &&
-    existsSync(mingwPkgConfigDir) &&
-    existsSync(gccExe);
+    pkgTool !== "" && existsSync(mingwPkgConfigDir) && existsSync(gccExe);
   if (!ok) {
     return {
       ok: false,

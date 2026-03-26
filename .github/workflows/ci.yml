@@ -99,6 +99,12 @@ jobs:
   voice-windows:
     name: Build voice sidecar (Windows)
     runs-on: windows-latest
+    env:
+      MSYS2_ROOT: C:\msys64
+      CGO_ENABLED: "1"
+      CC: C:\msys64\mingw64\bin\gcc.exe
+      PKG_CONFIG: C:\msys64\mingw64\bin\pkgconf.exe
+      PKG_CONFIG_PATH: C:\msys64\mingw64\lib\pkgconfig
 
     steps:
       - name: Check out repository
@@ -137,6 +143,11 @@ jobs:
         shell: pwsh
         run: |
           echo "MSYS2_ROOT=C:\msys64" >> $env:GITHUB_ENV
+          echo "CGO_ENABLED=1" >> $env:GITHUB_ENV
+          echo "CC=C:\msys64\mingw64\bin\gcc.exe" >> $env:GITHUB_ENV
+          echo "PKG_CONFIG=C:\msys64\mingw64\bin\pkgconf.exe" >> $env:GITHUB_ENV
+          echo "PKG_CONFIG_PATH=C:\msys64\mingw64\lib\pkgconfig" >> $env:GITHUB_ENV
+          echo "Path=C:\msys64\mingw64\bin;$env:Path" >> $env:GITHUB_ENV
 
       - name: Build voice sidecar
         run: pnpm --filter @vocode/voice build
