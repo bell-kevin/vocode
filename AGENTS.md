@@ -113,7 +113,7 @@ One rule should have one owner. Duplicating ownership is a regression risk.
 
 ### Add a new command capability
 
-1. Ensure the model can emit a `RunCommandIntent` that maps to protocol `commandParams`.
+1. Ensure the model can emit a `CommandIntent` that maps to protocol `commandParams`.
 2. Update daemon allowlist in `apps/daemon/internal/commandexec/policy.go`.
 3. Update extension allowlist in `apps/vscode-extension/src/commandexec/execute-command.ts`.
 4. Keep execution semantics in the extension; keep command-shape validation in the daemon.

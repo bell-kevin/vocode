@@ -34,7 +34,7 @@ export class DaemonClient {
     return this.sendRequest<PingResult>("ping", params, isPingResult);
   }
 
-  public voiceTranscript(
+  public transcript(
     params: VoiceTranscriptParams,
   ): Promise<VoiceTranscriptResult> {
     return this.sendRequest<VoiceTranscriptResult>(

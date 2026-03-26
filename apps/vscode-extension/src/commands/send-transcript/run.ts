@@ -44,7 +44,7 @@ export async function runSendTranscript(
 
   try {
     services.voiceStatus.setProcessing();
-    const result = await client.voiceTranscript({
+    const result = await client.transcript({
       text: trimmedText,
       activeFile: activePath,
     });
