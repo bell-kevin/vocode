@@ -3,8 +3,6 @@ package actionplan
 import (
 	"fmt"
 	"strings"
-
-	protocol "vocoding.net/vocode/v2/packages/protocol/go"
 )
 
 // StepKind discriminates one entry in an [ActionPlan].
@@ -16,13 +14,13 @@ const (
 )
 
 // Step is one concrete action in the plan: either apply a structured edit, or
-// run a shell command. It is the union of [EditIntent] and [RunCommandIntent]
+// run a shell command. It is the union of [EditIntent] and [CommandIntent]
 // with an explicit kind.
 type Step struct {
 	Kind StepKind `json:"kind"`
 
 	Edit       *EditIntent       `json:"edit,omitempty"`
-	RunCommand *RunCommandIntent `json:"runCommand,omitempty"`
+	RunCommand *CommandIntent `json:"runCommand,omitempty"`
 }
 
 // ActionPlan is structured model output: an ordered list of edits and/or
@@ -32,22 +30,6 @@ type Step struct {
 // JSON shape matches packages/protocol/schema/action-plan.schema.json.
 type ActionPlan struct {
 	Steps []Step `json:"steps"`
-}
-
-// RunCommandIntent maps to protocol.CommandRunParams.
-type RunCommandIntent struct {
-	Command   string   `json:"command"`
-	Args      []string `json:"args,omitempty"`
-	TimeoutMs *int64   `json:"timeoutMs,omitempty"`
-}
-
-// CommandParams returns protocol params for command execution.
-func (i RunCommandIntent) CommandParams() protocol.CommandRunParams {
-	return protocol.CommandRunParams{
-		Command:   strings.TrimSpace(i.Command),
-		Args:      i.Args,
-		TimeoutMs: i.TimeoutMs,
-	}
 }
 
 // ValidateStep checks a single step is self-consistent.

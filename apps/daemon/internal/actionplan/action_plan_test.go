@@ -48,7 +48,7 @@ func TestValidateActionPlanEditThenCommand(t *testing.T) {
 			},
 			{
 				Kind:       StepKindRunCommand,
-				RunCommand: &RunCommandIntent{Command: "pnpm", Args: []string{"test"}},
+				RunCommand: &CommandIntent{Command: "pnpm", Args: []string{"test"}},
 			},
 		},
 	})
@@ -81,7 +81,7 @@ func TestValidateStepRejectsMismatchedPayload(t *testing.T) {
 			Kind:      EditIntentInsertStatementInCurrentFunction,
 			Statement: "ok",
 		},
-		RunCommand: &RunCommandIntent{Command: "x"},
+		RunCommand: &CommandIntent{Command: "x"},
 	})
 	if err == nil {
 		t.Fatal("expected error for extra runCommand on edit step")

@@ -40,14 +40,14 @@ func (*Client) Plan(ctx context.Context, in agent.ModelInput) (actionplan.Action
 
 // stubEchoRunCommand: on Windows, `echo` is a cmd builtin (no echo.exe on PATH);
 // Go's exec needs cmd.exe /c. On Unix, /bin/echo (or PATH) is a real binary.
-func stubEchoRunCommand() *actionplan.RunCommandIntent {
+func stubEchoRunCommand() *actionplan.CommandIntent {
 	if runtime.GOOS == "windows" {
-		return &actionplan.RunCommandIntent{
+		return &actionplan.CommandIntent{
 			Command: "cmd.exe",
 			Args:    []string{"/c", "echo", "stub-model-client"},
 		}
 	}
-	return &actionplan.RunCommandIntent{
+	return &actionplan.CommandIntent{
 		Command: "echo",
 		Args:    []string{"stub-model-client"},
 	}
