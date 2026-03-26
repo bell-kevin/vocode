@@ -1,6 +1,6 @@
 import type {
-  CommandRunResult,
   CommandRunParams,
+  CommandRunResult,
   EditAction,
   EditApplyResult,
   PingResult,
@@ -131,7 +131,13 @@ function isCommandRunParams(value: unknown): value is CommandRunParams {
     return false;
   }
 
-  if (!hasOnlyKeys(value as Record<string, unknown>, ["command", "args", "timeoutMs"])) {
+  if (
+    !hasOnlyKeys(value as Record<string, unknown>, [
+      "command",
+      "args",
+      "timeoutMs",
+    ])
+  ) {
     return false;
   }
 

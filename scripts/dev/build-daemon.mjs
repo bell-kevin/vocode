@@ -15,7 +15,13 @@ mkdirSync(goCache, { recursive: true });
 
 const result = spawnSync(
   "go",
-  ["build", "-buildvcs=false", "-o", path.join("bin", target, binary), "./cmd/vocoded"],
+  [
+    "build",
+    "-buildvcs=false",
+    "-o",
+    path.join("bin", target, binary),
+    "./cmd/vocoded",
+  ],
   {
     env: {
       ...process.env,
