@@ -17,10 +17,16 @@ function configurePortAudioCgoEnv() {
   const mingwBin = path.join(msysRoot, "mingw64", "bin");
   const mingwPkgConfigDir = path.join(msysRoot, "mingw64", "lib", "pkgconfig");
   const pkgConfigExe = path.join(mingwBin, "pkg-config.exe");
+  const pkgConfExe = path.join(mingwBin, "pkgconf.exe");
+  const pkgTool = existsSync(pkgConfigExe)
+    ? pkgConfigExe
+    : existsSync(pkgConfExe)
+      ? pkgConfExe
+      : "";
   const gccExe = path.join(mingwBin, "gcc.exe");
 
   const ok =
-    existsSync(pkgConfigExe) &&
+    pkgTool !== "" &&
     existsSync(mingwPkgConfigDir) &&
     existsSync(gccExe);
   if (!ok) {
@@ -47,7 +53,7 @@ function configurePortAudioCgoEnv() {
       (process.env.PKG_CONFIG_PATH
         ? pathSep + process.env.PKG_CONFIG_PATH
         : ""),
-    PKG_CONFIG: pkgConfigExe,
+    PKG_CONFIG: pkgTool,
     CC: gccExe,
   };
 
@@ -80,10 +86,8 @@ const result = spawnSync(
     env: {
       ...process.env,
       GOCACHE: goCache,
-      // PortAudio mic capture is cgo-only. On Windows we always force cgo.
-      ...(process.platform === "win32"
-        ? { CGO_ENABLED: "1" }
-        : { CGO_ENABLED: "0" }),
+      // PortAudio mic capture is cgo-only.
+      CGO_ENABLED: "1",
       ...(portAudioEnv.ok ? portAudioEnv.env : {}),
     },
     stdio: "inherit",

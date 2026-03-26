@@ -53,10 +53,16 @@ function main() {
       "pkgconfig",
     );
     const pkgConfigExe = path.join(mingwBin, "pkg-config.exe");
+    const pkgConfExe = path.join(mingwBin, "pkgconf.exe");
+    const pkgTool = fs.existsSync(pkgConfigExe)
+      ? pkgConfigExe
+      : fs.existsSync(pkgConfExe)
+        ? pkgConfExe
+        : "";
     const gccExe = path.join(mingwBin, "gcc.exe");
 
     const ok =
-      fs.existsSync(pkgConfigExe) &&
+      pkgTool !== "" &&
       fs.existsSync(mingwPkgConfigDir) &&
       fs.existsSync(gccExe);
 
@@ -66,7 +72,7 @@ function main() {
       env.PKG_CONFIG_PATH =
         mingwPkgConfigDir +
         (env.PKG_CONFIG_PATH ? pathSep + env.PKG_CONFIG_PATH : "");
-      env.PKG_CONFIG = pkgConfigExe;
+      env.PKG_CONFIG = pkgTool;
       env.CC = gccExe;
     }
   }

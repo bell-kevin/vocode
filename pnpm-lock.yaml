@@ -23,6 +23,8 @@ importers:
 
   apps/daemon: {}
 
+  apps/voice: {}
+
   apps/vscode-extension:
     devDependencies:
       '@types/node':
