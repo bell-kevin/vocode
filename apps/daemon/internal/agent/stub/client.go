@@ -5,8 +5,8 @@ import (
 	"context"
 	"runtime"
 
-	"vocoding.net/vocode/v2/apps/daemon/internal/agent"
 	"vocoding.net/vocode/v2/apps/daemon/internal/actionplan"
+	"vocoding.net/vocode/v2/apps/daemon/internal/agent"
 )
 
 // Client ignores input and always returns the same hardcoded [actionplan.ActionPlan].
@@ -26,8 +26,17 @@ func (*Client) Plan(ctx context.Context, in agent.ModelInput) (actionplan.Action
 			{
 				Kind: actionplan.StepKindEdit,
 				Edit: &actionplan.EditIntent{
-					Kind:    actionplan.EditIntentReplaceCurrentFunctionBody,
-					NewText: `console.log("hello from vocode");`,
+					Kind: actionplan.EditIntentKindReplace,
+					Replace: &actionplan.ReplaceEditIntent{
+						Target: actionplan.EditTarget{
+							Kind: actionplan.EditTargetKindSymbol,
+							Symbol: &actionplan.SymbolTarget{
+								SymbolName: "current_function",
+								SymbolKind: "function",
+							},
+						},
+						NewText: `console.log("hello from vocode");`,
+					},
 				},
 			},
 			{

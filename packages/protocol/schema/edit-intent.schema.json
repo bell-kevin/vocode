@@ -2,43 +2,209 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://vocoding.net/schemas/edit-intent.schema.json",
   "title": "EditIntent",
+  "definitions": {
+    "editTarget": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "currentFile"],
+          "properties": {
+            "kind": { "const": "current_file" },
+            "currentFile": { "type": "object", "additionalProperties": false }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "currentCursor"],
+          "properties": {
+            "kind": { "const": "current_cursor" },
+            "currentCursor": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "placement": {
+                  "type": "string",
+                  "enum": ["at", "before", "after"]
+                }
+              }
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "currentSelection"],
+          "properties": {
+            "kind": { "const": "current_selection" },
+            "currentSelection": { "type": "object", "additionalProperties": false }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "symbol"],
+          "properties": {
+            "kind": { "const": "symbol" },
+            "symbol": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["symbolName"],
+              "properties": {
+                "path": { "type": "string" },
+                "symbolName": { "type": "string", "minLength": 1 },
+                "symbolKind": { "type": "string" }
+              }
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "anchor"],
+          "properties": {
+            "kind": { "const": "anchor" },
+            "anchor": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["before", "after"],
+              "properties": {
+                "path": { "type": "string" },
+                "before": { "type": "string", "minLength": 1 },
+                "after": { "type": "string", "minLength": 1 }
+              }
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "range"],
+          "properties": {
+            "kind": { "const": "range" },
+            "range": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "startLine",
+                "startChar",
+                "endLine",
+                "endChar"
+              ],
+              "properties": {
+                "path": { "type": "string" },
+                "startLine": { "type": "integer" },
+                "startChar": { "type": "integer" },
+                "endLine": { "type": "integer" },
+                "endChar": { "type": "integer" }
+              }
+            }
+          }
+        }
+      ]
+    }
+  },
   "oneOf": [
     {
       "type": "object",
       "additionalProperties": false,
-      "required": ["kind", "statement"],
+      "required": ["kind", "replace"],
       "properties": {
-        "kind": { "const": "insert_statement_in_current_function" },
-        "statement": { "type": "string", "minLength": 1 }
+        "kind": { "const": "replace" },
+        "replace": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["target", "newText"],
+          "properties": {
+            "target": { "$ref": "#/definitions/editTarget" },
+            "newText": { "type": "string", "minLength": 1 }
+          }
+        }
       }
     },
     {
       "type": "object",
       "additionalProperties": false,
-      "required": ["kind", "newText"],
+      "required": ["kind", "insert"],
       "properties": {
-        "kind": { "const": "replace_current_function_body" },
-        "newText": { "type": "string", "minLength": 1 }
+        "kind": { "const": "insert" },
+        "insert": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["target", "text"],
+          "properties": {
+            "target": { "$ref": "#/definitions/editTarget" },
+            "text": { "type": "string", "minLength": 1 }
+          }
+        }
       }
     },
     {
       "type": "object",
       "additionalProperties": false,
-      "required": ["kind", "before", "after", "newText"],
+      "required": ["kind", "delete"],
       "properties": {
-        "kind": { "const": "replace_anchored_block" },
-        "before": { "type": "string", "minLength": 1 },
-        "after": { "type": "string", "minLength": 1 },
-        "newText": { "type": "string" }
+        "kind": { "const": "delete" },
+        "delete": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["target"],
+          "properties": {
+            "target": { "$ref": "#/definitions/editTarget" }
+          }
+        }
       }
     },
     {
       "type": "object",
       "additionalProperties": false,
-      "required": ["kind", "import"],
+      "required": ["kind", "insertImport"],
       "properties": {
-        "kind": { "const": "append_import_if_missing" },
-        "import": { "type": "string", "minLength": 1 }
+        "kind": { "const": "insert_import" },
+        "insertImport": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["import"],
+          "properties": {
+            "path": { "type": "string" },
+            "import": { "type": "string", "minLength": 1 }
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "createFile"],
+      "properties": {
+        "kind": { "const": "create_file" },
+        "createFile": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["path", "content"],
+          "properties": {
+            "path": { "type": "string", "minLength": 1 },
+            "content": { "type": "string" }
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "appendToFile"],
+      "properties": {
+        "kind": { "const": "append_to_file" },
+        "appendToFile": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["path", "text"],
+          "properties": {
+            "path": { "type": "string", "minLength": 1 },
+            "text": { "type": "string", "minLength": 1 }
+          }
+        }
       }
     }
   ]

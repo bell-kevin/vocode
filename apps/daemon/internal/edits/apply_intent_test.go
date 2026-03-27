@@ -15,14 +15,21 @@ func TestApplyIntentSuccess(t *testing.T) {
 	fileText := readFixture(t, "anchored-block.ts")
 	params := protocol.EditApplyParams{
 		Instruction: "replace inner",
-		ActiveFile:    "/tmp/anchored-block.ts",
-		FileText:      fileText,
+		ActiveFile:  "/tmp/anchored-block.ts",
+		FileText:    fileText,
 	}
 	intent := actionplan.EditIntent{
-		Kind:    actionplan.EditIntentReplaceAnchoredBlock,
-		Before:  "export function firstBraceAnchors() {",
-		After:   "}",
-		NewText: "\n  return \"updated\";\n",
+		Kind: actionplan.EditIntentKindReplace,
+		Replace: &actionplan.ReplaceEditIntent{
+			Target: actionplan.EditTarget{
+				Kind: actionplan.EditTargetKindAnchor,
+				Anchor: &actionplan.AnchorTarget{
+					Before: "export function firstBraceAnchors() {",
+					After:  "}",
+				},
+			},
+			NewText: "\n  return \"updated\";\n",
+		},
 	}
 
 	result, err := service.ApplyIntent(params, intent)
@@ -46,7 +53,7 @@ func TestApplyIntentNoopWhenImportAlreadyPresent(t *testing.T) {
 	service := NewService()
 	params := protocol.EditApplyParams{
 		Instruction: "add fmt",
-		ActiveFile:    "/tmp/x.go",
+		ActiveFile:  "/tmp/x.go",
 		FileText: `package main
 
 import "fmt"
@@ -57,8 +64,10 @@ func main() {
 `,
 	}
 	intent := actionplan.EditIntent{
-		Kind:   actionplan.EditIntentAppendImportIfMissing,
-		Import: `import "fmt"`,
+		Kind: actionplan.EditIntentKindInsertImport,
+		InsertImport: &actionplan.InsertImportEditIntent{
+			Import: `import "fmt"`,
+		},
 	}
 
 	result, err := service.ApplyIntent(params, intent)

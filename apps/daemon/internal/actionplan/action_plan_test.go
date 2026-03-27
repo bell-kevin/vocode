@@ -8,8 +8,14 @@ func TestValidateActionPlanSingleEdit(t *testing.T) {
 			{
 				Kind: StepKindEdit,
 				Edit: &EditIntent{
-					Kind:      EditIntentInsertStatementInCurrentFunction,
-					Statement: "x++",
+					Kind: EditIntentKindInsert,
+					Insert: &InsertEditIntent{
+						Target: EditTarget{
+							Kind:   EditTargetKindSymbol,
+							Symbol: &SymbolTarget{SymbolName: "current_function", SymbolKind: "function"},
+						},
+						Text: "x++",
+					},
 				},
 			},
 		},
@@ -25,8 +31,14 @@ func TestValidateActionPlanReplaceCurrentFunctionBody(t *testing.T) {
 			{
 				Kind: StepKindEdit,
 				Edit: &EditIntent{
-					Kind:    EditIntentReplaceCurrentFunctionBody,
-					NewText: `console.log("x");`,
+					Kind: EditIntentKindReplace,
+					Replace: &ReplaceEditIntent{
+						Target: EditTarget{
+							Kind:   EditTargetKindSymbol,
+							Symbol: &SymbolTarget{SymbolName: "current_function", SymbolKind: "function"},
+						},
+						NewText: `console.log("x");`,
+					},
 				},
 			},
 		},
@@ -42,8 +54,14 @@ func TestValidateActionPlanEditThenCommand(t *testing.T) {
 			{
 				Kind: StepKindEdit,
 				Edit: &EditIntent{
-					Kind:      EditIntentInsertStatementInCurrentFunction,
-					Statement: "x++",
+					Kind: EditIntentKindInsert,
+					Insert: &InsertEditIntent{
+						Target: EditTarget{
+							Kind:   EditTargetKindSymbol,
+							Symbol: &SymbolTarget{SymbolName: "current_function", SymbolKind: "function"},
+						},
+						Text: "x++",
+					},
 				},
 			},
 			{
@@ -63,8 +81,14 @@ func TestValidateActionPlanRejectsBadEditStep(t *testing.T) {
 			{
 				Kind: StepKindEdit,
 				Edit: &EditIntent{
-					Kind:      EditIntentInsertStatementInCurrentFunction,
-					Statement: "   ",
+					Kind: EditIntentKindInsert,
+					Insert: &InsertEditIntent{
+						Target: EditTarget{
+							Kind:   EditTargetKindSymbol,
+							Symbol: &SymbolTarget{SymbolName: "current_function", SymbolKind: "function"},
+						},
+						Text: "   ",
+					},
 				},
 			},
 		},
@@ -78,8 +102,14 @@ func TestValidateStepRejectsMismatchedPayload(t *testing.T) {
 	err := ValidateStep(Step{
 		Kind: StepKindEdit,
 		Edit: &EditIntent{
-			Kind:      EditIntentInsertStatementInCurrentFunction,
-			Statement: "ok",
+			Kind: EditIntentKindInsert,
+			Insert: &InsertEditIntent{
+				Target: EditTarget{
+					Kind:   EditTargetKindSymbol,
+					Symbol: &SymbolTarget{SymbolName: "current_function", SymbolKind: "function"},
+				},
+				Text: "ok",
+			},
 		},
 		RunCommand: &CommandIntent{Command: "x"},
 	})
@@ -94,4 +124,3 @@ func TestValidateActionPlanEmptySteps(t *testing.T) {
 		t.Fatalf("empty plan should be valid: %v", err)
 	}
 }
-

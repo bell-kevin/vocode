@@ -4,8 +4,8 @@ import (
 	"context"
 	"testing"
 
-	"vocoding.net/vocode/v2/apps/daemon/internal/agent"
 	"vocoding.net/vocode/v2/apps/daemon/internal/actionplan"
+	"vocoding.net/vocode/v2/apps/daemon/internal/agent"
 	"vocoding.net/vocode/v2/apps/daemon/internal/agent/stub"
 	protocol "vocoding.net/vocode/v2/packages/protocol/go"
 )
@@ -38,8 +38,8 @@ func TestHandleTranscriptStubReturnsPlan(t *testing.T) {
 	if r.Plan.Steps[0].Kind != actionplan.StepKindEdit {
 		t.Fatalf("expected stub edit step first, got %q", r.Plan.Steps[0].Kind)
 	}
-	if r.Plan.Steps[0].Edit == nil || r.Plan.Steps[0].Edit.Kind != actionplan.EditIntentReplaceCurrentFunctionBody {
-		t.Fatalf("expected replace_current_function_body edit, got %+v", r.Plan.Steps[0].Edit)
+	if r.Plan.Steps[0].Edit == nil || r.Plan.Steps[0].Edit.Kind != actionplan.EditIntentKindReplace {
+		t.Fatalf("expected replace edit, got %+v", r.Plan.Steps[0].Edit)
 	}
 	if r.Plan.Steps[1].Kind != actionplan.StepKindRunCommand {
 		t.Fatalf("expected stub run_command step second, got %q", r.Plan.Steps[1].Kind)

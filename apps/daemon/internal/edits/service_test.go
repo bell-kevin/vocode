@@ -20,8 +20,17 @@ func TestApplyInsertStatementInCurrentFunction(t *testing.T) {
 		FileText:   fileText,
 	}
 	intent := actionplan.EditIntent{
-		Kind:      actionplan.EditIntentInsertStatementInCurrentFunction,
-		Statement: `console.log("done")`,
+		Kind: actionplan.EditIntentKindInsert,
+		Insert: &actionplan.InsertEditIntent{
+			Target: actionplan.EditTarget{
+				Kind: actionplan.EditTargetKindSymbol,
+				Symbol: &actionplan.SymbolTarget{
+					SymbolName: "current_function",
+					SymbolKind: "function",
+				},
+			},
+			Text: `console.log("done")`,
+		},
 	}
 
 	result, failure := service.BuildActions(params, intent)
@@ -51,8 +60,17 @@ func TestApplyReplaceCurrentFunctionBody(t *testing.T) {
 		FileText:   fileText,
 	}
 	intent := actionplan.EditIntent{
-		Kind:    actionplan.EditIntentReplaceCurrentFunctionBody,
-		NewText: `console.log("hello from vocode");`,
+		Kind: actionplan.EditIntentKindReplace,
+		Replace: &actionplan.ReplaceEditIntent{
+			Target: actionplan.EditTarget{
+				Kind: actionplan.EditTargetKindSymbol,
+				Symbol: &actionplan.SymbolTarget{
+					SymbolName: "current_function",
+					SymbolKind: "function",
+				},
+			},
+			NewText: `console.log("hello from vocode");`,
+		},
 	}
 
 	result, failure := service.BuildActions(params, intent)
@@ -80,8 +98,17 @@ func TestApplyFailsForAmbiguousCurrentFunction(t *testing.T) {
 		FileText:   fileText,
 	}
 	intent := actionplan.EditIntent{
-		Kind:      actionplan.EditIntentInsertStatementInCurrentFunction,
-		Statement: `console.log("done")`,
+		Kind: actionplan.EditIntentKindInsert,
+		Insert: &actionplan.InsertEditIntent{
+			Target: actionplan.EditTarget{
+				Kind: actionplan.EditTargetKindSymbol,
+				Symbol: &actionplan.SymbolTarget{
+					SymbolName: "current_function",
+					SymbolKind: "function",
+				},
+			},
+			Text: `console.log("done")`,
+		},
 	}
 
 	_, failure := service.BuildActions(params, intent)
@@ -103,10 +130,17 @@ func TestApplyReplaceAnchoredBlock(t *testing.T) {
 		FileText:   fileText,
 	}
 	intent := actionplan.EditIntent{
-		Kind:    actionplan.EditIntentReplaceAnchoredBlock,
-		Before:  "export function firstBraceAnchors() {",
-		After:   "}",
-		NewText: "\n  return \"updated\";\n",
+		Kind: actionplan.EditIntentKindReplace,
+		Replace: &actionplan.ReplaceEditIntent{
+			Target: actionplan.EditTarget{
+				Kind: actionplan.EditTargetKindAnchor,
+				Anchor: &actionplan.AnchorTarget{
+					Before: "export function firstBraceAnchors() {",
+					After:  "}",
+				},
+			},
+			NewText: "\n  return \"updated\";\n",
+		},
 	}
 
 	result, failure := service.BuildActions(params, intent)
@@ -131,8 +165,10 @@ func TestApplyAppendImportIfMissing(t *testing.T) {
 		FileText:   fileText,
 	}
 	intent := actionplan.EditIntent{
-		Kind:   actionplan.EditIntentAppendImportIfMissing,
-		Import: `import "fmt"`,
+		Kind: actionplan.EditIntentKindInsertImport,
+		InsertImport: &actionplan.InsertImportEditIntent{
+			Import: `import "fmt"`,
+		},
 	}
 
 	result, failure := service.BuildActions(params, intent)

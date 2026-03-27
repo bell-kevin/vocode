@@ -19,33 +19,39 @@ func NewActionBuilder() *ActionBuilder {
 
 func (b *ActionBuilder) BuildActions(params protocol.EditApplyParams, intent actionplan.EditIntent) ([]protocol.EditAction, *protocol.EditFailure) {
 	switch intent.Kind {
-	case actionplan.EditIntentInsertStatementInCurrentFunction:
+	case actionplan.EditIntentKindInsert:
 		action, failure := b.buildInsertStatementAction(params, intent)
 		if failure != nil {
 			return nil, failure
 		}
 		return []protocol.EditAction{action}, nil
-	case actionplan.EditIntentReplaceCurrentFunctionBody:
+	case actionplan.EditIntentKindReplace:
+		target := intent.Replace.Target
+		if target.Kind == actionplan.EditTargetKindAnchor {
+			path := params.ActiveFile
+			if p := strings.TrimSpace(target.Anchor.Path); p != "" {
+				path = p
+			}
+			action := protocol.ReplaceBetweenAnchorsAction{
+				Kind: "replace_between_anchors",
+				Path: path,
+				Anchor: protocol.Anchor{
+					Before: target.Anchor.Before,
+					After:  target.Anchor.After,
+				},
+				NewText: intent.Replace.NewText,
+			}
+			if failure := b.validator.ValidateAction(params.FileText, action); failure != nil {
+				return nil, failure
+			}
+			return []protocol.EditAction{action}, nil
+		}
 		action, failure := b.buildReplaceCurrentFunctionBodyAction(params, intent)
 		if failure != nil {
 			return nil, failure
 		}
 		return []protocol.EditAction{action}, nil
-	case actionplan.EditIntentReplaceAnchoredBlock:
-		action := protocol.ReplaceBetweenAnchorsAction{
-			Kind: "replace_between_anchors",
-			Path: params.ActiveFile,
-			Anchor: protocol.Anchor{
-				Before: intent.Before,
-				After:  intent.After,
-			},
-			NewText: intent.NewText,
-		}
-		if failure := b.validator.ValidateAction(params.FileText, action); failure != nil {
-			return nil, failure
-		}
-		return []protocol.EditAction{action}, nil
-	case actionplan.EditIntentAppendImportIfMissing:
+	case actionplan.EditIntentKindInsertImport:
 		action, failure := b.buildAppendImportAction(params, intent)
 		if failure != nil {
 			return nil, failure
@@ -54,6 +60,8 @@ func (b *ActionBuilder) BuildActions(params protocol.EditApplyParams, intent act
 			return []protocol.EditAction{}, nil
 		}
 		return []protocol.EditAction{*action}, nil
+	case actionplan.EditIntentKindDelete, actionplan.EditIntentKindCreateFile, actionplan.EditIntentKindAppendToFile:
+		return nil, editFailure("unsupported_instruction", fmt.Sprintf("Unsupported intent kind %q.", intent.Kind))
 	default:
 		return nil, editFailure("unsupported_instruction", fmt.Sprintf("Unsupported intent kind %q.", intent.Kind))
 	}
@@ -65,7 +73,7 @@ func (b *ActionBuilder) buildInsertStatementAction(params protocol.EditApplyPara
 		return protocol.ReplaceBetweenAnchorsAction{}, failure
 	}
 
-	statement := strings.TrimSpace(intent.Statement)
+	statement := strings.TrimSpace(intent.Insert.Text)
 	if statement == "" {
 		return protocol.ReplaceBetweenAnchorsAction{}, editFailure("unsupported_instruction", "Insert statement instruction did not include a statement.")
 	}
@@ -106,7 +114,7 @@ func (b *ActionBuilder) buildReplaceCurrentFunctionBodyAction(params protocol.Ed
 	if failure != nil {
 		return protocol.ReplaceBetweenAnchorsAction{}, failure
 	}
-	newText := formatReplacementFunctionBody(block.indent, intent.NewText)
+	newText := formatReplacementFunctionBody(block.indent, intent.Replace.NewText)
 	action := protocol.ReplaceBetweenAnchorsAction{
 		Kind: "replace_between_anchors",
 		Path: params.ActiveFile,
@@ -145,23 +153,29 @@ func formatReplacementFunctionBody(indent, body string) string {
 }
 
 func (b *ActionBuilder) buildAppendImportAction(params protocol.EditApplyParams, intent actionplan.EditIntent) (*protocol.ReplaceBetweenAnchorsAction, *protocol.EditFailure) {
-	if strings.Contains(params.FileText, intent.Import) {
-		return nil, editFailure("no_change_needed", fmt.Sprintf("Import %q is already present.", intent.Import))
+	importStmt := intent.InsertImport.Import
+	if strings.Contains(params.FileText, importStmt) {
+		return nil, editFailure("no_change_needed", fmt.Sprintf("Import %q is already present.", importStmt))
 	}
 
-	ext := strings.ToLower(filepath.Ext(params.ActiveFile))
+	path := params.ActiveFile
+	if p := strings.TrimSpace(intent.InsertImport.Path); p != "" {
+		path = p
+	}
+
+	ext := strings.ToLower(filepath.Ext(path))
 	switch ext {
 	case ".go":
-		return b.buildGoImportAction(params, intent.Import)
+		return b.buildGoImportAction(path, params.FileText, importStmt)
 	case ".ts", ".tsx", ".js", ".jsx":
-		return b.buildJSImportAction(params, intent.Import)
+		return b.buildJSImportAction(path, params.FileText, importStmt)
 	default:
 		return nil, editFailure("unsupported_instruction", fmt.Sprintf("Append import is not supported for %q files yet.", ext))
 	}
 }
 
-func (b *ActionBuilder) buildGoImportAction(params protocol.EditApplyParams, importStmt string) (*protocol.ReplaceBetweenAnchorsAction, *protocol.EditFailure) {
-	lines := strings.Split(params.FileText, "\n")
+func (b *ActionBuilder) buildGoImportAction(path, fileText, importStmt string) (*protocol.ReplaceBetweenAnchorsAction, *protocol.EditFailure) {
+	lines := strings.Split(fileText, "\n")
 	packageIndex := -1
 	for i, line := range lines {
 		if strings.HasPrefix(strings.TrimSpace(line), "package ") {
@@ -196,11 +210,11 @@ func (b *ActionBuilder) buildGoImportAction(params protocol.EditApplyParams, imp
 		newText := between + "\t" + strings.TrimPrefix(importStmt, "import ") + "\n"
 		action := protocol.ReplaceBetweenAnchorsAction{
 			Kind:    "replace_between_anchors",
-			Path:    params.ActiveFile,
+			Path:    path,
 			Anchor:  protocol.Anchor{Before: lines[i], After: lines[closeIndex]},
 			NewText: newText,
 		}
-		if failure := b.validator.ValidateAction(params.FileText, action); failure != nil {
+		if failure := b.validator.ValidateAction(fileText, action); failure != nil {
 			return nil, failure
 		}
 		return &action, nil
@@ -214,18 +228,18 @@ func (b *ActionBuilder) buildGoImportAction(params protocol.EditApplyParams, imp
 
 	action := protocol.ReplaceBetweenAnchorsAction{
 		Kind:    "replace_between_anchors",
-		Path:    params.ActiveFile,
+		Path:    path,
 		Anchor:  protocol.Anchor{Before: before, After: after},
 		NewText: "\n\n" + importStmt + "\n",
 	}
-	if failure := b.validator.ValidateAction(params.FileText, action); failure != nil {
+	if failure := b.validator.ValidateAction(fileText, action); failure != nil {
 		return nil, failure
 	}
 	return &action, nil
 }
 
-func (b *ActionBuilder) buildJSImportAction(params protocol.EditApplyParams, importStmt string) (*protocol.ReplaceBetweenAnchorsAction, *protocol.EditFailure) {
-	lines := strings.Split(params.FileText, "\n")
+func (b *ActionBuilder) buildJSImportAction(path, fileText, importStmt string) (*protocol.ReplaceBetweenAnchorsAction, *protocol.EditFailure) {
+	lines := strings.Split(fileText, "\n")
 	lastImportIndex := -1
 	for i, line := range lines {
 		if strings.HasPrefix(strings.TrimSpace(line), "import ") {
@@ -245,11 +259,11 @@ func (b *ActionBuilder) buildJSImportAction(params protocol.EditApplyParams, imp
 		}
 		action := protocol.ReplaceBetweenAnchorsAction{
 			Kind:    "replace_between_anchors",
-			Path:    params.ActiveFile,
+			Path:    path,
 			Anchor:  protocol.Anchor{Before: before, After: after},
 			NewText: "\n" + importStmt + "\n",
 		}
-		if failure := b.validator.ValidateAction(params.FileText, action); failure != nil {
+		if failure := b.validator.ValidateAction(fileText, action); failure != nil {
 			return nil, failure
 		}
 		return &action, nil
@@ -261,11 +275,11 @@ func (b *ActionBuilder) buildJSImportAction(params protocol.EditApplyParams, imp
 
 	action := protocol.ReplaceBetweenAnchorsAction{
 		Kind:    "replace_between_anchors",
-		Path:    params.ActiveFile,
+		Path:    path,
 		Anchor:  protocol.Anchor{Before: lines[0], After: strings.Join(lines[1:], "\n")},
 		NewText: "\n" + importStmt + "\n",
 	}
-	if failure := b.validator.ValidateAction(params.FileText, action); failure != nil {
+	if failure := b.validator.ValidateAction(fileText, action); failure != nil {
 		return nil, failure
 	}
 	return &action, nil
