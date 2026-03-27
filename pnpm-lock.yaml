@@ -17,6 +17,9 @@ importers:
       json-schema-to-typescript:
         specifier: ^15.0.4
         version: 15.0.4
+      tree-sitter-cli:
+        specifier: ^0.26.7
+        version: 0.26.7
       turbo:
         specifier: ^2.8.20
         version: 2.8.20
@@ -207,6 +210,11 @@ packages:
     resolution: {integrity: sha512-j2Zq4NyQYG5XMST4cbs02Ak8iJUdxRM0XI5QyxXuZOzKOINmWurp3smXu3y5wDcJrptwpSjgXHzIQxR0omXljQ==}
     engines: {node: '>=12.0.0'}
 
+  tree-sitter-cli@0.26.7:
+    resolution: {integrity: sha512-fOg/DokJr/gW7suy9IypT1MQon28+JxOmtjudrT04rHRyqVJzrvakrojwyU8r0U6UNRsZKilb8VIhyarv2XUkQ==}
+    engines: {node: '>=12.0.0'}
+    hasBin: true
+
   turbo@2.8.20:
     resolution: {integrity: sha512-Rb4qk5YT8RUwwdXtkLpkVhNEe/lor6+WV7S5tTlLpxSz6MjV5Qi8jGNn4gS6NAvrYGA/rNrE6YUQM85sCZUDbQ==}
     hasBin: true
@@ -337,6 +345,8 @@ snapshots:
     dependencies:
       fdir: 6.5.0(picomatch@4.0.3)
       picomatch: 4.0.3
+
+  tree-sitter-cli@0.26.7: {}
 
   turbo@2.8.20:
     optionalDependencies:

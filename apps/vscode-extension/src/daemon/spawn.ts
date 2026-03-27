@@ -2,7 +2,7 @@ import { type ChildProcessWithoutNullStreams, spawn } from "node:child_process";
 import * as path from "node:path";
 import type * as vscode from "vscode";
 
-import { resolveDaemonPath } from "./paths";
+import { resolveDaemonPath, resolveTreeSitterPath } from "./paths";
 
 export interface SpawnedDaemon {
   process: ChildProcessWithoutNullStreams;
@@ -11,10 +11,16 @@ export interface SpawnedDaemon {
 
 export function spawnDaemon(context: vscode.ExtensionContext): SpawnedDaemon {
   const binaryPath = resolveDaemonPath(context);
+  const treeSitterPath = resolveTreeSitterPath(context);
+  const env = { ...process.env };
+  if (!env.VOCODE_TREE_SITTER_BIN && treeSitterPath) {
+    env.VOCODE_TREE_SITTER_BIN = treeSitterPath;
+  }
 
   const proc = spawn(binaryPath, [], {
     cwd: path.dirname(binaryPath),
     stdio: "pipe",
+    env,
   });
 
   proc.stdout.on("data", (data: Buffer) => {

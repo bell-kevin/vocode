@@ -124,6 +124,12 @@ Daemon transcript queueing:
 - the daemon processes transcripts in FIFO order and can coalesce multiple committed transcripts that arrive within `VOCODE_DAEMON_VOICE_TRANSCRIPT_COALESCE_MS`
 - queue + merge bounds are configurable via `VOCODE_DAEMON_VOICE_TRANSCRIPT_QUEUE_SIZE`, `VOCODE_DAEMON_VOICE_TRANSCRIPT_MAX_MERGE_JOBS`, and `VOCODE_DAEMON_VOICE_TRANSCRIPT_MAX_MERGE_CHARS`
 
+Tree-sitter provisioning:
+- daemon symbol resolution requires the `tree-sitter` CLI
+- the extension auto-wires `VOCODE_TREE_SITTER_BIN` when a bundled binary exists at `tools/tree-sitter/<platform-arch>/tree-sitter(.exe)` and no override is already set
+- if no bundled binary is present, install `tree-sitter-cli` in the repo or set `VOCODE_TREE_SITTER_BIN` explicitly
+- run `pnpm provision:tree-sitter` to populate the bundled location locally (extension `build` also runs this via `prebuild`)
+
 3. Build the daemon
 
 ```bash

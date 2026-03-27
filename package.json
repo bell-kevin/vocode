@@ -5,6 +5,8 @@
   "description": "Root vocode monorepo",
   "scripts": {
     "build": "turbo run build",
+    "postinstall": "pnpm provision:tree-sitter",
+    "provision:tree-sitter": "node scripts/dev/provision-tree-sitter.mjs",
     "fix": "pnpm lint:fix && go fmt ./...",
     "dev": "turbo run dev --parallel",
     "lint": "biome check .",
@@ -22,6 +24,7 @@
     "@apidevtools/json-schema-ref-parser": "^15.3.1",
     "@biomejs/biome": "^2.4.8",
     "json-schema-to-typescript": "^15.0.4",
+    "tree-sitter-cli": "^0.26.7",
     "turbo": "^2.8.20"
   }
 }

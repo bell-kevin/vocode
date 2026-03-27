@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"regexp"
@@ -13,17 +14,20 @@ import (
 
 // TreeSitterResolver resolves symbols via the `tree-sitter tags` CLI.
 type TreeSitterResolver struct {
-	hasCLI bool
+	binaryPath string
 }
 
 func NewTreeSitterResolver() *TreeSitterResolver {
-	_, err := exec.LookPath("tree-sitter")
-	return &TreeSitterResolver{hasCLI: err == nil}
+	// Strict provisioning: only explicit binary path is accepted.
+	if p := strings.TrimSpace(os.Getenv("VOCODE_TREE_SITTER_BIN")); p != "" {
+		return &TreeSitterResolver{binaryPath: p}
+	}
+	return &TreeSitterResolver{}
 }
 
 func (r *TreeSitterResolver) ResolveSymbol(workspaceRoot, symbolName, symbolKind, hintPath string) ([]SymbolRef, error) {
-	if !r.hasCLI {
-		return nil, errors.New("tree-sitter CLI not found in PATH")
+	if strings.TrimSpace(r.binaryPath) == "" {
+		return nil, errors.New("tree-sitter CLI not configured (set VOCODE_TREE_SITTER_BIN)")
 	}
 
 	root := strings.TrimSpace(workspaceRoot)
@@ -44,7 +48,7 @@ func (r *TreeSitterResolver) ResolveSymbol(workspaceRoot, symbolName, symbolKind
 	out := make([]SymbolRef, 0, 8)
 	seen := map[string]bool{}
 	for _, file := range candidates {
-		refs, err := tagsForFile(file)
+		refs, err := tagsForFile(r.binaryPath, file)
 		if err != nil {
 			continue
 		}
@@ -120,8 +124,8 @@ func candidateFiles(workspaceRoot, symbolName, hintPath string) ([]string, error
 	return files, nil
 }
 
-func tagsForFile(path string) ([]tagRef, error) {
-	cmd := exec.Command("tree-sitter", "tags", path)
+func tagsForFile(treeSitterBin, path string) ([]tagRef, error) {
+	cmd := exec.Command(treeSitterBin, "tags", path)
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
 	cmd.Stdout = &stdout
