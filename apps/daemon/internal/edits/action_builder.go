@@ -17,8 +17,11 @@ type ActionBuilder struct {
 
 func NewActionBuilder() *ActionBuilder {
 	return &ActionBuilder{
-		validator:      NewValidator(),
-		symbolResolver: symbols.NewRipgrepResolver(),
+		validator: NewValidator(),
+		symbolResolver: symbols.NewCompositeResolver(
+			symbols.NewTreeSitterResolver(),
+			symbols.NewRipgrepResolver(),
+		),
 	}
 }
 

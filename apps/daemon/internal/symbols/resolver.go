@@ -34,14 +34,10 @@ func (r *RipgrepResolver) ResolveSymbol(workspaceRoot, symbolName, symbolKind, h
 		return nil, nil
 	}
 	kind := strings.ToLower(strings.TrimSpace(symbolKind))
-	if kind == "" {
-		kind = "function"
-	}
 
-	pattern := buildPattern(kind, name)
-	if pattern == "" {
-		pattern = regexp.QuoteMeta(name)
-	}
+	// Language-neutral lexical baseline: exact symbol token match.
+	// This intentionally avoids language-specific syntax heuristics.
+	pattern := `\b` + regexp.QuoteMeta(name) + `\b`
 
 	cmd := exec.Command("rg", "--json", "-n", "--glob", "*.{go,ts,tsx,js,jsx}", pattern, root)
 	var stdout bytes.Buffer
@@ -116,21 +112,6 @@ func parseRGJSONMatchLine(line string) (SymbolRef, bool) {
 		Path: msg.Data.Path.Text,
 		Line: msg.Data.LineNumber,
 	}, true
-}
-
-func buildPattern(kind, name string) string {
-	q := regexp.QuoteMeta(strings.TrimSpace(name))
-	if q == "" {
-		return ""
-	}
-	switch kind {
-	case "function", "method":
-		return q + `\s*\(`
-	case "class":
-		return `\bclass\s+` + q + `\b`
-	default:
-		return q
-	}
 }
 
 func samePath(a, b string) bool {
