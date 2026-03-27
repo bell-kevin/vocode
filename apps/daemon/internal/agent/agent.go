@@ -3,7 +3,7 @@ package agent
 import (
 	"context"
 
-	"vocoding.net/vocode/v2/apps/daemon/internal/actionplan"
+	"vocoding.net/vocode/v2/apps/daemon/internal/intent"
 )
 
 // Agent is the daemon-side runtime facade around the planner [ModelClient].
@@ -16,7 +16,7 @@ func New(model ModelClient) *Agent {
 	return &Agent{model: model}
 }
 
-// NextAction proxies one iterative planner turn.
-func (a *Agent) NextAction(ctx context.Context, in ModelInput) (actionplan.NextAction, error) {
-	return a.model.NextAction(ctx, in)
+// NextIntent proxies one iterative planner turn.
+func (a *Agent) NextIntent(ctx context.Context, in ModelInput) (intent.NextIntent, error) {
+	return a.model.NextIntent(ctx, in)
 }

@@ -14,10 +14,10 @@ import (
 	"sync"
 	"time"
 
-	"vocoding.net/vocode/v2/apps/daemon/internal/actionplan"
-	"vocoding.net/vocode/v2/apps/daemon/internal/actionplan/dispatch"
 	"vocoding.net/vocode/v2/apps/daemon/internal/agent"
+	"vocoding.net/vocode/v2/apps/daemon/internal/dispatch"
 	"vocoding.net/vocode/v2/apps/daemon/internal/edits"
+	"vocoding.net/vocode/v2/apps/daemon/internal/intent"
 	"vocoding.net/vocode/v2/apps/daemon/internal/symbols"
 	protocol "vocoding.net/vocode/v2/packages/protocol/go"
 )
@@ -218,7 +218,7 @@ func (s *TranscriptService) acceptTranscriptDirect(
 		maxTurns = 8
 	}
 	turnCtx := agent.PlanningContext{}
-	completed := make([]actionplan.NextAction, 0, maxTurns)
+	completed := make([]intent.NextIntent, 0, maxTurns)
 	contextRounds := 0
 	consecutiveContextReq := 0
 	editCounter := 0
@@ -226,9 +226,9 @@ func (s *TranscriptService) acceptTranscriptDirect(
 	stopPlanning := false
 
 	for i := 0; i < maxTurns; i++ {
-		next, err := s.agent.NextAction(context.Background(), agent.ModelInput{
+		next, err := s.agent.NextIntent(context.Background(), agent.ModelInput{
 			Transcript:       text,
-			CompletedActions: append([]actionplan.NextAction(nil), completed...),
+			CompletedActions: append([]intent.NextIntent(nil), completed...),
 			Context:          turnCtx,
 		})
 		if err != nil {
@@ -237,16 +237,16 @@ func (s *TranscriptService) acceptTranscriptDirect(
 				PlanError: err.Error(),
 			}, true
 		}
-		if err := actionplan.ValidateNextAction(next); err != nil {
+		if err := intent.ValidateNextIntent(next); err != nil {
 			return protocol.VoiceTranscriptResult{
 				Accepted:  true,
 				PlanError: err.Error(),
 			}, true
 		}
-		if next.Kind == actionplan.NextActionKindDone {
+		if next.Kind == intent.NextIntentKindDone {
 			break
 		}
-		if next.Kind == actionplan.NextActionKindRequestContext {
+		if next.Kind == intent.NextIntentKindRequestContext {
 			contextRounds++
 			consecutiveContextReq++
 			if s.maxContextRounds > 0 && contextRounds > s.maxContextRounds {
@@ -286,7 +286,7 @@ func (s *TranscriptService) acceptTranscriptDirect(
 				PlanError: planErr,
 			}, true
 		}
-		st, err := s.dispatch.ExecuteNextAction(next, editCtx)
+		st, err := s.dispatch.ExecuteNextIntent(next, editCtx)
 		if err != nil {
 			return protocol.VoiceTranscriptResult{
 				Accepted:  true,
@@ -351,14 +351,14 @@ func (s *TranscriptService) acceptTranscriptDirect(
 func (s *TranscriptService) fulfillContextRequest(
 	params protocol.VoiceTranscriptParams,
 	in agent.PlanningContext,
-	req *actionplan.RequestContextIntent,
+	req *intent.RequestContextIntent,
 ) (agent.PlanningContext, error) {
 	if req == nil {
 		return in, fmt.Errorf("request_context missing payload")
 	}
 	out := in
 	switch req.Kind {
-	case actionplan.RequestContextKindSymbols:
+	case intent.RequestContextKindSymbols:
 		query := strings.TrimSpace(req.Query)
 		if query == "" {
 			return out, fmt.Errorf("request_symbols requires query")
@@ -389,7 +389,7 @@ func (s *TranscriptService) fulfillContextRequest(
 			}
 		}
 		return out, nil
-	case actionplan.RequestContextKindFileExcerpt:
+	case intent.RequestContextKindFileExcerpt:
 		target := strings.TrimSpace(req.Path)
 		ec := edits.EditExecutionContext{
 			ActiveFile:    params.ActiveFile,
@@ -410,7 +410,7 @@ func (s *TranscriptService) fulfillContextRequest(
 		}
 		out.Excerpts = append(out.Excerpts, agent.FileExcerpt{Path: filepath.Clean(path), Content: content})
 		return out, nil
-	case actionplan.RequestContextKindUsages:
+	case intent.RequestContextKindUsages:
 		ref, err := symbols.ParseSymbolID(strings.TrimSpace(req.SymbolID))
 		if err != nil {
 			return out, fmt.Errorf("request_usages requires valid symbolId: %w", err)
@@ -468,13 +468,13 @@ func estimatePlanningContextBytes(c agent.PlanningContext) int {
 
 // buildEditApplyParams loads file text on the daemon when activeFile is set.
 // Unsaved editor buffers are not visible until workspace indexing supplies them.
-func buildEditExecutionContext(params protocol.VoiceTranscriptParams, next actionplan.NextAction) (edits.EditExecutionContext, string) {
+func buildEditExecutionContext(params protocol.VoiceTranscriptParams, next intent.NextIntent) (edits.EditExecutionContext, string) {
 	active := strings.TrimSpace(params.ActiveFile)
 	workspaceRoot := strings.TrimSpace(params.WorkspaceRoot)
-	if next.Kind == actionplan.NextActionKindEdit && active == "" {
+	if next.Kind == intent.NextIntentKindEdit && active == "" {
 		return edits.EditExecutionContext{}, "activeFile is required when the next action is an edit"
 	}
-	if next.Kind == actionplan.NextActionKindEdit && workspaceRoot == "" {
+	if next.Kind == intent.NextIntentKindEdit && workspaceRoot == "" {
 		return edits.EditExecutionContext{}, "workspaceRoot is required when the next action is an edit"
 	}
 	fileText := ""
@@ -505,7 +505,7 @@ func envInt(key string, def int) int {
 	return i
 }
 
-func toProtocolNavigationIntent(n actionplan.NavigationIntent) *protocol.NavigationIntent {
+func toProtocolNavigationIntent(n intent.NavigationIntent) *protocol.NavigationIntent {
 	out := &protocol.NavigationIntent{
 		Kind: string(n.Kind),
 	}

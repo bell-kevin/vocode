@@ -9,7 +9,7 @@ users describe changes naturally; the system turns them into structured actions 
 
 ## Current Implemented Slice
 
-The daemon builds **`EditAction[]`** from a structured **`EditIntent`** plus the active file snapshot. Integration is covered by **Go tests** (`internal/edits`, `internal/actionplan`); there is no `edit.apply` RPC. The planner now emits iterative **`NextAction`** responses and the daemon executes one **`Step`** at a time with per-turn feedback.
+The daemon builds **`EditAction[]`** from a structured **`EditIntent`** plus the active file snapshot. Integration is covered by **Go tests** (`internal/edits`, `internal/intent`); there is no `edit.apply` RPC. The planner now emits iterative **`NextIntent`** responses and the daemon executes one intent at a time with per-turn feedback.
 
 The **`internal/edits`** layer supports these intent kinds:
 

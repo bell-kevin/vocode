@@ -16,8 +16,8 @@ One “turn” starts when the extension calls the daemon RPC:
 
 ### What the daemon guarantees
 
-1. The daemon runs an iterative `NextAction` loop (validated each turn).
-2. The daemon executes the plan *step-by-step* using `actionplan/dispatch.Dispatcher`.
+1. The daemon runs an iterative `NextIntent` loop (validated each turn).
+2. The daemon executes each intent step-by-step using `dispatch.Dispatcher`.
 3. The daemon returns a `VoiceTranscriptResult` where `steps` is an ordered list.
 4. Each step is exactly one of:
    - `kind: "edit"` with an `editResult` (a single explicit variant of `EditApplyResult`)
@@ -91,8 +91,8 @@ One rule should have one owner. Duplicating ownership is a regression risk.
 ### Daemon
 
 - Agent/runtime: `apps/daemon/internal/agent`
-- Action planning types + validation: `apps/daemon/internal/actionplan`
-- Step-by-step dispatcher: `apps/daemon/internal/actionplan/dispatch`
+- Intent types + validation: `apps/daemon/internal/intent`
+- Step-by-step dispatcher: `apps/daemon/internal/dispatch`
 - Edit intent → protocol edit actions: `apps/daemon/internal/edits`
 - Command safety validation: `apps/daemon/internal/commandexec`
 - RPC adapter: `apps/daemon/internal/transcript/service.go`
@@ -119,7 +119,7 @@ One rule should have one owner. Duplicating ownership is a regression risk.
 
 ### Add a new edit capability
 
-1. Add/extend `EditIntentKind` + validation in `apps/daemon/internal/actionplan`.
+1. Add/extend `EditIntentKind` + validation in `apps/daemon/internal/intent`.
 2. Update `apps/daemon/internal/edits/ActionBuilder` to map intent + file snapshot → protocol edit actions.
 3. Update the extension mechanical apply logic if you introduce a new protocol action kind.
 4. Add tests in the owning layers:

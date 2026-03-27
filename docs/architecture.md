@@ -16,8 +16,9 @@ Expected daemon flow:
 `cmd/vocoded/main.go`  
 → `internal/app` (composition root)  
 → `internal/rpc` (transport/routing only)  
-→ `internal/agent` — iterative planner adapter (`NextAction` per turn)
-→ `internal/actionplan` — owns `NextAction` / `Step` / `EditIntent` / validation; `Dispatcher` runs validated steps (edit steps use `edits.Service.ApplyIntent`)
+→ `internal/agent` — iterative planner adapter (`NextIntent` per turn)
+→ `internal/intent` — owns `NextIntent` / `EditIntent` / validation
+→ `internal/dispatch` — executes validated intents (edit intents use `edits.Service.ApplyIntent`)
 → `internal/edits` — `Service` (`BuildActions`, `ApplyIntent` → protocol edit results; not an RPC)
 
 ### Extension (`apps/vscode-extension`)

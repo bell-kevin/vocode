@@ -18,20 +18,20 @@ Tracks migration from batch action plans + fuzzy symbol lookup to iterative, det
 ## Phase 1: Remove Fuzzy Symbol Target
 
 - [x] Remove `symbol` target from protocol schema (`edit-intent.schema.json`).
-- [x] Remove `EditTargetKindSymbol` + `SymbolTarget` from daemon actionplan types.
+- [x] Remove `EditTargetKindSymbol` + `SymbolTarget` from daemon intent types.
 - [x] Remove symbol-name resolution branch from `edits/action_builder.go`.
 - [x] Update tests/fixtures to use `symbol_id` or non-symbol targets only.
 - [x] Regenerate protocol types (`pnpm codegen`) and verify daemon + extension typechecks.
 
 ## Phase 2: Iterative Planner Contract
 
-- [x] Add single-step response contract (`NextAction`) with kinds:
+- [x] Add single-step response contract (`NextIntent`) with kinds:
   - `edit`
   - `navigate`
   - `run_command`
   - `request_context`
   - `done`
-- [x] Hard cut to iterative model contract (`NextAction` only, no `Plan(...)` fallback).
+- [x] Hard cut to iterative model contract (`NextIntent` only, no `Plan(...)` fallback).
 - [x] Add validation/guards for one-action-per-turn contract.
 
 ## Phase 3: Context Request / Fulfillment Loop

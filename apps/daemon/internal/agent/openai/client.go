@@ -6,11 +6,11 @@ import (
 	"context"
 	"errors"
 
-	"vocoding.net/vocode/v2/apps/daemon/internal/actionplan"
 	"vocoding.net/vocode/v2/apps/daemon/internal/agent"
+	"vocoding.net/vocode/v2/apps/daemon/internal/intent"
 )
 
-// ErrNotImplemented is returned by [Client.NextAction] until implemented.
+// ErrNotImplemented is returned by [Client.NextIntent] until implemented.
 var ErrNotImplemented = errors.New("openai model client: not implemented")
 
 // Client holds OpenAI-specific configuration (API key, model name, base URL, etc.).
@@ -21,9 +21,9 @@ func New() *Client {
 	return &Client{}
 }
 
-// NextAction implements [agent.ModelClient].
-func (*Client) NextAction(ctx context.Context, in agent.ModelInput) (actionplan.NextAction, error) {
+// NextIntent implements [agent.ModelClient].
+func (*Client) NextIntent(ctx context.Context, in agent.ModelInput) (intent.NextIntent, error) {
 	_ = ctx
 	_ = in
-	return actionplan.NextAction{}, ErrNotImplemented
+	return intent.NextIntent{}, ErrNotImplemented
 }

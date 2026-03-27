@@ -3,13 +3,12 @@ package dispatch
 import (
 	"fmt"
 
-	"vocoding.net/vocode/v2/apps/daemon/internal/actionplan"
 	"vocoding.net/vocode/v2/apps/daemon/internal/commandexec"
 	"vocoding.net/vocode/v2/apps/daemon/internal/edits"
+	"vocoding.net/vocode/v2/apps/daemon/internal/intent"
 	protocol "vocoding.net/vocode/v2/packages/protocol/go"
 )
 
-// Dispatcher runs validated steps step-by-step.
 type Dispatcher struct {
 	edits    *edits.Service
 	commands *commandexec.Service
@@ -19,39 +18,38 @@ func NewDispatcher(editsService *edits.Service, commandService *commandexec.Serv
 	return &Dispatcher{edits: editsService, commands: commandService}
 }
 
-// StepResult is the outcome of executing one NextAction.
 type StepResult struct {
 	EditResult    *protocol.EditApplyResult
 	CommandParams *protocol.CommandRunParams
-	Navigation    *actionplan.NavigationIntent
+	Navigation    *intent.NavigationIntent
 }
 
-func (d *Dispatcher) ExecuteNextAction(next actionplan.NextAction, editCtx edits.EditExecutionContext) (StepResult, error) {
-	if err := actionplan.ValidateNextAction(next); err != nil {
+func (d *Dispatcher) ExecuteNextIntent(next intent.NextIntent, editCtx edits.EditExecutionContext) (StepResult, error) {
+	if err := intent.ValidateNextIntent(next); err != nil {
 		return StepResult{}, err
 	}
 	switch next.Kind {
-	case actionplan.NextActionKindEdit:
+	case intent.NextIntentKindEdit:
 		res, err := d.edits.ApplyIntent(editCtx, *next.Edit)
 		if err != nil {
-			return StepResult{}, fmt.Errorf("next action edit: %w", err)
+			return StepResult{}, fmt.Errorf("next intent edit: %w", err)
 		}
 		return StepResult{EditResult: &res}, nil
-	case actionplan.NextActionKindRunCommand:
+	case intent.NextIntentKindRunCommand:
 		params := next.RunCommand.CommandParams()
 		if d.commands != nil {
 			if err := d.commands.Validate(params); err != nil {
-				return StepResult{}, fmt.Errorf("next action run_command: %w", err)
+				return StepResult{}, fmt.Errorf("next intent run_command: %w", err)
 			}
 		}
 		return StepResult{CommandParams: &params}, nil
-	case actionplan.NextActionKindNavigate:
+	case intent.NextIntentKindNavigate:
 		return StepResult{Navigation: next.Navigate}, nil
-	case actionplan.NextActionKindDone:
+	case intent.NextIntentKindDone:
 		return StepResult{}, fmt.Errorf("done is not executable")
-	case actionplan.NextActionKindRequestContext:
+	case intent.NextIntentKindRequestContext:
 		return StepResult{}, fmt.Errorf("request_context is not executable")
 	default:
-		return StepResult{}, fmt.Errorf("unknown next action kind %q", next.Kind)
+		return StepResult{}, fmt.Errorf("unknown next intent kind %q", next.Kind)
 	}
 }

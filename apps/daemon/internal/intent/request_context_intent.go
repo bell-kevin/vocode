@@ -1,4 +1,4 @@
-package actionplan
+package intent
 
 type RequestContextKind string
 
@@ -10,7 +10,6 @@ const (
 
 type RequestContextIntent struct {
 	Kind RequestContextKind `json:"kind"`
-	// Minimal generic fields for initial iterative context requests.
 	Path      string `json:"path,omitempty"`
 	Query     string `json:"query,omitempty"`
 	SymbolID  string `json:"symbolId,omitempty"`

@@ -6,8 +6,8 @@ import (
 	"context"
 	"runtime"
 
-	"vocoding.net/vocode/v2/apps/daemon/internal/actionplan"
 	"vocoding.net/vocode/v2/apps/daemon/internal/agent"
+	"vocoding.net/vocode/v2/apps/daemon/internal/intent"
 	"vocoding.net/vocode/v2/apps/daemon/internal/symbols"
 )
 
@@ -19,26 +19,26 @@ func New() *Client {
 	return &Client{}
 }
 
-// NextAction emits a deterministic 4-step sequence, then done.
-func (*Client) NextAction(ctx context.Context, in agent.ModelInput) (actionplan.NextAction, error) {
+// NextIntent emits a deterministic 4-step sequence, then done.
+func (*Client) NextIntent(ctx context.Context, in agent.ModelInput) (intent.NextIntent, error) {
 	_ = ctx
 	switch len(in.CompletedActions) {
 	case 0:
-		return actionplan.NextAction{
-			Kind: actionplan.NextActionKindNavigate,
-			Navigate: &actionplan.NavigationIntent{
-				Kind: actionplan.NavigationIntentKindOpenFile,
-				OpenFile: &actionplan.OpenFileNavigationIntent{
+		return intent.NextIntent{
+			Kind: intent.NextIntentKindNavigate,
+			Navigate: &intent.NavigationIntent{
+				Kind: intent.NavigationIntentKindOpenFile,
+				OpenFile: &intent.OpenFileNavigationIntent{
 					Path: "test.js",
 				},
 			},
 		}, nil
 	case 1:
-		return actionplan.NextAction{
-			Kind: actionplan.NextActionKindNavigate,
-			Navigate: &actionplan.NavigationIntent{
-				Kind: actionplan.NavigationIntentKindRevealSymbol,
-				RevealSymbol: &actionplan.RevealSymbolNavigationIntent{
+		return intent.NextIntent{
+			Kind: intent.NextIntentKindNavigate,
+			Navigate: &intent.NavigationIntent{
+				Kind: intent.NavigationIntentKindRevealSymbol,
+				RevealSymbol: &intent.RevealSymbolNavigationIntent{
 					Path:       "test.js",
 					SymbolName: "test",
 					SymbolKind: "function",
@@ -46,14 +46,14 @@ func (*Client) NextAction(ctx context.Context, in agent.ModelInput) (actionplan.
 			},
 		}, nil
 	case 2:
-		return actionplan.NextAction{
-			Kind: actionplan.NextActionKindEdit,
-			Edit: &actionplan.EditIntent{
-				Kind: actionplan.EditIntentKindReplace,
-				Replace: &actionplan.ReplaceEditIntent{
-					Target: actionplan.EditTarget{
-						Kind: actionplan.EditTargetKindSymbolID,
-						SymbolID: &actionplan.SymbolIDTarget{
+		return intent.NextIntent{
+			Kind: intent.NextIntentKindEdit,
+			Edit: &intent.EditIntent{
+				Kind: intent.EditIntentKindReplace,
+				Replace: &intent.ReplaceEditIntent{
+					Target: intent.EditTarget{
+						Kind: intent.EditTargetKindSymbolID,
+						SymbolID: &intent.SymbolIDTarget{
 							ID: symbols.BuildSymbolID(symbols.SymbolRef{
 								Name: "test",
 								Path: "test.js",
@@ -67,25 +67,25 @@ func (*Client) NextAction(ctx context.Context, in agent.ModelInput) (actionplan.
 			},
 		}, nil
 	case 3:
-		return actionplan.NextAction{
-			Kind:       actionplan.NextActionKindRunCommand,
+		return intent.NextIntent{
+			Kind:       intent.NextIntentKindRunCommand,
 			RunCommand: stubEchoRunCommand(),
 		}, nil
 	default:
-		return actionplan.NextAction{Kind: actionplan.NextActionKindDone}, nil
+		return intent.NextIntent{Kind: intent.NextIntentKindDone}, nil
 	}
 }
 
 // stubEchoRunCommand: on Windows, `echo` is a cmd builtin (no echo.exe on PATH);
 // Go's exec needs cmd.exe /c. On Unix, /bin/echo (or PATH) is a real binary.
-func stubEchoRunCommand() *actionplan.CommandIntent {
+func stubEchoRunCommand() *intent.CommandIntent {
 	if runtime.GOOS == "windows" {
-		return &actionplan.CommandIntent{
+		return &intent.CommandIntent{
 			Command: "cmd.exe",
 			Args:    []string{"/c", "echo", "stub-model-client"},
 		}
 	}
-	return &actionplan.CommandIntent{
+	return &intent.CommandIntent{
 		Command: "echo",
 		Args:    []string{"stub-model-client"},
 	}

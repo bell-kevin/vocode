@@ -3,7 +3,7 @@ package agent
 import (
 	"context"
 
-	"vocoding.net/vocode/v2/apps/daemon/internal/actionplan"
+	"vocoding.net/vocode/v2/apps/daemon/internal/intent"
 	"vocoding.net/vocode/v2/apps/daemon/internal/symbols"
 )
 
@@ -11,7 +11,7 @@ import (
 // Fields may grow (active file, selection, workspace roots, etc.).
 type ModelInput struct {
 	Transcript       string
-	CompletedActions []actionplan.NextAction
+	CompletedActions []intent.NextIntent
 	Context          PlanningContext
 }
 
@@ -29,5 +29,5 @@ type PlanningContext struct {
 
 // ModelClient is the iterative planning contract.
 type ModelClient interface {
-	NextAction(ctx context.Context, in ModelInput) (actionplan.NextAction, error)
+	NextIntent(ctx context.Context, in ModelInput) (intent.NextIntent, error)
 }

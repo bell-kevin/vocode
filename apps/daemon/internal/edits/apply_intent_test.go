@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"vocoding.net/vocode/v2/apps/daemon/internal/actionplan"
+	intentpkg "vocoding.net/vocode/v2/apps/daemon/internal/intent"
 )
 
 func TestApplyIntentSuccess(t *testing.T) {
@@ -17,12 +17,12 @@ func TestApplyIntentSuccess(t *testing.T) {
 		ActiveFile:  "/tmp/anchored-block.ts",
 		FileText:    fileText,
 	}
-	intent := actionplan.EditIntent{
-		Kind: actionplan.EditIntentKindReplace,
-		Replace: &actionplan.ReplaceEditIntent{
-			Target: actionplan.EditTarget{
-				Kind: actionplan.EditTargetKindAnchor,
-				Anchor: &actionplan.AnchorTarget{
+	intent := intentpkg.EditIntent{
+		Kind: intentpkg.EditIntentKindReplace,
+		Replace: &intentpkg.ReplaceEditIntent{
+			Target: intentpkg.EditTarget{
+				Kind: intentpkg.EditTargetKindAnchor,
+				Anchor: &intentpkg.AnchorTarget{
 					Before: "export function firstBraceAnchors() {",
 					After:  "}",
 				},
@@ -62,9 +62,9 @@ func main() {
 }
 `,
 	}
-	intent := actionplan.EditIntent{
-		Kind: actionplan.EditIntentKindInsertImport,
-		InsertImport: &actionplan.InsertImportEditIntent{
+	intent := intentpkg.EditIntent{
+		Kind: intentpkg.EditIntentKindInsertImport,
+		InsertImport: &intentpkg.InsertImportEditIntent{
 			Import: `import "fmt"`,
 		},
 	}

@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"vocoding.net/vocode/v2/apps/daemon/internal/actionplan"
+	"vocoding.net/vocode/v2/apps/daemon/internal/intent"
 	"vocoding.net/vocode/v2/apps/daemon/internal/symbols"
 	protocol "vocoding.net/vocode/v2/packages/protocol/go"
 )
@@ -26,17 +26,17 @@ func NewActionBuilderWithResolver(resolver symbols.Resolver) *ActionBuilder {
 	}
 }
 
-func (b *ActionBuilder) BuildActions(ctx EditExecutionContext, intent actionplan.EditIntent) ([]protocol.EditAction, *protocol.EditFailure) {
-	switch intent.Kind {
-	case actionplan.EditIntentKindInsert:
-		action, failure := b.buildInsertStatementAction(ctx, intent)
+func (b *ActionBuilder) BuildActions(ctx EditExecutionContext, editIntent intent.EditIntent) ([]protocol.EditAction, *protocol.EditFailure) {
+	switch editIntent.Kind {
+	case intent.EditIntentKindInsert:
+		action, failure := b.buildInsertStatementAction(ctx, editIntent)
 		if failure != nil {
 			return nil, failure
 		}
 		return []protocol.EditAction{replaceActionToEditAction(action)}, nil
-	case actionplan.EditIntentKindReplace:
-		target := intent.Replace.Target
-		if target.Kind == actionplan.EditTargetKindAnchor {
+	case intent.EditIntentKindReplace:
+		target := editIntent.Replace.Target
+		if target.Kind == intent.EditTargetKindAnchor {
 			path := ctx.ActiveFile
 			if p := strings.TrimSpace(target.Anchor.Path); p != "" {
 				path = ctx.ResolvePath(p)
@@ -48,7 +48,7 @@ func (b *ActionBuilder) BuildActions(ctx EditExecutionContext, intent actionplan
 					Before: target.Anchor.Before,
 					After:  target.Anchor.After,
 				},
-				NewText: intent.Replace.NewText,
+				NewText: editIntent.Replace.NewText,
 			}
 			if samePath(path, ctx.ActiveFile) {
 				if failure := b.validator.ValidateAction(ctx.FileText, action); failure != nil {
@@ -57,13 +57,13 @@ func (b *ActionBuilder) BuildActions(ctx EditExecutionContext, intent actionplan
 			}
 			return []protocol.EditAction{replaceActionToEditAction(action)}, nil
 		}
-		action, failure := b.buildReplaceCurrentFunctionBodyAction(ctx, intent)
+		action, failure := b.buildReplaceCurrentFunctionBodyAction(ctx, editIntent)
 		if failure != nil {
 			return nil, failure
 		}
 		return []protocol.EditAction{replaceActionToEditAction(action)}, nil
-	case actionplan.EditIntentKindInsertImport:
-		action, failure := b.buildAppendImportAction(ctx, intent)
+	case intent.EditIntentKindInsertImport:
+		action, failure := b.buildAppendImportAction(ctx, editIntent)
 		if failure != nil {
 			return nil, failure
 		}
@@ -71,9 +71,9 @@ func (b *ActionBuilder) BuildActions(ctx EditExecutionContext, intent actionplan
 			return []protocol.EditAction{}, nil
 		}
 		return []protocol.EditAction{replaceActionToEditAction(*action)}, nil
-	case actionplan.EditIntentKindDelete:
-		target := intent.Delete.Target
-		if target.Kind != actionplan.EditTargetKindAnchor || target.Anchor == nil {
+	case intent.EditIntentKindDelete:
+		target := editIntent.Delete.Target
+		if target.Kind != intent.EditTargetKindAnchor || target.Anchor == nil {
 			return nil, editFailure("unsupported_instruction", "Delete currently supports only anchor targets.")
 		}
 		path := ctx.ActiveFile
@@ -100,25 +100,25 @@ func (b *ActionBuilder) BuildActions(ctx EditExecutionContext, intent actionplan
 			}
 		}
 		return []protocol.EditAction{action}, nil
-	case actionplan.EditIntentKindCreateFile:
+	case intent.EditIntentKindCreateFile:
 		return []protocol.EditAction{{
 			Kind:    "create_file",
-			Path:    intent.CreateFile.Path,
-			Content: intent.CreateFile.Content,
+			Path:    editIntent.CreateFile.Path,
+			Content: editIntent.CreateFile.Content,
 		}}, nil
-	case actionplan.EditIntentKindAppendToFile:
+	case intent.EditIntentKindAppendToFile:
 		return []protocol.EditAction{{
 			Kind: "append_to_file",
-			Path: intent.AppendToFile.Path,
-			Text: intent.AppendToFile.Text,
+			Path: editIntent.AppendToFile.Path,
+			Text: editIntent.AppendToFile.Text,
 		}}, nil
 	default:
-		return nil, editFailure("unsupported_instruction", fmt.Sprintf("Unsupported intent kind %q.", intent.Kind))
+		return nil, editFailure("unsupported_instruction", fmt.Sprintf("Unsupported intent kind %q.", editIntent.Kind))
 	}
 }
 
-func (b *ActionBuilder) buildInsertStatementAction(ctx EditExecutionContext, intent actionplan.EditIntent) (protocol.ReplaceBetweenAnchorsAction, *protocol.EditFailure) {
-	target := intent.Insert.Target
+func (b *ActionBuilder) buildInsertStatementAction(ctx EditExecutionContext, editIntent intent.EditIntent) (protocol.ReplaceBetweenAnchorsAction, *protocol.EditFailure) {
+	target := editIntent.Insert.Target
 	path, fileText, failure := b.resolveFunctionSource(ctx, target)
 	if failure != nil {
 		return protocol.ReplaceBetweenAnchorsAction{}, failure
@@ -129,7 +129,7 @@ func (b *ActionBuilder) buildInsertStatementAction(ctx EditExecutionContext, int
 		return protocol.ReplaceBetweenAnchorsAction{}, failure
 	}
 
-	statement := strings.TrimSpace(intent.Insert.Text)
+	statement := strings.TrimSpace(editIntent.Insert.Text)
 	if statement == "" {
 		return protocol.ReplaceBetweenAnchorsAction{}, editFailure("unsupported_instruction", "Insert statement instruction did not include a statement.")
 	}
@@ -165,8 +165,8 @@ func (b *ActionBuilder) buildInsertStatementAction(ctx EditExecutionContext, int
 	return action, nil
 }
 
-func (b *ActionBuilder) buildReplaceCurrentFunctionBodyAction(ctx EditExecutionContext, intent actionplan.EditIntent) (protocol.ReplaceBetweenAnchorsAction, *protocol.EditFailure) {
-	target := intent.Replace.Target
+func (b *ActionBuilder) buildReplaceCurrentFunctionBodyAction(ctx EditExecutionContext, editIntent intent.EditIntent) (protocol.ReplaceBetweenAnchorsAction, *protocol.EditFailure) {
+	target := editIntent.Replace.Target
 	path, fileText, failure := b.resolveFunctionSource(ctx, target)
 	if failure != nil {
 		return protocol.ReplaceBetweenAnchorsAction{}, failure
@@ -175,7 +175,7 @@ func (b *ActionBuilder) buildReplaceCurrentFunctionBodyAction(ctx EditExecutionC
 	if failure != nil {
 		return protocol.ReplaceBetweenAnchorsAction{}, failure
 	}
-	newText := formatReplacementFunctionBody(block.indent, intent.Replace.NewText)
+	newText := formatReplacementFunctionBody(block.indent, editIntent.Replace.NewText)
 	action := protocol.ReplaceBetweenAnchorsAction{
 		Kind: "replace_between_anchors",
 		Path: path,
@@ -213,10 +213,10 @@ func formatReplacementFunctionBody(indent, body string) string {
 	return out.String()
 }
 
-func (b *ActionBuilder) buildAppendImportAction(ctx EditExecutionContext, intent actionplan.EditIntent) (*protocol.ReplaceBetweenAnchorsAction, *protocol.EditFailure) {
-	importStmt := intent.InsertImport.Import
+func (b *ActionBuilder) buildAppendImportAction(ctx EditExecutionContext, editIntent intent.EditIntent) (*protocol.ReplaceBetweenAnchorsAction, *protocol.EditFailure) {
+	importStmt := editIntent.InsertImport.Import
 	path := ctx.ActiveFile
-	if p := strings.TrimSpace(intent.InsertImport.Path); p != "" {
+	if p := strings.TrimSpace(editIntent.InsertImport.Path); p != "" {
 		path = ctx.ResolvePath(p)
 	}
 
@@ -363,7 +363,7 @@ func samePath(a, b string) bool {
 	return strings.EqualFold(filepath.Clean(a), filepath.Clean(b))
 }
 
-func targetPathFromTarget(target actionplan.EditTarget) string {
+func targetPathFromTarget(target intent.EditTarget) string {
 	if target.SymbolID != nil {
 		ref, err := symbols.ParseSymbolID(target.SymbolID.ID)
 		if err == nil {
@@ -391,8 +391,8 @@ func resolveEditSource(ctx EditExecutionContext, targetPath string) (string, str
 	return path, fileText, nil
 }
 
-func (b *ActionBuilder) resolveFunctionBlock(fileText string, target actionplan.EditTarget) (*lineBlock, *protocol.EditFailure) {
-	if target.Kind == actionplan.EditTargetKindSymbolID && target.SymbolID != nil {
+func (b *ActionBuilder) resolveFunctionBlock(fileText string, target intent.EditTarget) (*lineBlock, *protocol.EditFailure) {
+	if target.Kind == intent.EditTargetKindSymbolID && target.SymbolID != nil {
 		ref, err := symbols.ParseSymbolID(target.SymbolID.ID)
 		if err != nil {
 			return nil, editFailure("unsupported_instruction", fmt.Sprintf("Invalid symbol id: %v", err))
@@ -408,7 +408,7 @@ func (b *ActionBuilder) resolveFunctionBlock(fileText string, target actionplan.
 
 func (b *ActionBuilder) resolveFunctionSource(
 	ctx EditExecutionContext,
-	target actionplan.EditTarget,
+	target intent.EditTarget,
 ) (string, string, *protocol.EditFailure) {
 	targetPath := targetPathFromTarget(target)
 	// Explicit path from target: resolve directly.
@@ -416,7 +416,7 @@ func (b *ActionBuilder) resolveFunctionSource(
 		return resolveEditSource(ctx, targetPath)
 	}
 
-	if target.Kind == actionplan.EditTargetKindSymbolID && target.SymbolID != nil {
+	if target.Kind == intent.EditTargetKindSymbolID && target.SymbolID != nil {
 		ref, err := symbols.ParseSymbolID(target.SymbolID.ID)
 		if err != nil {
 			return "", "", editFailure("unsupported_instruction", fmt.Sprintf("Invalid symbol id: %v", err))
