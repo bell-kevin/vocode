@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"vocoding.net/vocode/v2/apps/daemon/internal/actionplan"
+	"vocoding.net/vocode/v2/apps/daemon/internal/symbols"
 )
 
 func TestApplyInsertStatementInCurrentFunction(t *testing.T) {
@@ -157,7 +158,15 @@ func TestApplyReplaceAnchoredBlock(t *testing.T) {
 func TestApplyReplaceNamedSymbolFunction(t *testing.T) {
 	t.Parallel()
 
-	service := NewService()
+	service := NewServiceWithResolver(symbolResolverFunc(func(workspaceRoot, symbolName, symbolKind, hintPath string) ([]symbols.SymbolRef, error) {
+		_ = workspaceRoot
+		_ = symbolKind
+		_ = hintPath
+		if symbolName == "secondBraceAnchors" {
+			return []symbols.SymbolRef{{Path: "/tmp/multi-function.ts", Line: 5, Kind: "function"}}, nil
+		}
+		return nil, nil
+	}))
 	fileText := readFixture(t, "multi-function.ts")
 	params := EditExecutionContext{
 		ActiveFile: "/tmp/multi-function.ts",
@@ -187,6 +196,12 @@ func TestApplyReplaceNamedSymbolFunction(t *testing.T) {
 	if !strings.Contains(result[0].Anchor.Before, "secondBraceAnchors") {
 		t.Fatalf("expected secondBraceAnchors target, got %+v", result[0].Anchor)
 	}
+}
+
+type symbolResolverFunc func(workspaceRoot, symbolName, symbolKind, hintPath string) ([]symbols.SymbolRef, error)
+
+func (f symbolResolverFunc) ResolveSymbol(workspaceRoot, symbolName, symbolKind, hintPath string) ([]symbols.SymbolRef, error) {
+	return f(workspaceRoot, symbolName, symbolKind, hintPath)
 }
 
 func TestApplyAppendImportIfMissing(t *testing.T) {

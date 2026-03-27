@@ -2,6 +2,7 @@ package edits
 
 import (
 	"vocoding.net/vocode/v2/apps/daemon/internal/actionplan"
+	"vocoding.net/vocode/v2/apps/daemon/internal/symbols"
 	protocol "vocoding.net/vocode/v2/packages/protocol/go"
 )
 
@@ -11,6 +12,10 @@ type Service struct {
 
 func NewService() *Service {
 	return &Service{actionBuilder: NewActionBuilder()}
+}
+
+func NewServiceWithResolver(resolver symbols.Resolver) *Service {
+	return &Service{actionBuilder: NewActionBuilderWithResolver(resolver)}
 }
 
 func (s *Service) BuildActions(ctx EditExecutionContext, intent actionplan.EditIntent) ([]protocol.EditAction, *protocol.EditFailure) {

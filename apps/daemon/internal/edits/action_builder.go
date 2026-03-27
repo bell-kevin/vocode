@@ -16,12 +16,13 @@ type ActionBuilder struct {
 }
 
 func NewActionBuilder() *ActionBuilder {
+	return NewActionBuilderWithResolver(symbols.NewTreeSitterResolver())
+}
+
+func NewActionBuilderWithResolver(resolver symbols.Resolver) *ActionBuilder {
 	return &ActionBuilder{
-		validator: NewValidator(),
-		symbolResolver: symbols.NewCompositeResolver(
-			symbols.NewTreeSitterResolver(),
-			symbols.NewRipgrepResolver(),
-		),
+		validator:      NewValidator(),
+		symbolResolver: resolver,
 	}
 }
 
@@ -416,23 +417,23 @@ func (b *ActionBuilder) resolveFunctionSource(
 		return resolveEditSource(ctx, "")
 	}
 
-	// Attempt workspace-wide symbol resolution when no path is provided.
-	if b.symbolResolver != nil {
-		kind := ""
-		if target.Symbol != nil {
-			kind = target.Symbol.SymbolKind
-		}
-		matches, err := b.symbolResolver.ResolveSymbol(ctx.WorkspaceRoot, name, kind, ctx.ActiveFile)
-		if err == nil {
-			switch len(matches) {
-			case 0:
-				// fall back below
-			case 1:
-				return resolveEditSource(ctx, matches[0].Path)
-			default:
-				return "", "", editFailure("ambiguous_target", fmt.Sprintf("Function symbol %q matched multiple files; provide target path.", name))
-			}
-		}
+	if b.symbolResolver == nil {
+		return "", "", editFailure("unsupported_instruction", "No symbol resolver configured.")
 	}
-	return resolveEditSource(ctx, "")
+	kind := ""
+	if target.Symbol != nil {
+		kind = target.Symbol.SymbolKind
+	}
+	matches, err := b.symbolResolver.ResolveSymbol(ctx.WorkspaceRoot, name, kind, ctx.ActiveFile)
+	if err != nil {
+		return "", "", editFailure("unsupported_instruction", fmt.Sprintf("symbol resolution failed for %q: %v", name, err))
+	}
+	switch len(matches) {
+	case 0:
+		return "", "", editFailure("missing_anchor", fmt.Sprintf("Could not resolve symbol %q via tree-sitter.", name))
+	case 1:
+		return resolveEditSource(ctx, matches[0].Path)
+	default:
+		return "", "", editFailure("ambiguous_target", fmt.Sprintf("Function symbol %q matched multiple files; provide target path.", name))
+	}
 }
