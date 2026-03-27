@@ -156,6 +156,7 @@ When `accepted` is `false`, no directives are emitted and the extension should i
 
 Useful knobs while debugging planner flow:
 - `VOCODE_DAEMON_VOICE_MAX_PLANNER_TURNS`
+- `VOCODE_DAEMON_VOICE_MAX_INTENT_RETRIES`
 - `VOCODE_DAEMON_VOICE_MAX_CONTEXT_ROUNDS`
 - `VOCODE_DAEMON_VOICE_MAX_CONTEXT_BYTES`
 - `VOCODE_DAEMON_VOICE_MAX_CONSECUTIVE_CONTEXT_REQUESTS`

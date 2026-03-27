@@ -22,6 +22,7 @@ type Runner struct {
 	dispatch                 *dispatch.Dispatcher
 	contextProvider          ContextProvider
 	maxPlannerTurns          int
+	maxIntentRetries         int
 	maxContextRounds         int
 	maxContextBytes          int
 	maxConsecutiveContextReq int
@@ -29,6 +30,7 @@ type Runner struct {
 
 type Options struct {
 	MaxPlannerTurns          int
+	MaxIntentRetries         int
 	MaxContextRounds         int
 	MaxContextBytes          int
 	MaxConsecutiveContextReq int
@@ -40,6 +42,7 @@ func NewRunner(a *agent.Agent, d *dispatch.Dispatcher, cp ContextProvider, opts 
 		dispatch:                 d,
 		contextProvider:          cp,
 		maxPlannerTurns:          opts.MaxPlannerTurns,
+		maxIntentRetries:         opts.MaxIntentRetries,
 		maxContextRounds:         opts.MaxContextRounds,
 		maxContextBytes:          opts.MaxContextBytes,
 		maxConsecutiveContextReq: opts.MaxConsecutiveContextReq,
@@ -54,6 +57,10 @@ func (r *Runner) Execute(params protocol.VoiceTranscriptParams) (protocol.VoiceT
 	maxTurns := r.maxPlannerTurns
 	if maxTurns <= 0 {
 		maxTurns = 8
+	}
+	maxRetries := r.maxIntentRetries
+	if maxRetries < 0 {
+		maxRetries = 0
 	}
 	turnCtx := agent.PlanningContext{}
 	completed := make([]intent.NextIntent, 0, maxTurns)
@@ -115,12 +122,28 @@ func (r *Runner) Execute(params protocol.VoiceTranscriptParams) (protocol.VoiceT
 		editCtx, planErr := buildEditExecutionContext(params, next)
 		if planErr != "" {
 			trace = appendTurnTrace(trace, turn, "pre_execute_error")
+			if maxRetries > 0 {
+				trace = appendTurnTrace(trace, turn, "retry:pre_execute")
+				turnCtx = appendPlanningNote(turnCtx, fmt.Sprintf("daemon rejected %q intent before execution: %s; retry with corrected intent", next.Kind, planErr))
+				maxRetries--
+				continue
+			}
 			return protocol.VoiceTranscriptResult{Accepted: false}, true
 		}
 		st, err := r.dispatch.DispatchExecutableIntent(next, editCtx)
 		if err != nil {
 			trace = appendTurnTrace(trace, turn, "execute_error")
+			if maxRetries > 0 {
+				trace = appendTurnTrace(trace, turn, "retry:execute")
+				turnCtx = appendPlanningNote(turnCtx, fmt.Sprintf("daemon execution failed for %q intent: %v; retry with corrected intent", next.Kind, err))
+				maxRetries--
+				continue
+			}
 			return protocol.VoiceTranscriptResult{Accepted: false}, true
+		}
+		maxRetries = r.maxIntentRetries
+		if maxRetries < 0 {
+			maxRetries = 0
 		}
 		switch {
 		case st.EditDirective != nil:
@@ -213,6 +236,19 @@ func appendTrace(trace []string, msg string) []string {
 		trace = trace[len(trace)-maxTraceEntries:]
 	}
 	return trace
+}
+
+func appendPlanningNote(c agent.PlanningContext, note string) agent.PlanningContext {
+	const maxNotes = 8
+	note = strings.TrimSpace(note)
+	if note == "" {
+		return c
+	}
+	c.Notes = append(c.Notes, note)
+	if len(c.Notes) > maxNotes {
+		c.Notes = c.Notes[len(c.Notes)-maxNotes:]
+	}
+	return c
 }
 
 func toProtocolNavigationDirective(n intent.NavigationIntent) *protocol.NavigationDirective {

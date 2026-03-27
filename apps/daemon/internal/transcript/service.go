@@ -48,6 +48,7 @@ func NewService(
 	maxMergeJobs := envInt("VOCODE_DAEMON_VOICE_TRANSCRIPT_MAX_MERGE_JOBS", 5)
 	maxMergeChars := envInt("VOCODE_DAEMON_VOICE_TRANSCRIPT_MAX_MERGE_CHARS", 6000)
 	maxPlannerTurns := envInt("VOCODE_DAEMON_VOICE_MAX_PLANNER_TURNS", 8)
+	maxIntentRetries := envInt("VOCODE_DAEMON_VOICE_MAX_INTENT_RETRIES", 2)
 	maxContextRounds := envInt("VOCODE_DAEMON_VOICE_MAX_CONTEXT_ROUNDS", 2)
 	maxContextBytes := envInt("VOCODE_DAEMON_VOICE_MAX_CONTEXT_BYTES", 12000)
 	maxConsecutiveContextReq := envInt("VOCODE_DAEMON_VOICE_MAX_CONSECUTIVE_CONTEXT_REQUESTS", 3)
@@ -56,6 +57,7 @@ func NewService(
 	cp := indexing.NewContextProvider(symbolResolver)
 	loop := intentloop.NewRunner(agentRuntime, dispatch, cp, intentloop.Options{
 		MaxPlannerTurns:          maxPlannerTurns,
+		MaxIntentRetries:         maxIntentRetries,
 		MaxContextRounds:         maxContextRounds,
 		MaxContextBytes:          maxContextBytes,
 		MaxConsecutiveContextReq: maxConsecutiveContextReq,
