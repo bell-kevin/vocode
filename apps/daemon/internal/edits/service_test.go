@@ -155,6 +155,41 @@ func TestApplyReplaceAnchoredBlock(t *testing.T) {
 	}
 }
 
+func TestApplyReplaceNamedSymbolFunction(t *testing.T) {
+	t.Parallel()
+
+	service := NewService()
+	fileText := readFixture(t, "multi-function.ts")
+	params := protocol.EditApplyParams{
+		ActiveFile: "/tmp/multi-function.ts",
+		FileText:   fileText,
+	}
+	intent := actionplan.EditIntent{
+		Kind: actionplan.EditIntentKindReplace,
+		Replace: &actionplan.ReplaceEditIntent{
+			Target: actionplan.EditTarget{
+				Kind: actionplan.EditTargetKindSymbol,
+				Symbol: &actionplan.SymbolTarget{
+					SymbolName: "secondBraceAnchors",
+					SymbolKind: "function",
+				},
+			},
+			NewText: "\n  return 42;\n",
+		},
+	}
+
+	result, failure := service.BuildActions(params, intent)
+	if failure != nil {
+		t.Fatalf("unexpected failure: %+v", *failure)
+	}
+	if len(result) != 1 {
+		t.Fatalf("expected 1 action, got %d", len(result))
+	}
+	if !strings.Contains(result[0].Anchor.Before, "secondBraceAnchors") {
+		t.Fatalf("expected secondBraceAnchors target, got %+v", result[0].Anchor)
+	}
+}
+
 func TestApplyAppendImportIfMissing(t *testing.T) {
 	t.Parallel()
 

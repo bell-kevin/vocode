@@ -22,6 +22,19 @@ var functionStartPatterns = []*regexp.Regexp{
 	regexp.MustCompile(`^\s*(?:public\s+|private\s+|protected\s+|static\s+|async\s+)*\w+\([^)]*\)\s*\{`),
 }
 
+func functionNamePatterns(name string) []*regexp.Regexp {
+	escaped := regexp.QuoteMeta(strings.TrimSpace(name))
+	if escaped == "" {
+		return nil
+	}
+	return []*regexp.Regexp{
+		regexp.MustCompile(`^\s*func(?:\s+\([^)]*\))?\s+` + escaped + `\s*\(`),
+		regexp.MustCompile(`^\s*(?:export\s+)?(?:async\s+)?function\s+` + escaped + `\s*\(`),
+		regexp.MustCompile(`^\s*(?:export\s+)?(?:const|let|var)\s+` + escaped + `\s*=\s*(?:async\s*)?\([^)]*\)\s*=>\s*\{`),
+		regexp.MustCompile(`^\s*(?:public\s+|private\s+|protected\s+|static\s+|async\s+)*` + escaped + `\s*\(`),
+	}
+}
+
 func findUniqueAnchoredRange(fileText string, before string, after string) (int, int, *protocol.EditFailure) {
 	_, beforeEnd, beforeFailure := findUniqueOccurrence(fileText, before, 0, "before")
 	if beforeFailure != nil {
@@ -69,23 +82,11 @@ func findSingleFunctionBlock(fileText string) (*lineBlock, *protocol.EditFailure
 			continue
 		}
 
-		closeIndex, ok := findMatchingBraceLine(lines, lineIndex)
-		if !ok || closeIndex <= lineIndex {
+		block, ok := buildLineBlock(lines, lineIndex)
+		if !ok {
 			continue
 		}
-
-		between := "\n"
-		if closeIndex > lineIndex+1 {
-			between += strings.Join(lines[lineIndex+1:closeIndex], "\n")
-			between += "\n"
-		}
-
-		candidates = append(candidates, lineBlock{
-			beforeLine:  line,
-			afterAnchor: strings.Join(lines[closeIndex:], "\n"),
-			between:     between,
-			indent:      indentForBlock(line),
-		})
+		candidates = append(candidates, block)
 	}
 
 	switch len(candidates) {
@@ -96,6 +97,67 @@ func findSingleFunctionBlock(fileText string) (*lineBlock, *protocol.EditFailure
 	default:
 		return nil, editFailure("ambiguous_target", "The active file contains multiple candidate functions; current function was ambiguous.")
 	}
+}
+
+func findNamedFunctionBlock(fileText, functionName string) (*lineBlock, *protocol.EditFailure) {
+	patterns := functionNamePatterns(functionName)
+	if len(patterns) == 0 {
+		return nil, editFailure("unsupported_instruction", "Function symbolName was empty.")
+	}
+
+	lines := strings.Split(fileText, "\n")
+	candidates := make([]lineBlock, 0, 1)
+	for i, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if !strings.Contains(line, "{") {
+			continue
+		}
+		matched := false
+		for _, p := range patterns {
+			if p.MatchString(trimmed) {
+				matched = true
+				break
+			}
+		}
+		if !matched {
+			continue
+		}
+		block, ok := buildLineBlock(lines, i)
+		if !ok {
+			continue
+		}
+		candidates = append(candidates, block)
+	}
+
+	switch len(candidates) {
+	case 0:
+		return nil, editFailure("missing_anchor", fmt.Sprintf("Could not find function symbol %q.", functionName))
+	case 1:
+		return &candidates[0], nil
+	default:
+		return nil, editFailure("ambiguous_target", fmt.Sprintf("Function symbol %q was ambiguous.", functionName))
+	}
+}
+
+func buildLineBlock(lines []string, lineIndex int) (lineBlock, bool) {
+	closeIndex, ok := findMatchingBraceLine(lines, lineIndex)
+	if !ok || closeIndex <= lineIndex {
+		return lineBlock{}, false
+	}
+
+	line := lines[lineIndex]
+	between := "\n"
+	if closeIndex > lineIndex+1 {
+		between += strings.Join(lines[lineIndex+1:closeIndex], "\n")
+		between += "\n"
+	}
+
+	return lineBlock{
+		beforeLine:  line,
+		afterAnchor: strings.Join(lines[closeIndex:], "\n"),
+		between:     between,
+		indent:      indentForBlock(line),
+	}, true
 }
 
 func isFunctionStart(trimmedLine string) bool {

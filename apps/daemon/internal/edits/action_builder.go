@@ -2,6 +2,7 @@ package edits
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
 	"strings"
 
@@ -109,7 +110,13 @@ func (b *ActionBuilder) BuildActions(params protocol.EditApplyParams, intent act
 }
 
 func (b *ActionBuilder) buildInsertStatementAction(params protocol.EditApplyParams, intent actionplan.EditIntent) (protocol.ReplaceBetweenAnchorsAction, *protocol.EditFailure) {
-	block, failure := findSingleFunctionBlock(params.FileText)
+	target := intent.Insert.Target
+	path, fileText, failure := resolveEditSource(params, targetPathFromTarget(target))
+	if failure != nil {
+		return protocol.ReplaceBetweenAnchorsAction{}, failure
+	}
+
+	block, failure := b.resolveFunctionBlock(fileText, target)
 	if failure != nil {
 		return protocol.ReplaceBetweenAnchorsAction{}, failure
 	}
@@ -135,7 +142,7 @@ func (b *ActionBuilder) buildInsertStatementAction(params protocol.EditApplyPara
 
 	action := protocol.ReplaceBetweenAnchorsAction{
 		Kind: "replace_between_anchors",
-		Path: params.ActiveFile,
+		Path: path,
 		Anchor: protocol.Anchor{
 			Before: block.beforeLine,
 			After:  block.afterAnchor,
@@ -143,7 +150,7 @@ func (b *ActionBuilder) buildInsertStatementAction(params protocol.EditApplyPara
 		NewText: newText,
 	}
 
-	if failure := b.validator.ValidateAction(params.FileText, action); failure != nil {
+	if failure := b.validator.ValidateAction(fileText, action); failure != nil {
 		return protocol.ReplaceBetweenAnchorsAction{}, failure
 	}
 
@@ -151,21 +158,26 @@ func (b *ActionBuilder) buildInsertStatementAction(params protocol.EditApplyPara
 }
 
 func (b *ActionBuilder) buildReplaceCurrentFunctionBodyAction(params protocol.EditApplyParams, intent actionplan.EditIntent) (protocol.ReplaceBetweenAnchorsAction, *protocol.EditFailure) {
-	block, failure := findSingleFunctionBlock(params.FileText)
+	target := intent.Replace.Target
+	path, fileText, failure := resolveEditSource(params, targetPathFromTarget(target))
+	if failure != nil {
+		return protocol.ReplaceBetweenAnchorsAction{}, failure
+	}
+	block, failure := b.resolveFunctionBlock(fileText, target)
 	if failure != nil {
 		return protocol.ReplaceBetweenAnchorsAction{}, failure
 	}
 	newText := formatReplacementFunctionBody(block.indent, intent.Replace.NewText)
 	action := protocol.ReplaceBetweenAnchorsAction{
 		Kind: "replace_between_anchors",
-		Path: params.ActiveFile,
+		Path: path,
 		Anchor: protocol.Anchor{
 			Before: block.beforeLine,
 			After:  block.afterAnchor,
 		},
 		NewText: newText,
 	}
-	if failure := b.validator.ValidateAction(params.FileText, action); failure != nil {
+	if failure := b.validator.ValidateAction(fileText, action); failure != nil {
 		return protocol.ReplaceBetweenAnchorsAction{}, failure
 	}
 	return action, nil
@@ -337,4 +349,46 @@ func replaceActionToEditAction(a protocol.ReplaceBetweenAnchorsAction) protocol.
 
 func samePath(a, b string) bool {
 	return strings.EqualFold(filepath.Clean(a), filepath.Clean(b))
+}
+
+func targetPathFromTarget(target actionplan.EditTarget) string {
+	if target.Symbol != nil {
+		return strings.TrimSpace(target.Symbol.Path)
+	}
+	if target.Anchor != nil {
+		return strings.TrimSpace(target.Anchor.Path)
+	}
+	if target.Range != nil {
+		return strings.TrimSpace(target.Range.Path)
+	}
+	return ""
+}
+
+func resolveEditSource(params protocol.EditApplyParams, targetPath string) (string, string, *protocol.EditFailure) {
+	path := params.ActiveFile
+	if targetPath != "" {
+		path = targetPath
+	}
+	if path == "" {
+		return "", "", editFailure("unsupported_instruction", "No file path available for edit target.")
+	}
+	if samePath(path, params.ActiveFile) {
+		return path, params.FileText, nil
+	}
+	b, err := os.ReadFile(path)
+	if err != nil {
+		return "", "", editFailure("missing_anchor", fmt.Sprintf("read target file %q: %v", path, err))
+	}
+	return path, string(b), nil
+}
+
+func (b *ActionBuilder) resolveFunctionBlock(fileText string, target actionplan.EditTarget) (*lineBlock, *protocol.EditFailure) {
+	if target.Kind != actionplan.EditTargetKindSymbol || target.Symbol == nil {
+		return findSingleFunctionBlock(fileText)
+	}
+	name := strings.TrimSpace(target.Symbol.SymbolName)
+	if name == "" || name == "current_function" {
+		return findSingleFunctionBlock(fileText)
+	}
+	return findNamedFunctionBlock(fileText, name)
 }

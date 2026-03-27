@@ -49,11 +49,11 @@ func (*Client) Plan(ctx context.Context, in agent.ModelInput) (actionplan.Action
 					Kind: actionplan.EditIntentKindReplace,
 					Replace: &actionplan.ReplaceEditIntent{
 						Target: actionplan.EditTarget{
-							Kind: actionplan.EditTargetKindAnchor,
-							Anchor: &actionplan.AnchorTarget{
-								Path:   "test.js",
-								Before: "function test() {",
-								After:  "}",
+							Kind: actionplan.EditTargetKindSymbol,
+							Symbol: &actionplan.SymbolTarget{
+								Path:       "test.js",
+								SymbolName: "test",
+								SymbolKind: "function",
 							},
 						},
 						NewText: "\n  console.log(\"updated from stub\");\n",
