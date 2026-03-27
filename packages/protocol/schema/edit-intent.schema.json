@@ -44,24 +44,6 @@
         {
           "type": "object",
           "additionalProperties": false,
-          "required": ["kind", "symbol"],
-          "properties": {
-            "kind": { "const": "symbol" },
-            "symbol": {
-              "type": "object",
-              "additionalProperties": false,
-              "required": ["symbolName"],
-              "properties": {
-                "path": { "type": "string" },
-                "symbolName": { "type": "string", "minLength": 1 },
-                "symbolKind": { "type": "string" }
-              }
-            }
-          }
-        },
-        {
-          "type": "object",
-          "additionalProperties": false,
           "required": ["kind", "symbolId"],
           "properties": {
             "kind": { "const": "symbol_id" },

@@ -35,7 +35,6 @@ const (
 	EditTargetKindCurrentFile      EditTargetKind = "current_file"
 	EditTargetKindCurrentCursor    EditTargetKind = "current_cursor"
 	EditTargetKindCurrentSelection EditTargetKind = "current_selection"
-	EditTargetKindSymbol           EditTargetKind = "symbol"
 	EditTargetKindSymbolID         EditTargetKind = "symbol_id"
 	EditTargetKindAnchor           EditTargetKind = "anchor"
 	EditTargetKindRange            EditTargetKind = "range"
@@ -47,7 +46,6 @@ type EditTarget struct {
 	CurrentFile      *CurrentFileTarget      `json:"currentFile,omitempty"`
 	CurrentCursor    *CurrentCursorTarget    `json:"currentCursor,omitempty"`
 	CurrentSelection *CurrentSelectionTarget `json:"currentSelection,omitempty"`
-	Symbol           *SymbolTarget           `json:"symbol,omitempty"`
 	SymbolID         *SymbolIDTarget         `json:"symbolId,omitempty"`
 	Anchor           *AnchorTarget           `json:"anchor,omitempty"`
 	Range            *RangeTarget            `json:"range,omitempty"`
@@ -68,12 +66,6 @@ type CurrentCursorTarget struct {
 }
 
 type CurrentSelectionTarget struct{}
-
-type SymbolTarget struct {
-	Path       string `json:"path,omitempty"`
-	SymbolName string `json:"symbolName"`
-	SymbolKind string `json:"symbolKind,omitempty"`
-}
 
 type SymbolIDTarget struct {
 	ID string `json:"id"`
@@ -216,13 +208,6 @@ func validateTarget(t EditTarget) error {
 	case EditTargetKindCurrentSelection:
 		if t.CurrentSelection == nil {
 			return fmt.Errorf("edit target: current_selection requires currentSelection")
-		}
-	case EditTargetKindSymbol:
-		if t.Symbol == nil {
-			return fmt.Errorf("edit target: symbol requires symbol")
-		}
-		if strings.TrimSpace(t.Symbol.SymbolName) == "" {
-			return fmt.Errorf("edit target: symbol requires symbolName")
 		}
 	case EditTargetKindSymbolID:
 		if t.SymbolID == nil {

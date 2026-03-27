@@ -370,9 +370,6 @@ func targetPathFromTarget(target actionplan.EditTarget) string {
 			return strings.TrimSpace(ref.Path)
 		}
 	}
-	if target.Symbol != nil {
-		return strings.TrimSpace(target.Symbol.Path)
-	}
 	if target.Anchor != nil {
 		return strings.TrimSpace(target.Anchor.Path)
 	}
@@ -406,14 +403,7 @@ func (b *ActionBuilder) resolveFunctionBlock(fileText string, target actionplan.
 		}
 		return findNamedFunctionBlock(fileText, name)
 	}
-	if target.Kind != actionplan.EditTargetKindSymbol || target.Symbol == nil {
-		return findSingleFunctionBlock(fileText)
-	}
-	name := strings.TrimSpace(target.Symbol.SymbolName)
-	if name == "" || name == "current_function" {
-		return findSingleFunctionBlock(fileText)
-	}
-	return findNamedFunctionBlock(fileText, name)
+	return findSingleFunctionBlock(fileText)
 }
 
 func (b *ActionBuilder) resolveFunctionSource(
@@ -436,31 +426,5 @@ func (b *ActionBuilder) resolveFunctionSource(
 		}
 		return resolveEditSource(ctx, ref.Path)
 	}
-	if target.Kind != actionplan.EditTargetKindSymbol || target.Symbol == nil {
-		return resolveEditSource(ctx, "")
-	}
-	name := strings.TrimSpace(target.Symbol.SymbolName)
-	if name == "" || name == "current_function" {
-		return resolveEditSource(ctx, "")
-	}
-
-	if b.symbolResolver == nil {
-		return "", "", editFailure("unsupported_instruction", "No symbol resolver configured.")
-	}
-	kind := ""
-	if target.Symbol != nil {
-		kind = target.Symbol.SymbolKind
-	}
-	matches, err := b.symbolResolver.ResolveSymbol(ctx.WorkspaceRoot, name, kind, ctx.ActiveFile)
-	if err != nil {
-		return "", "", editFailure("unsupported_instruction", fmt.Sprintf("symbol resolution failed for %q: %v", name, err))
-	}
-	switch len(matches) {
-	case 0:
-		return "", "", editFailure("missing_anchor", fmt.Sprintf("Could not resolve symbol %q via tree-sitter.", name))
-	case 1:
-		return resolveEditSource(ctx, matches[0].Path)
-	default:
-		return "", "", editFailure("ambiguous_target", fmt.Sprintf("Function symbol %q matched multiple files; provide target path.", name))
-	}
+	return resolveEditSource(ctx, "")
 }

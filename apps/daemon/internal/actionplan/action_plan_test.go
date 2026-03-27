@@ -11,8 +11,8 @@ func TestValidateActionPlanSingleEdit(t *testing.T) {
 					Kind: EditIntentKindInsert,
 					Insert: &InsertEditIntent{
 						Target: EditTarget{
-							Kind:   EditTargetKindSymbol,
-							Symbol: &SymbolTarget{SymbolName: "current_function", SymbolKind: "function"},
+							Kind:     EditTargetKindSymbolID,
+							SymbolID: &SymbolIDTarget{ID: "v1|Zm9vLnRz|1|ZnVuY3Rpb24|Y3VycmVudF9mdW5jdGlvbg"},
 						},
 						Text: "x++",
 					},
@@ -34,8 +34,8 @@ func TestValidateActionPlanReplaceCurrentFunctionBody(t *testing.T) {
 					Kind: EditIntentKindReplace,
 					Replace: &ReplaceEditIntent{
 						Target: EditTarget{
-							Kind:   EditTargetKindSymbol,
-							Symbol: &SymbolTarget{SymbolName: "current_function", SymbolKind: "function"},
+							Kind:     EditTargetKindSymbolID,
+							SymbolID: &SymbolIDTarget{ID: "v1|Zm9vLnRz|1|ZnVuY3Rpb24|Y3VycmVudF9mdW5jdGlvbg"},
 						},
 						NewText: `console.log("x");`,
 					},
@@ -80,8 +80,8 @@ func TestValidateActionPlanEditThenCommand(t *testing.T) {
 					Kind: EditIntentKindInsert,
 					Insert: &InsertEditIntent{
 						Target: EditTarget{
-							Kind:   EditTargetKindSymbol,
-							Symbol: &SymbolTarget{SymbolName: "current_function", SymbolKind: "function"},
+							Kind:     EditTargetKindSymbolID,
+							SymbolID: &SymbolIDTarget{ID: "v1|Zm9vLnRz|1|ZnVuY3Rpb24|Y3VycmVudF9mdW5jdGlvbg"},
 						},
 						Text: "x++",
 					},
@@ -107,8 +107,8 @@ func TestValidateActionPlanRejectsBadEditStep(t *testing.T) {
 					Kind: EditIntentKindInsert,
 					Insert: &InsertEditIntent{
 						Target: EditTarget{
-							Kind:   EditTargetKindSymbol,
-							Symbol: &SymbolTarget{SymbolName: "current_function", SymbolKind: "function"},
+							Kind:     EditTargetKindSymbolID,
+							SymbolID: &SymbolIDTarget{ID: "v1|Zm9vLnRz|1|ZnVuY3Rpb24|Y3VycmVudF9mdW5jdGlvbg"},
 						},
 						Text: "   ",
 					},
@@ -128,8 +128,8 @@ func TestValidateStepRejectsMismatchedPayload(t *testing.T) {
 			Kind: EditIntentKindInsert,
 			Insert: &InsertEditIntent{
 				Target: EditTarget{
-					Kind:   EditTargetKindSymbol,
-					Symbol: &SymbolTarget{SymbolName: "current_function", SymbolKind: "function"},
+					Kind:     EditTargetKindSymbolID,
+					SymbolID: &SymbolIDTarget{ID: "v1|Zm9vLnRz|1|ZnVuY3Rpb24|Y3VycmVudF9mdW5jdGlvbg"},
 				},
 				Text: "ok",
 			},

@@ -23,10 +23,14 @@ func TestApplyInsertStatementInCurrentFunction(t *testing.T) {
 		Kind: actionplan.EditIntentKindInsert,
 		Insert: &actionplan.InsertEditIntent{
 			Target: actionplan.EditTarget{
-				Kind: actionplan.EditTargetKindSymbol,
-				Symbol: &actionplan.SymbolTarget{
-					SymbolName: "current_function",
-					SymbolKind: "function",
+				Kind: actionplan.EditTargetKindSymbolID,
+				SymbolID: &actionplan.SymbolIDTarget{
+					ID: symbols.BuildSymbolID(symbols.SymbolRef{
+						Name: "current_function",
+						Path: "/tmp/single-function.ts",
+						Line: 1,
+						Kind: "function",
+					}),
 				},
 			},
 			Text: `console.log("done")`,
@@ -63,10 +67,14 @@ func TestApplyReplaceCurrentFunctionBody(t *testing.T) {
 		Kind: actionplan.EditIntentKindReplace,
 		Replace: &actionplan.ReplaceEditIntent{
 			Target: actionplan.EditTarget{
-				Kind: actionplan.EditTargetKindSymbol,
-				Symbol: &actionplan.SymbolTarget{
-					SymbolName: "current_function",
-					SymbolKind: "function",
+				Kind: actionplan.EditTargetKindSymbolID,
+				SymbolID: &actionplan.SymbolIDTarget{
+					ID: symbols.BuildSymbolID(symbols.SymbolRef{
+						Name: "current_function",
+						Path: "/tmp/single-function.ts",
+						Line: 1,
+						Kind: "function",
+					}),
 				},
 			},
 			NewText: `console.log("hello from vocode");`,
@@ -101,10 +109,14 @@ func TestApplyFailsForAmbiguousCurrentFunction(t *testing.T) {
 		Kind: actionplan.EditIntentKindInsert,
 		Insert: &actionplan.InsertEditIntent{
 			Target: actionplan.EditTarget{
-				Kind: actionplan.EditTargetKindSymbol,
-				Symbol: &actionplan.SymbolTarget{
-					SymbolName: "current_function",
-					SymbolKind: "function",
+				Kind: actionplan.EditTargetKindSymbolID,
+				SymbolID: &actionplan.SymbolIDTarget{
+					ID: symbols.BuildSymbolID(symbols.SymbolRef{
+						Name: "current_function",
+						Path: "/tmp/multi-function.ts",
+						Line: 1,
+						Kind: "function",
+					}),
 				},
 			},
 			Text: `console.log("done")`,
@@ -155,18 +167,10 @@ func TestApplyReplaceAnchoredBlock(t *testing.T) {
 	}
 }
 
-func TestApplyReplaceNamedSymbolFunction(t *testing.T) {
+func TestApplyReplaceBySymbolIDFunction(t *testing.T) {
 	t.Parallel()
 
-	service := NewServiceWithResolver(symbolResolverFunc(func(workspaceRoot, symbolName, symbolKind, hintPath string) ([]symbols.SymbolRef, error) {
-		_ = workspaceRoot
-		_ = symbolKind
-		_ = hintPath
-		if symbolName == "secondBraceAnchors" {
-			return []symbols.SymbolRef{{Path: "/tmp/multi-function.ts", Line: 5, Kind: "function"}}, nil
-		}
-		return nil, nil
-	}))
+	service := NewService()
 	fileText := readFixture(t, "multi-function.ts")
 	params := EditExecutionContext{
 		ActiveFile: "/tmp/multi-function.ts",
@@ -176,10 +180,14 @@ func TestApplyReplaceNamedSymbolFunction(t *testing.T) {
 		Kind: actionplan.EditIntentKindReplace,
 		Replace: &actionplan.ReplaceEditIntent{
 			Target: actionplan.EditTarget{
-				Kind: actionplan.EditTargetKindSymbol,
-				Symbol: &actionplan.SymbolTarget{
-					SymbolName: "secondBraceAnchors",
-					SymbolKind: "function",
+				Kind: actionplan.EditTargetKindSymbolID,
+				SymbolID: &actionplan.SymbolIDTarget{
+					ID: symbols.BuildSymbolID(symbols.SymbolRef{
+						Name: "secondBraceAnchors",
+						Path: "/tmp/multi-function.ts",
+						Line: 5,
+						Kind: "function",
+					}),
 				},
 			},
 			NewText: "\n  return 42;\n",
@@ -198,57 +206,6 @@ func TestApplyReplaceNamedSymbolFunction(t *testing.T) {
 	}
 }
 
-func TestApplyReplaceSymbolIDFunction(t *testing.T) {
-	t.Parallel()
-
-	service := NewServiceWithResolver(symbolResolverFunc(func(workspaceRoot, symbolName, symbolKind, hintPath string) ([]symbols.SymbolRef, error) {
-		_ = workspaceRoot
-		_ = symbolName
-		_ = symbolKind
-		_ = hintPath
-		return nil, nil
-	}))
-	fileText := readFixture(t, "multi-function.ts")
-	params := EditExecutionContext{
-		ActiveFile: "/tmp/multi-function.ts",
-		FileText:   fileText,
-	}
-	ref := symbols.SymbolRef{
-		Name: "secondBraceAnchors",
-		Path: "/tmp/multi-function.ts",
-		Line: 5,
-		Kind: "function",
-	}
-	intent := actionplan.EditIntent{
-		Kind: actionplan.EditIntentKindReplace,
-		Replace: &actionplan.ReplaceEditIntent{
-			Target: actionplan.EditTarget{
-				Kind: actionplan.EditTargetKindSymbolID,
-				SymbolID: &actionplan.SymbolIDTarget{
-					ID: symbols.BuildSymbolID(ref),
-				},
-			},
-			NewText: "\n  return 1337;\n",
-		},
-	}
-
-	result, failure := service.BuildActions(params, intent)
-	if failure != nil {
-		t.Fatalf("unexpected failure: %+v", *failure)
-	}
-	if len(result) != 1 {
-		t.Fatalf("expected 1 action, got %d", len(result))
-	}
-	if !strings.Contains(result[0].Anchor.Before, "secondBraceAnchors") {
-		t.Fatalf("expected secondBraceAnchors target, got %+v", result[0].Anchor)
-	}
-}
-
-type symbolResolverFunc func(workspaceRoot, symbolName, symbolKind, hintPath string) ([]symbols.SymbolRef, error)
-
-func (f symbolResolverFunc) ResolveSymbol(workspaceRoot, symbolName, symbolKind, hintPath string) ([]symbols.SymbolRef, error) {
-	return f(workspaceRoot, symbolName, symbolKind, hintPath)
-}
 
 func TestApplyAppendImportIfMissing(t *testing.T) {
 	t.Parallel()
