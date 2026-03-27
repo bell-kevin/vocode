@@ -162,8 +162,8 @@ func (r *Runner) Execute(params protocol.VoiceTranscriptParams) (protocol.VoiceT
 			directives = append(directives, protocol.VoiceTranscriptDirective{Kind: "command", CommandDirective: st.CommandDirective})
 			trace = appendTurnTrace(trace, turn, "result:command")
 			completed = append(completed, next)
-		case st.Navigation != nil:
-			directives = append(directives, protocol.VoiceTranscriptDirective{Kind: "navigate", NavigationDirective: toProtocolNavigationDirective(*st.Navigation)})
+		case st.NavigationDirective != nil:
+			directives = append(directives, protocol.VoiceTranscriptDirective{Kind: "navigate", NavigationDirective: st.NavigationDirective})
 			trace = appendTurnTrace(trace, turn, "result:navigate")
 			completed = append(completed, next)
 		}
@@ -249,54 +249,4 @@ func appendPlanningNote(c agent.PlanningContext, note string) agent.PlanningCont
 		c.Notes = c.Notes[len(c.Notes)-maxNotes:]
 	}
 	return c
-}
-
-func toProtocolNavigationDirective(n intent.NavigationIntent) *protocol.NavigationDirective {
-	action := protocol.NavigationAction{Kind: string(n.Kind)}
-	if n.OpenFile != nil {
-		action.OpenFile = &struct {
-			Path string `json:"path"`
-		}{Path: n.OpenFile.Path}
-	}
-	if n.RevealSymbol != nil {
-		action.RevealSymbol = &struct {
-			Path       string `json:"path,omitempty"`
-			SymbolName string `json:"symbolName"`
-			SymbolKind string `json:"symbolKind,omitempty"`
-		}{Path: n.RevealSymbol.Path, SymbolName: n.RevealSymbol.SymbolName, SymbolKind: n.RevealSymbol.SymbolKind}
-	}
-	if n.MoveCursor != nil {
-		action.MoveCursor = &struct {
-			Target struct {
-				Path string `json:"path,omitempty"`
-				Line int64  `json:"line"`
-				Char int64  `json:"char"`
-			} `json:"target"`
-		}{}
-		action.MoveCursor.Target.Path = n.MoveCursor.Target.Path
-		action.MoveCursor.Target.Line = int64(n.MoveCursor.Target.Line)
-		action.MoveCursor.Target.Char = int64(n.MoveCursor.Target.Char)
-	}
-	if n.SelectRange != nil {
-		action.SelectRange = &struct {
-			Target struct {
-				Path      string `json:"path,omitempty"`
-				StartLine int64  `json:"startLine"`
-				StartChar int64  `json:"startChar"`
-				EndLine   int64  `json:"endLine"`
-				EndChar   int64  `json:"endChar"`
-			} `json:"target"`
-		}{}
-		action.SelectRange.Target.Path = n.SelectRange.Target.Path
-		action.SelectRange.Target.StartLine = int64(n.SelectRange.Target.StartLine)
-		action.SelectRange.Target.StartChar = int64(n.SelectRange.Target.StartChar)
-		action.SelectRange.Target.EndLine = int64(n.SelectRange.Target.EndLine)
-		action.SelectRange.Target.EndChar = int64(n.SelectRange.Target.EndChar)
-	}
-	if n.RevealEdit != nil {
-		action.RevealEdit = &struct {
-			EditId string `json:"editId"`
-		}{EditId: n.RevealEdit.EditID}
-	}
-	return &protocol.NavigationDirective{Kind: "success", Action: &action}
 }

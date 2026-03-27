@@ -21,9 +21,9 @@ func NewDispatcher(editsService *edits.Service, commandService *commandexec.Serv
 }
 
 type DispatchResult struct {
-	EditDirective    *protocol.EditDirective
-	CommandDirective *protocol.CommandDirective
-	Navigation       *intent.NavigationIntent
+	EditDirective       *protocol.EditDirective
+	CommandDirective    *protocol.CommandDirective
+	NavigationDirective *protocol.NavigationDirective
 }
 
 // DispatchExecutableIntent handles only executable intents (edit/command/navigate).
@@ -40,26 +40,17 @@ func (d *Dispatcher) DispatchExecutableIntent(next intent.NextIntent, editCtx ed
 		}
 		return DispatchResult{EditDirective: &res}, nil
 	case intent.NextIntentKindCommand:
-		var (
-			directive protocol.CommandDirective
-			err       error
-		)
-		if d.commands != nil {
-			directive, err = d.commands.DispatchIntent(*next.Command)
-		}
+		res, err := d.commands.DispatchIntent(*next.Command)
 		if err != nil {
 			return DispatchResult{}, fmt.Errorf("next intent command: %w", err)
 		}
-		return DispatchResult{CommandDirective: &directive}, nil
+		return DispatchResult{CommandDirective: &res}, nil
 	case intent.NextIntentKindNavigate:
-		if d.nav != nil {
-			nav, err := d.nav.DispatchIntent(*next.Navigate)
-			if err != nil {
-				return DispatchResult{}, fmt.Errorf("next intent navigate: %w", err)
-			}
-			return DispatchResult{Navigation: &nav}, nil
+		res, err := d.nav.DispatchIntent(*next.Navigate)
+		if err != nil {
+			return DispatchResult{}, fmt.Errorf("next intent navigate: %w", err)
 		}
-		return DispatchResult{Navigation: next.Navigate}, nil
+		return DispatchResult{NavigationDirective: &res}, nil
 	case intent.NextIntentKindDone:
 		return DispatchResult{}, fmt.Errorf("done is not executable")
 	case intent.NextIntentKindRequestContext:
