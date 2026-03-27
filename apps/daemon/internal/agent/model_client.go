@@ -6,15 +6,14 @@ import (
 	"vocoding.net/vocode/v2/apps/daemon/internal/actionplan"
 )
 
-// ModelInput is everything the model needs to propose an [ActionPlan] for one
-// user turn. Fields may grow (active file, selection, workspace roots, etc.).
+// ModelInput is everything the model needs to propose the next action.
+// Fields may grow (active file, selection, workspace roots, etc.).
 type ModelInput struct {
-	Transcript string
+	Transcript     string
+	CompletedSteps []actionplan.Step
 }
 
-// ModelClient calls an LLM or other planner to turn [ModelInput] into a
-// validated-shaped [ActionPlan]. Vendor implementations live in subpackages
-// (e.g. agent/stub, agent/openai, agent/anthropic); compose with [New] at the app boundary.
+// ModelClient is the iterative planning contract.
 type ModelClient interface {
-	Plan(ctx context.Context, in ModelInput) (actionplan.ActionPlan, error)
+	NextAction(ctx context.Context, in ModelInput) (actionplan.NextAction, error)
 }

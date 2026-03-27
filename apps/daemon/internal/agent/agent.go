@@ -9,7 +9,7 @@ import (
 )
 
 // Agent is the daemon-side voice/agent runtime: transcript handling and
-// coordination with a [ModelClient] to produce [ActionPlan] values.
+// coordination with a [ModelClient] to produce iterative action plans.
 type Agent struct {
 	model ModelClient
 }
@@ -36,12 +36,32 @@ func (a *Agent) HandleTranscript(ctx context.Context, params protocol.VoiceTrans
 		return HandleTranscriptResult{Valid: false}
 	}
 
-	plan, err := a.model.Plan(ctx, ModelInput{Transcript: text})
+	plan, err := a.planForTranscript(ctx, text)
 	if err != nil {
-		return HandleTranscriptResult{Valid: true, Err: err}
-	}
-	if err := actionplan.ValidateActionPlan(plan); err != nil {
 		return HandleTranscriptResult{Valid: true, Plan: nil, Err: err}
 	}
 	return HandleTranscriptResult{Valid: true, Plan: &plan}
+}
+
+func (a *Agent) planForTranscript(ctx context.Context, text string) (actionplan.ActionPlan, error) {
+	const maxTurns = 8
+	out := actionplan.ActionPlan{Steps: make([]actionplan.Step, 0, maxTurns)}
+	for i := 0; i < maxTurns; i++ {
+		next, err := a.model.NextAction(ctx, ModelInput{
+			Transcript:     text,
+			CompletedSteps: append([]actionplan.Step(nil), out.Steps...),
+		})
+		if err != nil {
+			return actionplan.ActionPlan{}, err
+		}
+		step, done, err := actionplan.NextActionToStep(next)
+		if err != nil {
+			return actionplan.ActionPlan{}, err
+		}
+		if done {
+			return out, actionplan.ValidateActionPlan(out)
+		}
+		out.Steps = append(out.Steps, step)
+	}
+	return actionplan.ActionPlan{}, actionplan.ValidateActionPlan(out)
 }

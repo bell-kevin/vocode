@@ -15,7 +15,7 @@ Tracks migration from batch action plans + fuzzy symbol lookup to iterative, det
 - [x] Add `symbol_id` target support and symbol ID encode/decode utilities.
 - [x] Keep runtime strict (no PATH fallback), with explicit override support.
 
-## Phase 1: Remove Fuzzy Symbol Target (In Progress)
+## Phase 1: Remove Fuzzy Symbol Target
 
 - [x] Remove `symbol` target from protocol schema (`edit-intent.schema.json`).
 - [x] Remove `EditTargetKindSymbol` + `SymbolTarget` from daemon actionplan types.
@@ -25,14 +25,14 @@ Tracks migration from batch action plans + fuzzy symbol lookup to iterative, det
 
 ## Phase 2: Iterative Planner Contract
 
-- [ ] Add single-step response contract (`NextAction`) with kinds:
+- [x] Add single-step response contract (`NextAction`) with kinds:
   - `edit`
   - `navigate`
   - `run_command`
   - `request_context`
   - `done`
-- [ ] Keep temporary compatibility adapter from old `ActionPlan.steps[]`.
-- [ ] Add validation/guards for one-action-per-turn contract.
+- [x] Hard cut to iterative model contract (`NextAction` only, no `Plan(...)` fallback).
+- [x] Add validation/guards for one-action-per-turn contract.
 
 ## Phase 3: Context Request / Fulfillment Loop
 
@@ -60,6 +60,6 @@ Tracks migration from batch action plans + fuzzy symbol lookup to iterative, det
 
 ## Phase 5: Cleanup
 
-- [ ] Remove compatibility path for old `steps[]` plan after migration.
+- [x] Remove compatibility path for old `steps[]` plan.
 - [ ] Delete dead code/tests related to fuzzy symbol targeting.
 - [ ] Document final planner protocol and troubleshooting flow in `README.md`.

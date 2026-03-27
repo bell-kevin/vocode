@@ -1,16 +1,16 @@
-// Package openai will host an [agent.ModelClient] backed by the OpenAI API
-// (e.g. GPT-4.1). The skeleton returns [ErrNotImplemented] until wired.
+// Package openai will host an iterative [agent.ModelClient] backed by the
+// OpenAI API (e.g. GPT-4.1). The skeleton returns [ErrNotImplemented] until wired.
 package openai
 
 import (
 	"context"
 	"errors"
 
-	"vocoding.net/vocode/v2/apps/daemon/internal/agent"
 	"vocoding.net/vocode/v2/apps/daemon/internal/actionplan"
+	"vocoding.net/vocode/v2/apps/daemon/internal/agent"
 )
 
-// ErrNotImplemented is returned by [Client.Plan] until the provider is implemented.
+// ErrNotImplemented is returned by [Client.NextAction] until implemented.
 var ErrNotImplemented = errors.New("openai model client: not implemented")
 
 // Client holds OpenAI-specific configuration (API key, model name, base URL, etc.).
@@ -21,9 +21,9 @@ func New() *Client {
 	return &Client{}
 }
 
-// Plan implements [agent.ModelClient].
-func (*Client) Plan(ctx context.Context, in agent.ModelInput) (actionplan.ActionPlan, error) {
+// NextAction implements [agent.ModelClient].
+func (*Client) NextAction(ctx context.Context, in agent.ModelInput) (actionplan.NextAction, error) {
 	_ = ctx
 	_ = in
-	return actionplan.ActionPlan{}, ErrNotImplemented
+	return actionplan.NextAction{}, ErrNotImplemented
 }

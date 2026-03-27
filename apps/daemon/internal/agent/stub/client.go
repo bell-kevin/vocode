@@ -1,4 +1,5 @@
-// Package stub provides a fixed-response [agent.ModelClient] for tests and dev wiring.
+// Package stub provides a fixed-response iterative [agent.ModelClient] for tests
+// and dev wiring.
 package stub
 
 import (
@@ -18,58 +19,61 @@ func New() *Client {
 	return &Client{}
 }
 
-// Plan implements [agent.ModelClient].
-func (*Client) Plan(ctx context.Context, in agent.ModelInput) (actionplan.ActionPlan, error) {
+// NextAction emits a deterministic 4-step sequence, then done.
+func (*Client) NextAction(ctx context.Context, in agent.ModelInput) (actionplan.NextAction, error) {
 	_ = ctx
-	_ = in
-	return actionplan.ActionPlan{
-		Steps: []actionplan.Step{
-			{
-				Kind: actionplan.StepKindNavigate,
-				Navigate: &actionplan.NavigationIntent{
-					Kind: actionplan.NavigationIntentKindOpenFile,
-					OpenFile: &actionplan.OpenFileNavigationIntent{
-						Path: "test.js",
-					},
+	switch len(in.CompletedSteps) {
+	case 0:
+		return actionplan.NextAction{
+			Kind: actionplan.NextActionKindNavigate,
+			Navigate: &actionplan.NavigationIntent{
+				Kind: actionplan.NavigationIntentKindOpenFile,
+				OpenFile: &actionplan.OpenFileNavigationIntent{
+					Path: "test.js",
 				},
 			},
-			{
-				Kind: actionplan.StepKindNavigate,
-				Navigate: &actionplan.NavigationIntent{
-					Kind: actionplan.NavigationIntentKindRevealSymbol,
-					RevealSymbol: &actionplan.RevealSymbolNavigationIntent{
-						Path:       "test.js",
-						SymbolName: "test",
-						SymbolKind: "function",
-					},
+		}, nil
+	case 1:
+		return actionplan.NextAction{
+			Kind: actionplan.NextActionKindNavigate,
+			Navigate: &actionplan.NavigationIntent{
+				Kind: actionplan.NavigationIntentKindRevealSymbol,
+				RevealSymbol: &actionplan.RevealSymbolNavigationIntent{
+					Path:       "test.js",
+					SymbolName: "test",
+					SymbolKind: "function",
 				},
 			},
-			{
-				Kind: actionplan.StepKindEdit,
-				Edit: &actionplan.EditIntent{
-					Kind: actionplan.EditIntentKindReplace,
-					Replace: &actionplan.ReplaceEditIntent{
-						Target: actionplan.EditTarget{
-							Kind: actionplan.EditTargetKindSymbolID,
-							SymbolID: &actionplan.SymbolIDTarget{
-								ID: symbols.BuildSymbolID(symbols.SymbolRef{
-									Name: "test",
-									Path: "test.js",
-									Line: 1,
-									Kind: "function",
-								}),
-							},
+		}, nil
+	case 2:
+		return actionplan.NextAction{
+			Kind: actionplan.NextActionKindEdit,
+			Edit: &actionplan.EditIntent{
+				Kind: actionplan.EditIntentKindReplace,
+				Replace: &actionplan.ReplaceEditIntent{
+					Target: actionplan.EditTarget{
+						Kind: actionplan.EditTargetKindSymbolID,
+						SymbolID: &actionplan.SymbolIDTarget{
+							ID: symbols.BuildSymbolID(symbols.SymbolRef{
+								Name: "test",
+								Path: "test.js",
+								Line: 1,
+								Kind: "function",
+							}),
 						},
-						NewText: "\n  console.log(\"updated from stub\");\n",
 					},
+					NewText: "\n  console.log(\"updated from stub\");\n",
 				},
 			},
-			{
-				Kind:       actionplan.StepKindRunCommand,
-				RunCommand: stubEchoRunCommand(),
-			},
-		},
-	}, nil
+		}, nil
+	case 3:
+		return actionplan.NextAction{
+			Kind:       actionplan.NextActionKindRunCommand,
+			RunCommand: stubEchoRunCommand(),
+		}, nil
+	default:
+		return actionplan.NextAction{Kind: actionplan.NextActionKindDone}, nil
+	}
 }
 
 // stubEchoRunCommand: on Windows, `echo` is a cmd builtin (no echo.exe on PATH);

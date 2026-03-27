@@ -54,8 +54,8 @@ func TestHandleTranscriptStubReturnsPlan(t *testing.T) {
 
 func TestHandleTranscriptModelError(t *testing.T) {
 	t.Parallel()
-	a := agent.New(modelClientFunc(func(ctx context.Context, in agent.ModelInput) (actionplan.ActionPlan, error) {
-		return actionplan.ActionPlan{}, errTestModel
+	a := agent.New(nextActionClientFunc(func(ctx context.Context, in agent.ModelInput) (actionplan.NextAction, error) {
+		return actionplan.NextAction{}, errTestModel
 	}))
 	r := a.HandleTranscript(context.Background(), protocol.VoiceTranscriptParams{Text: "x"})
 	if !r.Valid {
@@ -75,8 +75,8 @@ type testModelError struct{}
 
 func (*testModelError) Error() string { return "test model error" }
 
-type modelClientFunc func(context.Context, agent.ModelInput) (actionplan.ActionPlan, error)
+type nextActionClientFunc func(context.Context, agent.ModelInput) (actionplan.NextAction, error)
 
-func (f modelClientFunc) Plan(ctx context.Context, in agent.ModelInput) (actionplan.ActionPlan, error) {
+func (f nextActionClientFunc) NextAction(ctx context.Context, in agent.ModelInput) (actionplan.NextAction, error) {
 	return f(ctx, in)
 }
