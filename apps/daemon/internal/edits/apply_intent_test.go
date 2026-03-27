@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"vocoding.net/vocode/v2/apps/daemon/internal/actionplan"
-	protocol "vocoding.net/vocode/v2/packages/protocol/go"
 )
 
 func TestApplyIntentSuccess(t *testing.T) {
@@ -13,7 +12,7 @@ func TestApplyIntentSuccess(t *testing.T) {
 
 	service := NewService()
 	fileText := readFixture(t, "anchored-block.ts")
-	params := protocol.EditApplyParams{
+	params := EditExecutionContext{
 		Instruction: "replace inner",
 		ActiveFile:  "/tmp/anchored-block.ts",
 		FileText:    fileText,
@@ -51,7 +50,7 @@ func TestApplyIntentNoopWhenImportAlreadyPresent(t *testing.T) {
 	t.Parallel()
 
 	service := NewService()
-	params := protocol.EditApplyParams{
+	params := EditExecutionContext{
 		Instruction: "add fmt",
 		ActiveFile:  "/tmp/x.go",
 		FileText: `package main

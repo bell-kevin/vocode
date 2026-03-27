@@ -22,6 +22,10 @@ function toAbsolutePath(
   if (path.isAbsolute(targetPath)) {
     return targetPath;
   }
+  const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+  if (workspaceRoot) {
+    return path.resolve(workspaceRoot, targetPath);
+  }
   return path.resolve(path.dirname(activeDocumentPath), targetPath);
 }
 

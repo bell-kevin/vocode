@@ -42,19 +42,27 @@ func (r EditApplyResult) Validate() error {
 func (s VoiceTranscriptStepResult) Validate() error {
 	switch s.Kind {
 	case "edit":
-		if s.EditResult == nil || s.CommandParams != nil {
-			return errors.New("voice transcript step: kind edit requires editResult and no commandParams")
+		if s.EditResult == nil || s.CommandParams != nil || s.NavigationIntent != nil {
+			return errors.New("voice transcript step: kind edit requires editResult and no commandParams/navigationIntent")
 		}
 		return s.EditResult.Validate()
 	case "run_command":
-		if s.CommandParams == nil || s.EditResult != nil {
-			return errors.New("voice transcript step: kind run_command requires commandParams and no editResult")
+		if s.CommandParams == nil || s.EditResult != nil || s.NavigationIntent != nil {
+			return errors.New("voice transcript step: kind run_command requires commandParams and no editResult/navigationIntent")
 		}
 		if strings.TrimSpace(s.CommandParams.Command) == "" {
 			return errors.New("voice transcript step: run_command requires non-empty commandParams.command")
 		}
 		// CommandRunParams has no additional protocol-level validation yet; host-side
 		// policy executes the safety checks.
+		return nil
+	case "navigate":
+		if s.NavigationIntent == nil || s.EditResult != nil || s.CommandParams != nil {
+			return errors.New("voice transcript step: kind navigate requires navigationIntent and no editResult/commandParams")
+		}
+		if strings.TrimSpace(s.NavigationIntent.Kind) == "" {
+			return errors.New("voice transcript step: navigate requires non-empty navigationIntent.kind")
+		}
 		return nil
 	default:
 		return fmt.Errorf("voice transcript step: unknown kind %q", s.Kind)

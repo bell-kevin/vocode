@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	"vocoding.net/vocode/v2/apps/daemon/internal/actionplan"
-	protocol "vocoding.net/vocode/v2/packages/protocol/go"
 )
 
 func TestApplyInsertStatementInCurrentFunction(t *testing.T) {
@@ -15,7 +14,7 @@ func TestApplyInsertStatementInCurrentFunction(t *testing.T) {
 
 	service := NewService()
 	fileText := readFixture(t, "single-function.ts")
-	params := protocol.EditApplyParams{
+	params := EditExecutionContext{
 		ActiveFile: "/tmp/single-function.ts",
 		FileText:   fileText,
 	}
@@ -55,7 +54,7 @@ func TestApplyReplaceCurrentFunctionBody(t *testing.T) {
 
 	service := NewService()
 	fileText := readFixture(t, "single-function.ts")
-	params := protocol.EditApplyParams{
+	params := EditExecutionContext{
 		ActiveFile: "/tmp/single-function.ts",
 		FileText:   fileText,
 	}
@@ -93,7 +92,7 @@ func TestApplyFailsForAmbiguousCurrentFunction(t *testing.T) {
 
 	service := NewService()
 	fileText := readFixture(t, "multi-function.ts")
-	params := protocol.EditApplyParams{
+	params := EditExecutionContext{
 		ActiveFile: "/tmp/multi-function.ts",
 		FileText:   fileText,
 	}
@@ -125,7 +124,7 @@ func TestApplyReplaceAnchoredBlock(t *testing.T) {
 
 	service := NewService()
 	fileText := readFixture(t, "anchored-block.ts")
-	params := protocol.EditApplyParams{
+	params := EditExecutionContext{
 		ActiveFile: "/tmp/anchored-block.ts",
 		FileText:   fileText,
 	}
@@ -160,7 +159,7 @@ func TestApplyReplaceNamedSymbolFunction(t *testing.T) {
 
 	service := NewService()
 	fileText := readFixture(t, "multi-function.ts")
-	params := protocol.EditApplyParams{
+	params := EditExecutionContext{
 		ActiveFile: "/tmp/multi-function.ts",
 		FileText:   fileText,
 	}
@@ -195,7 +194,7 @@ func TestApplyAppendImportIfMissing(t *testing.T) {
 
 	service := NewService()
 	fileText := readFixture(t, "imports.go")
-	params := protocol.EditApplyParams{
+	params := EditExecutionContext{
 		ActiveFile: "/tmp/imports.go",
 		FileText:   fileText,
 	}

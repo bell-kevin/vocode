@@ -26,8 +26,8 @@ type Step struct {
 }
 
 // ActionPlan is structured model output: an ordered list of edits and/or
-// commands to run. The client supplies file snapshot context for edit steps
-// via [protocol.EditApplyParams].
+// commands to run. The daemon supplies file/context snapshots for edit steps
+// via edits.EditExecutionContext.
 //
 // JSON shape matches packages/protocol/schema/action-plan.schema.json.
 type ActionPlan struct {

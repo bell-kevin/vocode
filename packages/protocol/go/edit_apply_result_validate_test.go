@@ -8,7 +8,7 @@ func TestEditApplyResultValidate(t *testing.T) {
 	success := NewEditApplySuccess([]EditAction{{
 		Kind: "replace_between_anchors",
 		Path: "/tmp/file.ts",
-		Anchor: Anchor{
+		Anchor: &Anchor{
 			Before: "before",
 			After:  "after",
 		},

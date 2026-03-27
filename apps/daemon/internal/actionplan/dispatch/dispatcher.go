@@ -35,7 +35,7 @@ type ExecuteResult struct {
 // Execute runs each plan step in order. editParams supplies the file snapshot
 // for every edit step (callers should refresh fileText between edits if later
 // steps depend on updated buffer content).
-func (d *Dispatcher) Execute(plan actionplan.ActionPlan, editParams protocol.EditApplyParams) (ExecuteResult, error) {
+func (d *Dispatcher) Execute(plan actionplan.ActionPlan, editCtx edits.EditExecutionContext) (ExecuteResult, error) {
 	if err := actionplan.ValidateActionPlan(plan); err != nil {
 		return ExecuteResult{}, err
 	}
@@ -46,7 +46,7 @@ func (d *Dispatcher) Execute(plan actionplan.ActionPlan, editParams protocol.Edi
 		step := plan.Steps[i]
 		switch step.Kind {
 		case actionplan.StepKindEdit:
-			res, err := d.edits.ApplyIntent(editParams, *step.Edit)
+			res, err := d.edits.ApplyIntent(editCtx, *step.Edit)
 			if err != nil {
 				return out, fmt.Errorf("action plan: step %d: %w", i, err)
 			}

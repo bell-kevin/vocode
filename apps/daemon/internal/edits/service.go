@@ -13,19 +13,19 @@ func NewService() *Service {
 	return &Service{actionBuilder: NewActionBuilder()}
 }
 
-func (s *Service) BuildActions(params protocol.EditApplyParams, intent actionplan.EditIntent) ([]protocol.EditAction, *protocol.EditFailure) {
-	return s.actionBuilder.BuildActions(params, intent)
+func (s *Service) BuildActions(ctx EditExecutionContext, intent actionplan.EditIntent) ([]protocol.EditAction, *protocol.EditFailure) {
+	return s.actionBuilder.BuildActions(ctx, intent)
 }
 
 // ApplyIntent validates [actionplan.EditIntent], runs [Service.BuildActions], and
 // returns a protocol-level [protocol.EditApplyResult] (success, failure, or noop).
-func (s *Service) ApplyIntent(params protocol.EditApplyParams, intent actionplan.EditIntent) (protocol.EditApplyResult, error) {
+func (s *Service) ApplyIntent(ctx EditExecutionContext, intent actionplan.EditIntent) (protocol.EditApplyResult, error) {
 	if err := actionplan.ValidateEditIntent(intent); err != nil {
 		f := protocol.EditFailure{Code: "unsupported_instruction", Message: err.Error()}
 		result := protocol.NewEditApplyFailure(f)
 		return result, result.Validate()
 	}
-	actions, failure := s.BuildActions(params, intent)
+	actions, failure := s.BuildActions(ctx, intent)
 	if failure != nil {
 		if failure.Code == "no_change_needed" {
 			result := protocol.NewEditApplyNoop(failure.Message)

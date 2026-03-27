@@ -2,7 +2,6 @@ package edits
 
 import (
 	"fmt"
-	"os"
 	"path/filepath"
 	"strings"
 
@@ -18,10 +17,10 @@ func NewActionBuilder() *ActionBuilder {
 	return &ActionBuilder{validator: NewValidator()}
 }
 
-func (b *ActionBuilder) BuildActions(params protocol.EditApplyParams, intent actionplan.EditIntent) ([]protocol.EditAction, *protocol.EditFailure) {
+func (b *ActionBuilder) BuildActions(ctx EditExecutionContext, intent actionplan.EditIntent) ([]protocol.EditAction, *protocol.EditFailure) {
 	switch intent.Kind {
 	case actionplan.EditIntentKindInsert:
-		action, failure := b.buildInsertStatementAction(params, intent)
+		action, failure := b.buildInsertStatementAction(ctx, intent)
 		if failure != nil {
 			return nil, failure
 		}
@@ -29,9 +28,9 @@ func (b *ActionBuilder) BuildActions(params protocol.EditApplyParams, intent act
 	case actionplan.EditIntentKindReplace:
 		target := intent.Replace.Target
 		if target.Kind == actionplan.EditTargetKindAnchor {
-			path := params.ActiveFile
+			path := ctx.ActiveFile
 			if p := strings.TrimSpace(target.Anchor.Path); p != "" {
-				path = p
+				path = ctx.ResolvePath(p)
 			}
 			action := protocol.ReplaceBetweenAnchorsAction{
 				Kind: "replace_between_anchors",
@@ -42,20 +41,20 @@ func (b *ActionBuilder) BuildActions(params protocol.EditApplyParams, intent act
 				},
 				NewText: intent.Replace.NewText,
 			}
-			if samePath(path, params.ActiveFile) {
-				if failure := b.validator.ValidateAction(params.FileText, action); failure != nil {
+			if samePath(path, ctx.ActiveFile) {
+				if failure := b.validator.ValidateAction(ctx.FileText, action); failure != nil {
 					return nil, failure
 				}
 			}
 			return []protocol.EditAction{replaceActionToEditAction(action)}, nil
 		}
-		action, failure := b.buildReplaceCurrentFunctionBodyAction(params, intent)
+		action, failure := b.buildReplaceCurrentFunctionBodyAction(ctx, intent)
 		if failure != nil {
 			return nil, failure
 		}
 		return []protocol.EditAction{replaceActionToEditAction(action)}, nil
 	case actionplan.EditIntentKindInsertImport:
-		action, failure := b.buildAppendImportAction(params, intent)
+		action, failure := b.buildAppendImportAction(ctx, intent)
 		if failure != nil {
 			return nil, failure
 		}
@@ -68,9 +67,9 @@ func (b *ActionBuilder) BuildActions(params protocol.EditApplyParams, intent act
 		if target.Kind != actionplan.EditTargetKindAnchor || target.Anchor == nil {
 			return nil, editFailure("unsupported_instruction", "Delete currently supports only anchor targets.")
 		}
-		path := params.ActiveFile
+		path := ctx.ActiveFile
 		if p := strings.TrimSpace(target.Anchor.Path); p != "" {
-			path = p
+			path = ctx.ResolvePath(p)
 		}
 		action := protocol.EditAction{
 			Kind: "replace_between_anchors",
@@ -81,8 +80,8 @@ func (b *ActionBuilder) BuildActions(params protocol.EditApplyParams, intent act
 			},
 			NewText: "",
 		}
-		if samePath(path, params.ActiveFile) {
-			if failure := b.validator.ValidateAction(params.FileText, protocol.ReplaceBetweenAnchorsAction{
+		if samePath(path, ctx.ActiveFile) {
+			if failure := b.validator.ValidateAction(ctx.FileText, protocol.ReplaceBetweenAnchorsAction{
 				Kind:    action.Kind,
 				Path:    action.Path,
 				Anchor:  *action.Anchor,
@@ -109,9 +108,9 @@ func (b *ActionBuilder) BuildActions(params protocol.EditApplyParams, intent act
 	}
 }
 
-func (b *ActionBuilder) buildInsertStatementAction(params protocol.EditApplyParams, intent actionplan.EditIntent) (protocol.ReplaceBetweenAnchorsAction, *protocol.EditFailure) {
+func (b *ActionBuilder) buildInsertStatementAction(ctx EditExecutionContext, intent actionplan.EditIntent) (protocol.ReplaceBetweenAnchorsAction, *protocol.EditFailure) {
 	target := intent.Insert.Target
-	path, fileText, failure := resolveEditSource(params, targetPathFromTarget(target))
+	path, fileText, failure := resolveEditSource(ctx, targetPathFromTarget(target))
 	if failure != nil {
 		return protocol.ReplaceBetweenAnchorsAction{}, failure
 	}
@@ -157,9 +156,9 @@ func (b *ActionBuilder) buildInsertStatementAction(params protocol.EditApplyPara
 	return action, nil
 }
 
-func (b *ActionBuilder) buildReplaceCurrentFunctionBodyAction(params protocol.EditApplyParams, intent actionplan.EditIntent) (protocol.ReplaceBetweenAnchorsAction, *protocol.EditFailure) {
+func (b *ActionBuilder) buildReplaceCurrentFunctionBodyAction(ctx EditExecutionContext, intent actionplan.EditIntent) (protocol.ReplaceBetweenAnchorsAction, *protocol.EditFailure) {
 	target := intent.Replace.Target
-	path, fileText, failure := resolveEditSource(params, targetPathFromTarget(target))
+	path, fileText, failure := resolveEditSource(ctx, targetPathFromTarget(target))
 	if failure != nil {
 		return protocol.ReplaceBetweenAnchorsAction{}, failure
 	}
@@ -205,23 +204,27 @@ func formatReplacementFunctionBody(indent, body string) string {
 	return out.String()
 }
 
-func (b *ActionBuilder) buildAppendImportAction(params protocol.EditApplyParams, intent actionplan.EditIntent) (*protocol.ReplaceBetweenAnchorsAction, *protocol.EditFailure) {
+func (b *ActionBuilder) buildAppendImportAction(ctx EditExecutionContext, intent actionplan.EditIntent) (*protocol.ReplaceBetweenAnchorsAction, *protocol.EditFailure) {
 	importStmt := intent.InsertImport.Import
-	if strings.Contains(params.FileText, importStmt) {
-		return nil, editFailure("no_change_needed", fmt.Sprintf("Import %q is already present.", importStmt))
+	path := ctx.ActiveFile
+	if p := strings.TrimSpace(intent.InsertImport.Path); p != "" {
+		path = ctx.ResolvePath(p)
 	}
 
-	path := params.ActiveFile
-	if p := strings.TrimSpace(intent.InsertImport.Path); p != "" {
-		path = p
+	fileText, err := ctx.GetFileText(path)
+	if err != nil {
+		return nil, editFailure("missing_anchor", fmt.Sprintf("read target file %q: %v", path, err))
+	}
+	if strings.Contains(fileText, importStmt) {
+		return nil, editFailure("no_change_needed", fmt.Sprintf("Import %q is already present.", importStmt))
 	}
 
 	ext := strings.ToLower(filepath.Ext(path))
 	switch ext {
 	case ".go":
-		return b.buildGoImportAction(path, params.FileText, importStmt)
+		return b.buildGoImportAction(path, fileText, importStmt)
 	case ".ts", ".tsx", ".js", ".jsx":
-		return b.buildJSImportAction(path, params.FileText, importStmt)
+		return b.buildJSImportAction(path, fileText, importStmt)
 	default:
 		return nil, editFailure("unsupported_instruction", fmt.Sprintf("Append import is not supported for %q files yet.", ext))
 	}
@@ -364,22 +367,16 @@ func targetPathFromTarget(target actionplan.EditTarget) string {
 	return ""
 }
 
-func resolveEditSource(params protocol.EditApplyParams, targetPath string) (string, string, *protocol.EditFailure) {
-	path := params.ActiveFile
-	if targetPath != "" {
-		path = targetPath
-	}
-	if path == "" {
+func resolveEditSource(ctx EditExecutionContext, targetPath string) (string, string, *protocol.EditFailure) {
+	path := ctx.ResolvePath(targetPath)
+	if path == "." || path == "" {
 		return "", "", editFailure("unsupported_instruction", "No file path available for edit target.")
 	}
-	if samePath(path, params.ActiveFile) {
-		return path, params.FileText, nil
-	}
-	b, err := os.ReadFile(path)
+	fileText, err := ctx.GetFileText(path)
 	if err != nil {
 		return "", "", editFailure("missing_anchor", fmt.Sprintf("read target file %q: %v", path, err))
 	}
-	return path, string(b), nil
+	return path, fileText, nil
 }
 
 func (b *ActionBuilder) resolveFunctionBlock(fileText string, target actionplan.EditTarget) (*lineBlock, *protocol.EditFailure) {
