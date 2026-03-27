@@ -33,7 +33,15 @@
         "command": "vocode.sendTranscript",
         "title": "Vocode: Send Transcript"
       }
-    ]
+    ],
+    "views": {
+      "explorer": [
+        {
+          "id": "vocode.liveTranscriptView",
+          "name": "Vocode Live Transcript"
+        }
+      ]
+    }
   },
   "scripts": {
     "prebuild": "pnpm --dir ../.. provision:tree-sitter",

@@ -8,8 +8,10 @@ import {
 } from "./commands/services";
 import { DaemonClient } from "./daemon/client";
 import { spawnDaemon } from "./daemon/spawn";
+import { TranscriptSidebarProvider } from "./ui/sidebar-provider";
 import { VoiceStatusIndicator } from "./ui/status-bar";
 import { MicrophoneCapture } from "./voice/microphone";
+import { TranscriptStore } from "./voice/transcript-store";
 import { VoiceSidecarClient } from "./voice-sidecar/client";
 import { spawnVoiceSidecar } from "./voice-sidecar/spawn";
 
@@ -20,6 +22,7 @@ function workspaceRootPath(): string | undefined {
 function createServices(
   context: vscode.ExtensionContext,
   voiceStatus: VoiceStatusIndicator,
+  transcriptStore: TranscriptStore,
 ): ExtensionServices {
   const microphone = new MicrophoneCapture();
   const debugAudioLogging = vscode.workspace
@@ -59,6 +62,9 @@ function createServices(
     });
 
     voiceSidecar.onTranscript((evt) => {
+      const kind = evt.committed === true ? "final" : "partial";
+      transcriptStore.add(evt.text, kind);
+
       if (!voiceSession.isRunning()) {
         return;
       }
@@ -136,13 +142,30 @@ export function activate(context: vscode.ExtensionContext) {
   console.log("Vocode extension activated");
 
   const voiceStatus = new VoiceStatusIndicator();
-  const services = createServices(context, voiceStatus);
+  const transcriptStore = new TranscriptStore();
+  const transcriptSidebarProvider = new TranscriptSidebarProvider(
+    transcriptStore,
+  );
 
-  context.subscriptions.push(voiceStatus, ...registerAllCommands(services), {
-    dispose: () => {
-      services.client?.dispose();
+  context.subscriptions.push(
+    vscode.window.registerTreeDataProvider(
+      "vocode.liveTranscriptView",
+      transcriptSidebarProvider,
+    ),
+  );
+
+  const services = createServices(context, voiceStatus, transcriptStore);
+
+  context.subscriptions.push(
+    voiceStatus,
+    transcriptSidebarProvider,
+    ...registerAllCommands(services),
+    {
+      dispose: () => {
+        services.client?.dispose();
+      },
     },
-  });
+  );
 }
 
 export function deactivate() {}
