@@ -54,12 +54,12 @@ Tracks migration from batch action plans + fuzzy symbol lookup to iterative, det
 
 ## Phase 4: Client Prompting + UX
 
-- [ ] Update model prompt contract to prefer `symbol_id` exclusively for symbol edits.
-- [ ] Add concise execution trace messages for each turn.
-- [ ] Return explicit “needs disambiguation/more context” outcomes when caps are hit.
+- [x] Update model prompt contract to prefer `symbol_id` exclusively for symbol edits.
+- [x] Add concise execution trace messages for each turn.
+- [x] Return explicit “needs disambiguation/more context” outcomes when caps are hit.
 
 ## Phase 5: Cleanup
 
 - [x] Remove legacy `ActionPlan` type and old `steps[]` planner compatibility path.
-- [ ] Delete dead code/tests related to fuzzy symbol targeting.
-- [ ] Document final planner protocol and troubleshooting flow in `README.md`.
+- [x] Delete dead code/tests related to fuzzy symbol targeting.
+- [x] Document final planner protocol and troubleshooting flow in `README.md`.

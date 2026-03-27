@@ -130,6 +130,43 @@ Tree-sitter provisioning:
 - if no bundled binary is present, install `tree-sitter-cli` in the repo or set `VOCODE_TREE_SITTER_BIN` explicitly
 - run `pnpm provision:tree-sitter` to populate the bundled location locally (extension `build` also runs this via `prebuild`)
 
+### Daemon planner protocol (iterative)
+
+`voice.transcript` runs an iterative planning loop inside the daemon:
+1. model returns one `NextIntent`
+2. daemon validates and executes it (or fulfills `request_context`)
+3. daemon feeds accumulated context + completed actions back to the model
+4. repeats until `done` or guardrail limits are hit
+
+Current `NextIntent` kinds:
+- `edit`
+- `command`
+- `navigate`
+- `request_context`
+- `done`
+
+`voice.transcript` returns `VoiceTranscriptResult`:
+- `accepted: true`
+- `results[]` (ordered execution results with `edit`, `command`, or `navigate`)
+- optional `planError` when planning/validation/execution fails before or during a turn
+
+### Planner troubleshooting
+
+If planner execution fails, check `planError` first. Errors are categorized:
+- `needs_more_context: ...` (context cap reached, context budget exceeded, repeated context requests, or context fulfillment issue)
+- `needs_disambiguation: ...` (invalid/ambiguous target, missing active file/workspace root for edits, invalid next intent)
+- `execution_error: ...` (model call error, dispatch/runtime error, or result validation failure)
+
+`planError` now includes a bounded per-turn trace suffix:
+- format: `... | trace: t1:intent:... > t1:result:... > t2:intent:...`
+- use it to see where the loop stopped (intent emission, context fulfillment, or execution).
+
+Useful knobs while debugging planner flow:
+- `VOCODE_DAEMON_VOICE_MAX_PLANNER_TURNS`
+- `VOCODE_DAEMON_VOICE_MAX_CONTEXT_ROUNDS`
+- `VOCODE_DAEMON_VOICE_MAX_CONTEXT_BYTES`
+- `VOCODE_DAEMON_VOICE_MAX_CONSECUTIVE_CONTEXT_REQUESTS`
+
 3. Build the daemon
 
 ```bash

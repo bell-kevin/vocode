@@ -223,26 +223,31 @@ func (s *TranscriptService) acceptTranscriptDirect(
 	consecutiveContextReq := 0
 	editCounter := 0
 	resultItems := make([]protocol.VoiceTranscriptStepResult, 0, maxTurns)
+	trace := make([]string, 0, maxTurns*2)
 	stopPlanning := false
 
 	for i := 0; i < maxTurns; i++ {
+		turn := i + 1
 		next, err := s.agent.NextIntent(context.Background(), agent.ModelInput{
 			Transcript:       text,
 			CompletedActions: append([]intent.NextIntent(nil), completed...),
 			Context:          turnCtx,
 		})
 		if err != nil {
+			trace = appendTurnTrace(trace, turn, "model_error")
 			return protocol.VoiceTranscriptResult{
 				Accepted:  true,
-				PlanError: err.Error(),
+				PlanError: formatPlanError("execution_error", err.Error(), trace),
 			}, true
 		}
 		if err := intent.ValidateNextIntent(next); err != nil {
+			trace = appendTurnTrace(trace, turn, "invalid_next_intent")
 			return protocol.VoiceTranscriptResult{
 				Accepted:  true,
-				PlanError: err.Error(),
+				PlanError: formatPlanError("needs_disambiguation", err.Error(), trace),
 			}, true
 		}
+		trace = appendTurnTrace(trace, turn, "intent:"+string(next.Kind))
 		if next.Kind == intent.NextIntentKindDone {
 			break
 		}
@@ -250,30 +255,35 @@ func (s *TranscriptService) acceptTranscriptDirect(
 			contextRounds++
 			consecutiveContextReq++
 			if s.maxContextRounds > 0 && contextRounds > s.maxContextRounds {
+				trace = appendTurnTrace(trace, turn, "context:cap:max_rounds")
 				return protocol.VoiceTranscriptResult{
 					Accepted:  true,
-					PlanError: "max context rounds reached",
+					PlanError: formatPlanError("needs_more_context", "max context rounds reached", trace),
 				}, true
 			}
 			if s.maxConsecutiveContextReq > 0 && consecutiveContextReq > s.maxConsecutiveContextReq {
+				trace = appendTurnTrace(trace, turn, "context:cap:consecutive_requests")
 				return protocol.VoiceTranscriptResult{
 					Accepted:  true,
-					PlanError: "too many consecutive context requests",
+					PlanError: formatPlanError("needs_more_context", "too many consecutive context requests", trace),
 				}, true
 			}
 			updated, err := s.fulfillContextRequest(params, turnCtx, next.RequestContext)
 			if err != nil {
+				trace = appendTurnTrace(trace, turn, "context:fulfill_error")
 				return protocol.VoiceTranscriptResult{
 					Accepted:  true,
-					PlanError: err.Error(),
+					PlanError: formatPlanError("needs_more_context", err.Error(), trace),
 				}, true
 			}
 			if s.maxContextBytes > 0 && estimatePlanningContextBytes(updated) > s.maxContextBytes {
+				trace = appendTurnTrace(trace, turn, "context:cap:byte_budget")
 				return protocol.VoiceTranscriptResult{
 					Accepted:  true,
-					PlanError: "context budget exceeded",
+					PlanError: formatPlanError("needs_more_context", "context budget exceeded", trace),
 				}, true
 			}
+			trace = appendTurnTrace(trace, turn, "context:fulfilled")
 			turnCtx = updated
 			completed = append(completed, next)
 			continue
@@ -281,16 +291,18 @@ func (s *TranscriptService) acceptTranscriptDirect(
 		consecutiveContextReq = 0
 		editCtx, planErr := buildEditExecutionContext(params, next)
 		if planErr != "" {
+			trace = appendTurnTrace(trace, turn, "pre_execute_error")
 			return protocol.VoiceTranscriptResult{
 				Accepted:  true,
-				PlanError: planErr,
+				PlanError: formatPlanError("needs_disambiguation", planErr, trace),
 			}, true
 		}
 		st, err := s.dispatch.ExecuteNextIntent(next, editCtx)
 		if err != nil {
+			trace = appendTurnTrace(trace, turn, "execute_error")
 			return protocol.VoiceTranscriptResult{
 				Accepted:  true,
-				PlanError: err.Error(),
+				PlanError: formatPlanError("execution_error", err.Error(), trace),
 			}, true
 		}
 		switch {
@@ -307,6 +319,7 @@ func (s *TranscriptService) acceptTranscriptDirect(
 				Kind:       "edit",
 				EditResult: st.EditResult,
 			})
+			trace = appendTurnTrace(trace, turn, "result:edit:"+st.EditResult.Kind)
 			completed = append(completed, next)
 			if st.EditResult.Kind == "failure" {
 				stopPlanning = true
@@ -316,12 +329,14 @@ func (s *TranscriptService) acceptTranscriptDirect(
 				Kind:          "command",
 				CommandParams: st.CommandParams,
 			})
+			trace = appendTurnTrace(trace, turn, "result:command")
 			completed = append(completed, next)
 		case st.Navigation != nil:
 			resultItems = append(resultItems, protocol.VoiceTranscriptStepResult{
 				Kind:             "navigate",
 				NavigationIntent: toProtocolNavigationIntent(*st.Navigation),
 			})
+			trace = appendTurnTrace(trace, turn, "result:navigate")
 			completed = append(completed, next)
 		}
 		if stopPlanning {
@@ -329,9 +344,10 @@ func (s *TranscriptService) acceptTranscriptDirect(
 		}
 	}
 	if len(completed) >= maxTurns {
+		trace = appendTrace(trace, "cap:max_turns")
 		return protocol.VoiceTranscriptResult{
 			Accepted:  true,
-			PlanError: "max planner turns reached",
+			PlanError: formatPlanError("needs_disambiguation", "max planner turns reached", trace),
 		}, true
 	}
 
@@ -342,10 +358,45 @@ func (s *TranscriptService) acceptTranscriptDirect(
 	if err := result.Validate(); err != nil {
 		return protocol.VoiceTranscriptResult{
 			Accepted:  true,
-			PlanError: err.Error(),
+			PlanError: formatPlanError("execution_error", err.Error(), trace),
 		}, true
 	}
 	return result, true
+}
+
+func appendTurnTrace(trace []string, turn int, msg string) []string {
+	return appendTrace(trace, fmt.Sprintf("t%d:%s", turn, msg))
+}
+
+func appendTrace(trace []string, msg string) []string {
+	const maxTraceEntries = 16
+	msg = strings.TrimSpace(msg)
+	if msg == "" {
+		return trace
+	}
+	trace = append(trace, msg)
+	if len(trace) > maxTraceEntries {
+		trace = trace[len(trace)-maxTraceEntries:]
+	}
+	return trace
+}
+
+func formatPlanError(kind string, reason string, trace []string) string {
+	kind = strings.TrimSpace(kind)
+	reason = strings.TrimSpace(reason)
+	if kind == "" {
+		kind = "execution_error"
+	}
+	base := kind + ": " + reason
+	if len(trace) == 0 {
+		return base
+	}
+	const maxTraceChars = 260
+	t := strings.Join(trace, " > ")
+	if len(t) > maxTraceChars {
+		t = t[len(t)-maxTraceChars:]
+	}
+	return base + " | trace: " + t
 }
 
 func (s *TranscriptService) fulfillContextRequest(

@@ -102,7 +102,7 @@ func findSingleFunctionBlock(fileText string) (*lineBlock, *protocol.EditFailure
 func findNamedFunctionBlock(fileText, functionName string) (*lineBlock, *protocol.EditFailure) {
 	patterns := functionNamePatterns(functionName)
 	if len(patterns) == 0 {
-		return nil, editFailure("unsupported_instruction", "Function symbolName was empty.")
+		return nil, editFailure("unsupported_instruction", "Function name was empty.")
 	}
 
 	lines := strings.Split(fileText, "\n")
@@ -131,11 +131,11 @@ func findNamedFunctionBlock(fileText, functionName string) (*lineBlock, *protoco
 
 	switch len(candidates) {
 	case 0:
-		return nil, editFailure("missing_anchor", fmt.Sprintf("Could not find function symbol %q.", functionName))
+		return nil, editFailure("missing_anchor", fmt.Sprintf("Could not find function %q.", functionName))
 	case 1:
 		return &candidates[0], nil
 	default:
-		return nil, editFailure("ambiguous_target", fmt.Sprintf("Function symbol %q was ambiguous.", functionName))
+		return nil, editFailure("ambiguous_target", fmt.Sprintf("Function %q was ambiguous.", functionName))
 	}
 }
 
