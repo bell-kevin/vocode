@@ -27,7 +27,7 @@ func NewTreeSitterResolver() *TreeSitterResolver {
 
 func (r *TreeSitterResolver) ResolveSymbol(workspaceRoot, symbolName, symbolKind, hintPath string) ([]SymbolRef, error) {
 	if strings.TrimSpace(r.binaryPath) == "" {
-		return nil, errors.New("tree-sitter CLI not configured (set VOCODE_TREE_SITTER_BIN)")
+		return nil, errors.New("tree-sitter CLI not configured (run `pnpm provision:tree-sitter` or set VOCODE_TREE_SITTER_BIN)")
 	}
 
 	root := strings.TrimSpace(workspaceRoot)
