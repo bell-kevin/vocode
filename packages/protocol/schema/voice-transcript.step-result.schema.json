@@ -7,13 +7,16 @@
   "properties": {
     "kind": {
       "type": "string",
-      "enum": ["edit", "run_command"]
+      "enum": ["edit", "run_command", "navigate"]
     },
     "editResult": {
       "$ref": "./edit-apply.result.schema.json"
     },
     "commandParams": {
       "$ref": "./command-run.params.schema.json"
+    },
+    "navigationIntent": {
+      "$ref": "./navigation-intent.schema.json"
     }
   },
   "required": ["kind"]

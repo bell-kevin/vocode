@@ -24,18 +24,39 @@ func (*Client) Plan(ctx context.Context, in agent.ModelInput) (actionplan.Action
 	return actionplan.ActionPlan{
 		Steps: []actionplan.Step{
 			{
+				Kind: actionplan.StepKindNavigate,
+				Navigate: &actionplan.NavigationIntent{
+					Kind: actionplan.NavigationIntentKindOpenFile,
+					OpenFile: &actionplan.OpenFileNavigationIntent{
+						Path: "test.js",
+					},
+				},
+			},
+			{
+				Kind: actionplan.StepKindNavigate,
+				Navigate: &actionplan.NavigationIntent{
+					Kind: actionplan.NavigationIntentKindRevealSymbol,
+					RevealSymbol: &actionplan.RevealSymbolNavigationIntent{
+						Path:       "test.js",
+						SymbolName: "test",
+						SymbolKind: "function",
+					},
+				},
+			},
+			{
 				Kind: actionplan.StepKindEdit,
 				Edit: &actionplan.EditIntent{
 					Kind: actionplan.EditIntentKindReplace,
 					Replace: &actionplan.ReplaceEditIntent{
 						Target: actionplan.EditTarget{
-							Kind: actionplan.EditTargetKindSymbol,
-							Symbol: &actionplan.SymbolTarget{
-								SymbolName: "current_function",
-								SymbolKind: "function",
+							Kind: actionplan.EditTargetKindAnchor,
+							Anchor: &actionplan.AnchorTarget{
+								Path:   "test.js",
+								Before: "function test() {",
+								After:  "}",
 							},
 						},
-						NewText: `console.log("hello from vocode");`,
+						NewText: "\n  console.log(\"updated from stub\");\n",
 					},
 				},
 			},

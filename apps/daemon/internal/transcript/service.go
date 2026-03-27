@@ -2,6 +2,7 @@ package transcript
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"strconv"
@@ -233,6 +234,11 @@ func (s *TranscriptService) acceptTranscriptDirect(
 				Kind:          "run_command",
 				CommandParams: st.CommandParams,
 			})
+		case st.Navigation != nil:
+			steps = append(steps, protocol.VoiceTranscriptStepResult{
+				Kind:             "navigate",
+				NavigationIntent: toProtocolNavigationIntent(*st.Navigation),
+			})
 		}
 	}
 
@@ -290,4 +296,16 @@ func envInt(key string, def int) int {
 		return def
 	}
 	return i
+}
+
+func toProtocolNavigationIntent(n actionplan.NavigationIntent) *protocol.NavigationIntent {
+	var out protocol.NavigationIntent
+	b, err := json.Marshal(n)
+	if err != nil {
+		return &out
+	}
+	if err := json.Unmarshal(b, &out); err != nil {
+		return &out
+	}
+	return &out
 }

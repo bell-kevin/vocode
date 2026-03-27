@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vocoding.net/schemas/edit-action.append-to-file.schema.json",
+  "title": "AppendToFileAction",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "kind": {
+      "type": "string",
+      "const": "append_to_file"
+    },
+    "path": {
+      "type": "string"
+    },
+    "text": {
+      "type": "string"
+    },
+    "editId": {
+      "type": "string"
+    }
+  },
+  "required": ["kind", "path", "text"]
+}

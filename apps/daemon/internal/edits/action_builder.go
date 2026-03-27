@@ -24,7 +24,7 @@ func (b *ActionBuilder) BuildActions(params protocol.EditApplyParams, intent act
 		if failure != nil {
 			return nil, failure
 		}
-		return []protocol.EditAction{action}, nil
+		return []protocol.EditAction{replaceActionToEditAction(action)}, nil
 	case actionplan.EditIntentKindReplace:
 		target := intent.Replace.Target
 		if target.Kind == actionplan.EditTargetKindAnchor {
@@ -41,16 +41,18 @@ func (b *ActionBuilder) BuildActions(params protocol.EditApplyParams, intent act
 				},
 				NewText: intent.Replace.NewText,
 			}
-			if failure := b.validator.ValidateAction(params.FileText, action); failure != nil {
-				return nil, failure
+			if samePath(path, params.ActiveFile) {
+				if failure := b.validator.ValidateAction(params.FileText, action); failure != nil {
+					return nil, failure
+				}
 			}
-			return []protocol.EditAction{action}, nil
+			return []protocol.EditAction{replaceActionToEditAction(action)}, nil
 		}
 		action, failure := b.buildReplaceCurrentFunctionBodyAction(params, intent)
 		if failure != nil {
 			return nil, failure
 		}
-		return []protocol.EditAction{action}, nil
+		return []protocol.EditAction{replaceActionToEditAction(action)}, nil
 	case actionplan.EditIntentKindInsertImport:
 		action, failure := b.buildAppendImportAction(params, intent)
 		if failure != nil {
@@ -59,9 +61,48 @@ func (b *ActionBuilder) BuildActions(params protocol.EditApplyParams, intent act
 		if action == nil {
 			return []protocol.EditAction{}, nil
 		}
-		return []protocol.EditAction{*action}, nil
-	case actionplan.EditIntentKindDelete, actionplan.EditIntentKindCreateFile, actionplan.EditIntentKindAppendToFile:
-		return nil, editFailure("unsupported_instruction", fmt.Sprintf("Unsupported intent kind %q.", intent.Kind))
+		return []protocol.EditAction{replaceActionToEditAction(*action)}, nil
+	case actionplan.EditIntentKindDelete:
+		target := intent.Delete.Target
+		if target.Kind != actionplan.EditTargetKindAnchor || target.Anchor == nil {
+			return nil, editFailure("unsupported_instruction", "Delete currently supports only anchor targets.")
+		}
+		path := params.ActiveFile
+		if p := strings.TrimSpace(target.Anchor.Path); p != "" {
+			path = p
+		}
+		action := protocol.EditAction{
+			Kind: "replace_between_anchors",
+			Path: path,
+			Anchor: &protocol.Anchor{
+				Before: target.Anchor.Before,
+				After:  target.Anchor.After,
+			},
+			NewText: "",
+		}
+		if samePath(path, params.ActiveFile) {
+			if failure := b.validator.ValidateAction(params.FileText, protocol.ReplaceBetweenAnchorsAction{
+				Kind:    action.Kind,
+				Path:    action.Path,
+				Anchor:  *action.Anchor,
+				NewText: action.NewText,
+			}); failure != nil {
+				return nil, failure
+			}
+		}
+		return []protocol.EditAction{action}, nil
+	case actionplan.EditIntentKindCreateFile:
+		return []protocol.EditAction{{
+			Kind:    "create_file",
+			Path:    intent.CreateFile.Path,
+			Content: intent.CreateFile.Content,
+		}}, nil
+	case actionplan.EditIntentKindAppendToFile:
+		return []protocol.EditAction{{
+			Kind: "append_to_file",
+			Path: intent.AppendToFile.Path,
+			Text: intent.AppendToFile.Text,
+		}}, nil
 	default:
 		return nil, editFailure("unsupported_instruction", fmt.Sprintf("Unsupported intent kind %q.", intent.Kind))
 	}
@@ -283,4 +324,17 @@ func (b *ActionBuilder) buildJSImportAction(path, fileText, importStmt string) (
 		return nil, failure
 	}
 	return &action, nil
+}
+
+func replaceActionToEditAction(a protocol.ReplaceBetweenAnchorsAction) protocol.EditAction {
+	return protocol.EditAction{
+		Kind:    a.Kind,
+		Path:    a.Path,
+		Anchor:  &a.Anchor,
+		NewText: a.NewText,
+	}
+}
+
+func samePath(a, b string) bool {
+	return strings.EqualFold(filepath.Clean(a), filepath.Clean(b))
 }

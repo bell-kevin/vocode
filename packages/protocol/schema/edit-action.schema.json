@@ -5,6 +5,12 @@
   "oneOf": [
     {
       "$ref": "./edit-action.replace-between-anchors.schema.json"
+    },
+    {
+      "$ref": "./edit-action.create-file.schema.json"
+    },
+    {
+      "$ref": "./edit-action.append-to-file.schema.json"
     }
   ]
 }

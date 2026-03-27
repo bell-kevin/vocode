@@ -44,6 +44,15 @@
               }
             }
           }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "navigate"],
+          "properties": {
+            "kind": { "const": "navigate" },
+            "navigate": { "$ref": "./navigation-intent.schema.json" }
+          }
         }
       ]
     }

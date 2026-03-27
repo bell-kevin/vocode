@@ -17,6 +17,9 @@
     },
     "newText": {
       "type": "string"
+    },
+    "editId": {
+      "type": "string"
     }
   },
   "required": ["kind", "path", "anchor", "newText"]

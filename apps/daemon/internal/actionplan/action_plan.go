@@ -11,6 +11,7 @@ type StepKind string
 const (
 	StepKindEdit       StepKind = "edit"
 	StepKindRunCommand StepKind = "run_command"
+	StepKindNavigate   StepKind = "navigate"
 )
 
 // Step is one concrete action in the plan: either apply a structured edit, or
@@ -20,7 +21,8 @@ type Step struct {
 	Kind StepKind `json:"kind"`
 
 	Edit       *EditIntent       `json:"edit,omitempty"`
-	RunCommand *CommandIntent `json:"runCommand,omitempty"`
+	RunCommand *CommandIntent    `json:"runCommand,omitempty"`
+	Navigate   *NavigationIntent `json:"navigate,omitempty"`
 }
 
 // ActionPlan is structured model output: an ordered list of edits and/or
@@ -39,6 +41,9 @@ func ValidateStep(s Step) error {
 		if s.RunCommand != nil {
 			return fmt.Errorf("step: kind %q must not include runCommand", s.Kind)
 		}
+		if s.Navigate != nil {
+			return fmt.Errorf("step: kind %q must not include navigate", s.Kind)
+		}
 		if s.Edit == nil {
 			return fmt.Errorf("step: kind %q requires edit", s.Kind)
 		}
@@ -47,6 +52,9 @@ func ValidateStep(s Step) error {
 		if s.Edit != nil {
 			return fmt.Errorf("step: kind %q must not include edit", s.Kind)
 		}
+		if s.Navigate != nil {
+			return fmt.Errorf("step: kind %q must not include navigate", s.Kind)
+		}
 		if s.RunCommand == nil {
 			return fmt.Errorf("step: kind %q requires runCommand", s.Kind)
 		}
@@ -54,6 +62,17 @@ func ValidateStep(s Step) error {
 			return fmt.Errorf("step: runCommand.command is empty")
 		}
 		return nil
+	case StepKindNavigate:
+		if s.Edit != nil {
+			return fmt.Errorf("step: kind %q must not include edit", s.Kind)
+		}
+		if s.RunCommand != nil {
+			return fmt.Errorf("step: kind %q must not include runCommand", s.Kind)
+		}
+		if s.Navigate == nil {
+			return fmt.Errorf("step: kind %q requires navigate", s.Kind)
+		}
+		return ValidateNavigationIntent(*s.Navigate)
 	default:
 		return fmt.Errorf("step: unknown kind %q", s.Kind)
 	}
@@ -68,4 +87,3 @@ func ValidateActionPlan(p ActionPlan) error {
 	}
 	return nil
 }
-

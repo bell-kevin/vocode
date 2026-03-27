@@ -32,17 +32,23 @@ func TestHandleTranscriptStubReturnsPlan(t *testing.T) {
 	if r.Plan == nil {
 		t.Fatal("expected stub plan")
 	}
-	if len(r.Plan.Steps) != 2 {
-		t.Fatalf("expected 2 steps, got %d", len(r.Plan.Steps))
+	if len(r.Plan.Steps) != 4 {
+		t.Fatalf("expected 4 steps, got %d", len(r.Plan.Steps))
 	}
-	if r.Plan.Steps[0].Kind != actionplan.StepKindEdit {
-		t.Fatalf("expected stub edit step first, got %q", r.Plan.Steps[0].Kind)
+	if r.Plan.Steps[0].Kind != actionplan.StepKindNavigate {
+		t.Fatalf("expected stub navigate step first, got %q", r.Plan.Steps[0].Kind)
 	}
-	if r.Plan.Steps[0].Edit == nil || r.Plan.Steps[0].Edit.Kind != actionplan.EditIntentKindReplace {
-		t.Fatalf("expected replace edit, got %+v", r.Plan.Steps[0].Edit)
+	if r.Plan.Steps[1].Kind != actionplan.StepKindNavigate {
+		t.Fatalf("expected stub navigate step second, got %q", r.Plan.Steps[1].Kind)
 	}
-	if r.Plan.Steps[1].Kind != actionplan.StepKindRunCommand {
-		t.Fatalf("expected stub run_command step second, got %q", r.Plan.Steps[1].Kind)
+	if r.Plan.Steps[2].Kind != actionplan.StepKindEdit {
+		t.Fatalf("expected stub edit step third, got %q", r.Plan.Steps[2].Kind)
+	}
+	if r.Plan.Steps[2].Edit == nil || r.Plan.Steps[2].Edit.Kind != actionplan.EditIntentKindReplace {
+		t.Fatalf("expected replace edit, got %+v", r.Plan.Steps[2].Edit)
+	}
+	if r.Plan.Steps[3].Kind != actionplan.StepKindRunCommand {
+		t.Fatalf("expected stub run_command step fourth, got %q", r.Plan.Steps[3].Kind)
 	}
 }
 

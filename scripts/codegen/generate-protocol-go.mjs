@@ -14,6 +14,14 @@ const entries = [
     file: "edit-action.replace-between-anchors.schema.json",
     name: "ReplaceBetweenAnchorsAction",
   },
+  {
+    file: "edit-action.create-file.schema.json",
+    name: "CreateFileAction",
+  },
+  {
+    file: "edit-action.append-to-file.schema.json",
+    name: "AppendToFileAction",
+  },
   { file: "edit-action.schema.json", name: "EditAction" },
   { file: "ping.params.schema.json", name: "PingParams" },
   { file: "ping.result.schema.json", name: "PingResult" },
@@ -22,6 +30,10 @@ const entries = [
   {
     file: "voice-transcript.params.schema.json",
     name: "VoiceTranscriptParams",
+  },
+  {
+    file: "navigation-intent.schema.json",
+    name: "NavigationIntent",
   },
   {
     file: "voice-transcript.step-result.schema.json",
@@ -156,10 +168,8 @@ function schemaToGoType(schema, currentAbsPath, ctx) {
     if (schema.oneOf.length === 1) {
       return schemaToGoType(schema.oneOf[0], currentAbsPath, ctx);
     }
-
-    throw new Error(
-      `Unsupported oneOf with ${schema.oneOf.length} variants in ${ctx.name}`,
-    );
+    const mergedObjectSchema = mergeOneOfObjectSchema(schema, currentAbsPath);
+    return schemaToGoType(mergedObjectSchema, currentAbsPath, ctx);
   }
 
   if (schema.type === "string" || schema.const !== undefined) {

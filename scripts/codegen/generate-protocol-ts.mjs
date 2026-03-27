@@ -13,6 +13,14 @@ const entries = [
     file: "edit-action.replace-between-anchors.schema.json",
     name: "ReplaceBetweenAnchorsAction",
   },
+  {
+    file: "edit-action.create-file.schema.json",
+    name: "CreateFileAction",
+  },
+  {
+    file: "edit-action.append-to-file.schema.json",
+    name: "AppendToFileAction",
+  },
   { file: "edit-action.schema.json", name: "EditAction" },
   { file: "ping.params.schema.json", name: "PingParams" },
   { file: "ping.result.schema.json", name: "PingResult" },
@@ -21,6 +29,10 @@ const entries = [
   {
     file: "voice-transcript.params.schema.json",
     name: "VoiceTranscriptParams",
+  },
+  {
+    file: "navigation-intent.schema.json",
+    name: "NavigationIntent",
   },
   {
     file: "voice-transcript.step-result.schema.json",

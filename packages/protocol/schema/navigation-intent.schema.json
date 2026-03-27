@@ -1,0 +1,109 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vocoding.net/schemas/navigation-intent.schema.json",
+  "title": "NavigationIntent",
+  "oneOf": [
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "openFile"],
+      "properties": {
+        "kind": { "const": "open_file" },
+        "openFile": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["path"],
+          "properties": {
+            "path": { "type": "string", "minLength": 1 }
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "revealSymbol"],
+      "properties": {
+        "kind": { "const": "reveal_symbol" },
+        "revealSymbol": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["symbolName"],
+          "properties": {
+            "path": { "type": "string" },
+            "symbolName": { "type": "string", "minLength": 1 },
+            "symbolKind": { "type": "string" }
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "moveCursor"],
+      "properties": {
+        "kind": { "const": "move_cursor" },
+        "moveCursor": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["target"],
+          "properties": {
+            "target": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["line", "char"],
+              "properties": {
+                "path": { "type": "string" },
+                "line": { "type": "integer" },
+                "char": { "type": "integer" }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "selectRange"],
+      "properties": {
+        "kind": { "const": "select_range" },
+        "selectRange": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["target"],
+          "properties": {
+            "target": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["startLine", "startChar", "endLine", "endChar"],
+              "properties": {
+                "path": { "type": "string" },
+                "startLine": { "type": "integer" },
+                "startChar": { "type": "integer" },
+                "endLine": { "type": "integer" },
+                "endChar": { "type": "integer" }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "revealEdit"],
+      "properties": {
+        "kind": { "const": "reveal_edit" },
+        "revealEdit": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["editId"],
+          "properties": {
+            "editId": { "type": "string", "minLength": 1 }
+          }
+        }
+      }
+    }
+  ]
+}

@@ -23,6 +23,7 @@ func NewDispatcher(editsService *edits.Service, commandService *commandexec.Serv
 type StepResult struct {
 	EditResult    *protocol.EditApplyResult
 	CommandParams *protocol.CommandRunParams
+	Navigation    *actionplan.NavigationIntent
 }
 
 // ExecuteResult lists execution outcomes in order. If Execute returns a non-nil
@@ -40,6 +41,7 @@ func (d *Dispatcher) Execute(plan actionplan.ActionPlan, editParams protocol.Edi
 	}
 
 	out := ExecuteResult{Steps: make([]StepResult, 0, len(plan.Steps))}
+	editCounter := 0
 	for i := range plan.Steps {
 		step := plan.Steps[i]
 		switch step.Kind {
@@ -47,6 +49,14 @@ func (d *Dispatcher) Execute(plan actionplan.ActionPlan, editParams protocol.Edi
 			res, err := d.edits.ApplyIntent(editParams, *step.Edit)
 			if err != nil {
 				return out, fmt.Errorf("action plan: step %d: %w", i, err)
+			}
+			if res.Kind == "success" {
+				for j := range res.Actions {
+					if res.Actions[j].EditId == "" {
+						res.Actions[j].EditId = fmt.Sprintf("edit-%d", editCounter)
+						editCounter++
+					}
+				}
 			}
 			out.Steps = append(out.Steps, StepResult{EditResult: &res})
 			if res.Kind == "failure" {
@@ -60,6 +70,8 @@ func (d *Dispatcher) Execute(plan actionplan.ActionPlan, editParams protocol.Edi
 				}
 			}
 			out.Steps = append(out.Steps, StepResult{CommandParams: &params})
+		case actionplan.StepKindNavigate:
+			out.Steps = append(out.Steps, StepResult{Navigation: step.Navigate})
 		default:
 			return out, fmt.Errorf("action plan: step %d: unreachable kind %q", i, step.Kind)
 		}
