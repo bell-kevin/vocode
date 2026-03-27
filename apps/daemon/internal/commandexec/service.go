@@ -26,7 +26,7 @@ func (s *Service) Validate(params protocol.CommandDirective) error {
 }
 
 func (s *Service) DispatchIntent(cmd intent.CommandIntent) (protocol.CommandDirective, error) {
-	params := protocol.NewCommandDirective(cmd.Command, cmd.Args, *cmd.TimeoutMs)
+	params := protocol.NewCommandDirective(cmd.Command, cmd.Args, cmd.TimeoutMs)
 	if err := s.Validate(params); err != nil {
 		return protocol.CommandDirective{}, err
 	}
