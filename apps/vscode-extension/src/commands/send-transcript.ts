@@ -1,10 +1,17 @@
 import * as vscode from "vscode";
 
-import type { DaemonClient } from "../../daemon/client";
-import type { ExtensionServices } from "../services";
-import { presentTranscriptResult } from "./present-result";
+import type { DaemonClient } from "../daemon/client";
+import { applyTranscriptResult } from "../transcript/apply-result";
+import type { ExtensionServices } from "./services";
+import type { CommandDefinition } from "./types";
 
-export async function runSendTranscript(
+export const sendTranscriptCommand: CommandDefinition = {
+  id: "vocode.sendTranscript",
+  requiresDaemon: true,
+  run: (client, services) => sendTranscript(client, services),
+};
+
+async function sendTranscript(
   client: DaemonClient,
   services: ExtensionServices,
 ): Promise<void> {
@@ -50,7 +57,7 @@ export async function runSendTranscript(
       activeFile: activePath,
       workspaceRoot,
     });
-    await presentTranscriptResult(result, activePath);
+    await applyTranscriptResult(result, activePath);
   } catch (err) {
     const message =
       err instanceof Error ? err.message : "Failed to send transcript.";

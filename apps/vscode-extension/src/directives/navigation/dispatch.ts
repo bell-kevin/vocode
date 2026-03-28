@@ -1,13 +1,13 @@
 import type { VoiceTranscriptDirective } from "@vocode/protocol";
 import * as vscode from "vscode";
 
-import type { TranscriptPresentContext } from "../present-context";
+import type { TranscriptApplyContext } from "../../transcript/context";
 import { executeNavigationDirective } from "./execute-navigation-intent";
 
 /** Applies one navigation directive; surfaces failures as messages and returns ok flag. */
-export async function dispatchNavigationDirective(
+export async function dispatchNavigation(
   transcriptDirective: VoiceTranscriptDirective,
-  ctx: TranscriptPresentContext,
+  ctx: TranscriptApplyContext,
 ): Promise<boolean> {
   try {
     await executeNavigationDirective(

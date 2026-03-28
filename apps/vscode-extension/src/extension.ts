@@ -1,13 +1,13 @@
 import * as vscode from "vscode";
 
 import { registerAllCommands } from "./commands";
-import { presentTranscriptResult } from "./commands/send-transcript/present-result";
 import {
   type ExtensionServices,
   VoiceSessionController,
 } from "./commands/services";
 import { DaemonClient } from "./daemon/client";
 import { spawnDaemon } from "./daemon/spawn";
+import { applyTranscriptResult } from "./transcript/apply-result";
 import { VoiceStatusIndicator } from "./ui/status-bar";
 import {
   TranscriptPanelViewProvider,
@@ -133,7 +133,7 @@ function createServices(
             activeFile,
             workspaceRoot: workspaceRootPath(),
           });
-          await presentTranscriptResult(result, activeFile);
+          await applyTranscriptResult(result, activeFile);
           transcriptStore.markHandled(pendingId);
         } catch (err) {
           transcriptStore.markError(pendingId);

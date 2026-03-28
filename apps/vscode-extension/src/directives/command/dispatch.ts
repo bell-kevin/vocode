@@ -4,7 +4,7 @@ import * as vscode from "vscode";
 import { runAllowedCommand } from "./execute-command";
 
 /** Runs one allowed command directive (extension executes; daemon validated shape). */
-export async function dispatchCommandDirective(
+export async function dispatchCommand(
   params: CommandDirective | undefined,
 ): Promise<boolean> {
   if (!params) {

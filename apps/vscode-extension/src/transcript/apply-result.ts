@@ -1,15 +1,18 @@
 import type { VoiceTranscriptResult } from "@vocode/protocol";
 import * as vscode from "vscode";
 
-import { dispatchTranscriptDirective } from "../../services/dispatch-transcript-directive";
-import type { TranscriptPresentContext } from "../../services/present-context";
+import { dispatchTranscript } from "../directives/dispatch";
 import {
   beginTranscriptUndoSession,
   finalizeTranscriptUndoSessionIfEditsApplied,
-} from "../../services/undo/transcript-undo-ledger";
+} from "../directives/undo/transcript-undo-ledger";
+import type { TranscriptApplyContext } from "./context";
 
-/** Applies workspace edits and surfaces per-directive edit/command outcomes in the UI. */
-export async function presentTranscriptResult(
+/**
+ * Applies a daemon `VoiceTranscriptResult` to the workspace (edits, commands, navigation, undo).
+ * Used by voice and by the manual “send transcript” command — not command-specific.
+ */
+export async function applyTranscriptResult(
   result: VoiceTranscriptResult,
   activeDocumentPath: string,
 ): Promise<void> {
@@ -18,7 +21,7 @@ export async function presentTranscriptResult(
     return;
   }
 
-  const ctx: TranscriptPresentContext = {
+  const ctx: TranscriptApplyContext = {
     activeDocumentPath,
     editLocations: {},
   };
@@ -26,7 +29,7 @@ export async function presentTranscriptResult(
   beginTranscriptUndoSession();
   try {
     for (const directive of result.directives ?? []) {
-      if (!(await dispatchTranscriptDirective(directive, ctx))) {
+      if (!(await dispatchTranscript(directive, ctx))) {
         return;
       }
     }

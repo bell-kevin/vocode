@@ -101,8 +101,8 @@ One rule should have one owner. Duplicating ownership is a regression risk.
 ### Extension
 
 - Send transcript: `apps/vscode-extension/src/commands/send-transcript/run.ts`
-- Present/execute returned results: `apps/vscode-extension/src/commands/send-transcript/present-result.ts`
-- Directive services (host apply layer under `apps/vscode-extension/src/services/`): `command`, `edits`, `navigation`, `undo`
+- Apply daemon transcript results to the editor: `apps/vscode-extension/src/transcript/apply-result.ts` (`applyTranscriptResult`)
+- Directive host layer (`apps/vscode-extension/src/directives/`): `command`, `edits`, `navigation`, `undo` (each has `dispatch.ts` exporting `dispatchCommand` / `dispatchEdit` / `dispatchNavigation` / `dispatchUndo`), plus root `dispatch.ts` (`dispatchTranscript`)
 - Daemon client: `apps/vscode-extension/src/daemon/client.ts`
 - Voice sidecar spawn/client: `apps/vscode-extension/src/voice-sidecar`
 
@@ -131,7 +131,7 @@ One rule should have one owner. Duplicating ownership is a regression risk.
 
 1. Ensure the model can emit a `CommandIntent` that maps to protocol `commandDirective`.
 2. Update daemon allowlist in `apps/daemon/internal/services/command/policy.go`.
-3. Update extension allowlist in `apps/vscode-extension/src/services/command/execute-command.ts`.
+3. Update extension allowlist in `apps/vscode-extension/src/directives/command/execute-command.ts`.
 4. Keep execution semantics in the extension; keep command-shape validation in the daemon.
 
 ### Change intent/result ordering semantics
