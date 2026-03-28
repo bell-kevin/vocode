@@ -3,24 +3,24 @@ package dispatch
 import (
 	"fmt"
 
-	"vocoding.net/vocode/v2/apps/daemon/internal/commandexec"
-	"vocoding.net/vocode/v2/apps/daemon/internal/edits"
 	"vocoding.net/vocode/v2/apps/daemon/internal/intent"
-	"vocoding.net/vocode/v2/apps/daemon/internal/navigation"
-	"vocoding.net/vocode/v2/apps/daemon/internal/undo"
+	"vocoding.net/vocode/v2/apps/daemon/internal/services/command"
+	"vocoding.net/vocode/v2/apps/daemon/internal/services/edits"
+	"vocoding.net/vocode/v2/apps/daemon/internal/services/navigation"
+	"vocoding.net/vocode/v2/apps/daemon/internal/services/undo"
 	protocol "vocoding.net/vocode/v2/packages/protocol/go"
 )
 
 type Dispatcher struct {
 	edits    *edits.Service
-	commands *commandexec.Service
+	commands *command.Service
 	nav      *navigation.Service
 	undo     *undo.Service
 }
 
 func NewDispatcher(
 	editsService *edits.Service,
-	commandService *commandexec.Service,
+	commandService *command.Service,
 	navigationService *navigation.Service,
 	undoService *undo.Service,
 ) *Dispatcher {

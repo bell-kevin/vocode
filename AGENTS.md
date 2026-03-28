@@ -95,16 +95,14 @@ One rule should have one owner. Duplicating ownership is a regression risk.
 - Agent/runtime: `apps/daemon/internal/agent`
 - Intent types + validation: `apps/daemon/internal/intent`
 - Ordered intent dispatcher: `apps/daemon/internal/dispatch`
-- Edit intent → protocol edit actions: `apps/daemon/internal/edits`
-- Command safety validation: `apps/daemon/internal/commandexec`
+- Directive services (one package each under `apps/daemon/internal/services/`): `edits`, `command`, `navigation`, `undo`
 - RPC adapter: `apps/daemon/internal/transcript/service.go`
 
 ### Extension
 
 - Send transcript: `apps/vscode-extension/src/commands/send-transcript/run.ts`
 - Present/execute returned results: `apps/vscode-extension/src/commands/send-transcript/present-result.ts`
-- Mechanical edit dispatch/apply: `apps/vscode-extension/src/edits/dispatch-workspace-edits.ts`
-- Allowed command execution runner: `apps/vscode-extension/src/commandexec/execute-command.ts`
+- Directive services (host apply layer under `apps/vscode-extension/src/services/`): `command`, `edits`, `navigation`, `undo`
 - Daemon client: `apps/vscode-extension/src/daemon/client.ts`
 - Voice sidecar spawn/client: `apps/vscode-extension/src/voice-sidecar`
 
@@ -122,7 +120,7 @@ One rule should have one owner. Duplicating ownership is a regression risk.
 ### Add a new edit capability
 
 1. Add/extend `EditIntentKind` + validation in `apps/daemon/internal/intent`.
-2. Update `apps/daemon/internal/edits/ActionBuilder` to map intent + file snapshot → protocol edit actions.
+2. Update `apps/daemon/internal/services/edits/ActionBuilder` to map intent + file snapshot → protocol edit actions.
 3. Update the extension mechanical apply logic if you introduce a new protocol action kind.
 4. Add tests in the owning layers:
    - daemon: intent parsing/validation + action building
@@ -132,8 +130,8 @@ One rule should have one owner. Duplicating ownership is a regression risk.
 ### Add a new command capability
 
 1. Ensure the model can emit a `CommandIntent` that maps to protocol `commandDirective`.
-2. Update daemon allowlist in `apps/daemon/internal/commandexec/policy.go`.
-3. Update extension allowlist in `apps/vscode-extension/src/commandexec/execute-command.ts`.
+2. Update daemon allowlist in `apps/daemon/internal/services/command/policy.go`.
+3. Update extension allowlist in `apps/vscode-extension/src/services/command/execute-command.ts`.
 4. Keep execution semantics in the extension; keep command-shape validation in the daemon.
 
 ### Change intent/result ordering semantics
@@ -178,7 +176,7 @@ Rules:
 1. Add action schema in `packages/protocol/schema`.
 2. Wire the action union schema updates.
 3. Regenerate TS/Go protocol types with `pnpm codegen`.
-4. Implement daemon action building/validation in `apps/daemon/internal/edits`.
+4. Implement daemon action building/validation in `apps/daemon/internal/services/edits`.
 5. Implement extension mechanical apply logic for the new action kind.
 6. Add tests:
    - daemon action-building + validation tests
@@ -238,7 +236,7 @@ These are the scripts you should run for cleanliness and correctness:
 ## Anti-patterns (regression risks)
 
 - Handler doing planning or target resolution.
-- `internal/edits` orchestrating `internal/agent`.
+- `internal/services/edits` orchestrating `internal/agent`.
 - Extension re-deciding semantic policy already owned by daemon.
 - Ambiguous/overloaded result shapes (breaks runtime validators and tests).
 - Adding “temporary” policy logic in the extension to unblock daemon work.

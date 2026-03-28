@@ -6,13 +6,13 @@ import (
 
 	"vocoding.net/vocode/v2/apps/daemon/internal/agent"
 	"vocoding.net/vocode/v2/apps/daemon/internal/agent/stub"
-	"vocoding.net/vocode/v2/apps/daemon/internal/commandexec"
 	"vocoding.net/vocode/v2/apps/daemon/internal/dispatch"
-	"vocoding.net/vocode/v2/apps/daemon/internal/edits"
-	"vocoding.net/vocode/v2/apps/daemon/internal/navigation"
 	"vocoding.net/vocode/v2/apps/daemon/internal/rpc"
+	"vocoding.net/vocode/v2/apps/daemon/internal/services/command"
+	"vocoding.net/vocode/v2/apps/daemon/internal/services/edits"
+	"vocoding.net/vocode/v2/apps/daemon/internal/services/navigation"
+	"vocoding.net/vocode/v2/apps/daemon/internal/services/undo"
 	"vocoding.net/vocode/v2/apps/daemon/internal/transcript"
-	"vocoding.net/vocode/v2/apps/daemon/internal/undo"
 )
 
 type Options struct {
@@ -30,7 +30,7 @@ type App struct {
 func New(opts Options) (*App, error) {
 	agentRuntime := agent.New(stub.New())
 	editService := edits.NewService()
-	commandService := commandexec.NewService()
+	commandService := command.NewService()
 	navigationService := navigation.NewService()
 	undoService := undo.NewService()
 	dispatcher := dispatch.NewDispatcher(editService, commandService, navigationService, undoService)

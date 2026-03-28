@@ -19,7 +19,7 @@ Expected daemon flow:
 → `internal/agent` — iterative planner adapter (`NextIntent` per turn)
 → `internal/intent` — owns `NextIntent` / `EditIntent` / validation
 → `internal/dispatch` — executes validated intents (edit intents use `edits.Service.ApplyIntent`)
-→ `internal/edits` — `Service` (`BuildActions`, `ApplyIntent` → protocol edit results; not an RPC)
+→ `internal/services/edits` — `Service` (`BuildActions`, `ApplyIntent` → protocol edit results; not an RPC)
 
 ### Extension (`apps/vscode-extension`)
 
@@ -146,7 +146,7 @@ Rules:
 1. Add action schema in `packages/protocol/schema`.
 2. Wire action union schema updates.
 3. Regenerate TS/Go protocol types and keep validators aligned.
-4. Implement daemon action builder logic in `internal/edits`.
+4. Implement daemon action builder logic in `internal/services/edits`.
 5. Add daemon validation for action safety/uniqueness.
 6. Implement extension mechanical apply logic for the new action kind.
 7. Add tests:
@@ -189,7 +189,7 @@ When touching architecture-sensitive code, include tests in the owning layer:
 ## Anti-patterns
 
 - Handler doing planning or target resolution
-- `internal/edits` orchestrating `internal/agent`
+- `internal/services/edits` orchestrating `internal/agent`
 - Extension re-deciding daemon semantic policy
 - Ambiguous/overloaded result shapes
 - Placeholder layers/files with no active usage

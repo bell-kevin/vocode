@@ -18,7 +18,7 @@ export async function runSendTranscript(
   const editor = vscode.window.activeTextEditor;
   if (!editor) {
     void vscode.window.showWarningMessage(
-      "Open a text editor so Vocode can run edit steps against the active file.",
+      "Open a text editor so Vocode can run edit directives against the active file.",
     );
     return;
   }

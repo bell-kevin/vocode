@@ -1,4 +1,4 @@
-package commandexec
+package command
 
 import (
 	"fmt"

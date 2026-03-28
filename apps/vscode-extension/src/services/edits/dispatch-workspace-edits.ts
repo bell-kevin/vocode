@@ -32,7 +32,7 @@ function toAbsolutePath(
 }
 
 /**
- * Applies one edit step's actions by opening each target document and
+ * Applies one edit directive's actions by opening each target document and
  * submitting workspace edits. Also returns per-action edit locations for
  * follow-up navigation (e.g. reveal_edit).
  */

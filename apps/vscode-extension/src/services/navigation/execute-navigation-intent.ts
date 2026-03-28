@@ -25,19 +25,19 @@ function resolvePath(targetPath: string, activeDocumentPath: string): string {
   return path.resolve(path.dirname(activeDocumentPath), targetPath);
 }
 
-export async function executeNavigationStep(
-  step: VoiceTranscriptDirective,
+export async function executeNavigationDirective(
+  transcriptDirective: VoiceTranscriptDirective,
   activeDocumentPath: string,
   editLocations?: EditLocationMap,
 ): Promise<void> {
-  const directive = step.navigationDirective;
-  if (!directive) {
+  const navigationDirective = transcriptDirective.navigationDirective;
+  if (!navigationDirective) {
     throw new Error("missing navigationDirective");
   }
-  if (directive.kind === "noop") {
+  if (navigationDirective.kind === "noop") {
     return;
   }
-  const nav = directive.action;
+  const nav = navigationDirective.action;
   if (!nav) {
     throw new Error("missing navigationDirective.action");
   }
