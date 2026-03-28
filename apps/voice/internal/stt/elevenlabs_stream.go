@@ -182,9 +182,14 @@ func (c *ElevenLabsStreamingClient) SendInputAudioChunk(pcm []byte, commit bool,
 	// empty commit (matches sendSTTChunk: pcm commit false, then nil commit true).
 	if commit && len(pcm) == 0 {
 		minB := c.minUncommittedBytesBeforeCommit()
-		// Never send commit:true with nothing to finalize — server returns commit_throttled.
+		// VAD sometimes emits commit after all PCM was already sent (drained tail). Server still
+		// needs ≥ min duration before accept; pad silence so committed_transcript arrives instead of
+		// commit_throttled or an open segment with stuck partials.
 		if c.pendingUncommittedBytes == 0 {
-			return nil
+			pad := make([]byte, minB)
+			if err := c.writeInputAudioChunkLocked(pad, false, ""); err != nil {
+				return err
+			}
 		}
 		if c.pendingUncommittedBytes < minB {
 			need := minB - c.pendingUncommittedBytes

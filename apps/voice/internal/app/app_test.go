@@ -53,8 +53,23 @@ func TestStreamChunkConfig_Defaults(t *testing.T) {
 	if got := streamMaxChunkMS(); got != 500 {
 		t.Fatalf("expected default max chunk 500ms, got %d", got)
 	}
-	if got := streamMaxUtteranceMS(); got != 4000 {
-		t.Fatalf("expected default max utterance 4000ms, got %d", got)
+	if got := streamMaxUtteranceMS(); got != 0 {
+		t.Fatalf("expected default max utterance off (0ms), got %d", got)
+	}
+}
+
+func TestStreamMaxUtteranceMS_Optional(t *testing.T) {
+	t.Setenv("VOCODE_VOICE_STREAM_MAX_UTTERANCE_MS", "0")
+	if got := streamMaxUtteranceMS(); got != 0 {
+		t.Fatalf("expected 0 off, got %d", got)
+	}
+	t.Setenv("VOCODE_VOICE_STREAM_MAX_UTTERANCE_MS", "8000")
+	if got := streamMaxUtteranceMS(); got != 8000 {
+		t.Fatalf("expected 8000, got %d", got)
+	}
+	t.Setenv("VOCODE_VOICE_STREAM_MAX_UTTERANCE_MS", "200")
+	if got := streamMaxUtteranceMS(); got != 500 {
+		t.Fatalf("expected clamp to min 500ms, got %d", got)
 	}
 }
 

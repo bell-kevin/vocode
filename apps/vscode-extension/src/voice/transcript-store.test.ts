@@ -138,3 +138,40 @@ test("caps recent handled history", () => {
   assert.equal(store.getSnapshot().recentHandled[0]?.text, "c");
   assert.equal(store.getSnapshot().recentHandled[1]?.text, "b");
 });
+
+test("stabilizes STT partial flip-flop (e.g. till vs until) instead of flickering Live", () => {
+  const store = new TranscriptStore();
+  store.setVoiceListening(true);
+
+  store.onPartial("until 8 seconds");
+  store.onPartial("till 8 seconds");
+  store.onPartial("until 8 seconds");
+  store.onPartial("till 8 seconds");
+
+  assert.equal(store.getSnapshot().latestPartial, "until 8 seconds");
+
+  store.enqueueCommitted("done");
+  assert.equal(store.getSnapshot().latestPartial, null);
+});
+
+test("clears flip-flop partial after prolonged silence when meter says not speaking", () => {
+  const store = new TranscriptStore(30, 180, 50);
+  store.setVoiceListening(true);
+
+  store.onPartial("until 8 seconds");
+  store.onPartial("till 8 seconds");
+  store.onPartial("until 8 seconds");
+  store.onPartial("till 8 seconds");
+  assert.ok(store.getSnapshot().latestPartial);
+
+  const t0 = Date.now();
+  const orig = Date.now;
+  Date.now = () => t0 + 60_000;
+  try {
+    store.setAudioMeter(false, 0);
+  } finally {
+    Date.now = orig;
+  }
+
+  assert.equal(store.getSnapshot().latestPartial, null);
+});

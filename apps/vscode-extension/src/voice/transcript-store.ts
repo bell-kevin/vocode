@@ -2,6 +2,8 @@ const DEFAULT_MAX_HANDLED = 30;
 const WAVEFORM_SAMPLES = 64;
 /** STT sometimes sends empty/whitespace partials between words; debounce clearing so the Live card does not flicker off. */
 const DEFAULT_PARTIAL_CLEAR_DEBOUNCE_MS = 180;
+/** Cosmetic only: if streaming partials oscillate (e.g. till/until), clear Live after silence. Authoritative text is always committed lines from the sidecar. */
+const PARTIAL_FLIPFLOP_SILENCE_CLEAR_MS = 4500;
 
 /** Committed voice text not yet finished processing through the daemon + apply pipeline. */
 export type PendingStatus = "queued" | "processing" | "error";
@@ -53,9 +55,17 @@ export class TranscriptStore {
 
   private partialClearTimer: ReturnType<typeof setTimeout> | undefined;
 
+  /** Last few non-empty partial strings (for A/B/A/B oscillation detection). */
+  private partialRecent: string[] = [];
+  /** True once we detected alternating between two hypotheses (STT streaming artifact). */
+  private partialFlipFlopActive = false;
+  /** Last time VAD reported speech (audio_meter); used to clear stuck flip-flop partials after silence. */
+  private lastAudibleAt = 0;
+
   constructor(
     private readonly maxHandled: number = DEFAULT_MAX_HANDLED,
     private readonly partialClearDebounceMs: number = DEFAULT_PARTIAL_CLEAR_DEBOUNCE_MS,
+    private readonly flipFlopSilenceClearMs: number = PARTIAL_FLIPFLOP_SILENCE_CLEAR_MS,
   ) {}
 
   /**
@@ -73,11 +83,14 @@ export class TranscriptStore {
       this.meterSpeaking = false;
       this.meterRms = 0;
       this.waveformRms = [];
+      this.resetPartialStreamingState();
     } else {
       this.clearPartialClearTimer();
       this.meterSpeaking = false;
       this.meterRms = 0;
       this.waveformRms = [];
+      this.resetPartialStreamingState();
+      this.lastAudibleAt = Date.now();
     }
     this.emit();
   }
@@ -88,6 +101,25 @@ export class TranscriptStore {
       return;
     }
     const level = Number.isFinite(rms) ? Math.min(1, Math.max(0, rms)) : 0;
+    if (speaking) {
+      this.lastAudibleAt = Date.now();
+    } else if (
+      this.latestPartial &&
+      this.partialFlipFlopActive &&
+      Date.now() - this.lastAudibleAt >= this.flipFlopSilenceClearMs
+    ) {
+      this.resetPartialStreamingState();
+      this.latestPartial = null;
+      this.clearPartialClearTimer();
+      this.meterSpeaking = speaking;
+      this.meterRms = level;
+      this.waveformRms.push(level);
+      if (this.waveformRms.length > WAVEFORM_SAMPLES) {
+        this.waveformRms.shift();
+      }
+      this.emit();
+      return;
+    }
     this.meterSpeaking = speaking;
     this.meterRms = level;
     this.waveformRms.push(level);
@@ -106,6 +138,7 @@ export class TranscriptStore {
     if (!normalized) {
       if (this.partialClearDebounceMs <= 0) {
         this.latestPartial = null;
+        this.resetPartialStreamingState();
         this.clearPartialClearTimer();
         this.emit();
         return;
@@ -117,13 +150,18 @@ export class TranscriptStore {
           return;
         }
         this.latestPartial = null;
+        this.resetPartialStreamingState();
         this.emit();
       }, this.partialClearDebounceMs);
       return;
     }
 
     this.clearPartialClearTimer();
-    this.latestPartial = normalized;
+    this.partialRecent.push(normalized);
+    if (this.partialRecent.length > 4) {
+      this.partialRecent.shift();
+    }
+    this.latestPartial = this.stabilizePartialDisplay(normalized);
     this.emit();
   }
 
@@ -135,6 +173,7 @@ export class TranscriptStore {
   enqueueCommitted(text: string): number | null {
     const normalized = text.trim();
     this.clearPartialClearTimer();
+    this.resetPartialStreamingState();
     this.latestPartial = null;
 
     if (!normalized) {
@@ -221,5 +260,32 @@ export class TranscriptStore {
       clearTimeout(this.partialClearTimer);
       this.partialClearTimer = undefined;
     }
+  }
+
+  private resetPartialStreamingState(): void {
+    this.partialRecent = [];
+    this.partialFlipFlopActive = false;
+  }
+
+  /**
+   * ElevenLabs often re-hypothesizes the same tail audio (e.g. "till" vs "until") on successive
+   * partial_transcript events. When we see A,B,A,B, freeze UI to a stable string instead of flickering.
+   */
+  private stabilizePartialDisplay(latest: string): string {
+    const r = this.partialRecent;
+    if (r.length >= 4) {
+      const a = r[r.length - 4] as string;
+      const b = r[r.length - 3] as string;
+      const c = r[r.length - 2] as string;
+      const d = r[r.length - 1] as string;
+      if (a === c && b === d && a !== b) {
+        this.partialFlipFlopActive = true;
+        if (a.length !== b.length) {
+          return a.length > b.length ? a : b;
+        }
+        return a;
+      }
+    }
+    return latest;
   }
 }

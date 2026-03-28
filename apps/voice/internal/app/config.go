@@ -82,8 +82,29 @@ func streamMaxChunkMS() int {
 	return envInt("VOCODE_VOICE_STREAM_MAX_CHUNK_MS", 500, 50, 3000)
 }
 
+// streamMaxUtteranceMS caps how long one spoken segment can grow before VAD forces a commit (ms).
+// 0 means off (default): commits only on trailing silence, mic EOF, or Stop Voice — better for long explanations.
+// Non-zero values are clamped to [500, 120000].
 func streamMaxUtteranceMS() int {
-	return envInt("VOCODE_VOICE_STREAM_MAX_UTTERANCE_MS", 4000, 500, 20000)
+	v := strings.TrimSpace(os.Getenv("VOCODE_VOICE_STREAM_MAX_UTTERANCE_MS"))
+	if v == "" {
+		return 0
+	}
+	n, err := strconv.Atoi(v)
+	if err != nil {
+		return 0
+	}
+	if n == 0 {
+		return 0
+	}
+	if n < 500 {
+		return 500
+	}
+	const maxMS = 120_000
+	if n > maxMS {
+		return maxMS
+	}
+	return n
 }
 
 // vadDebugEnabled logs per-frame VAD decisions (speech_start, commit reasons) to stderr — noisy.

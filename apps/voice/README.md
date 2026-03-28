@@ -45,7 +45,7 @@ Streaming VAD/segmentation knobs:
 - `VOCODE_VOICE_VAD_PREROLL_MS` (default: `200`)
 - `VOCODE_VOICE_STREAM_MIN_CHUNK_MS` (default: `200`)
 - `VOCODE_VOICE_STREAM_MAX_CHUNK_MS` (default: `500`)
-- `VOCODE_VOICE_STREAM_MAX_UTTERANCE_MS` (default: `4000`)
+- `VOCODE_VOICE_STREAM_MAX_UTTERANCE_MS` (default: `0` = off; optional periodic commit cap during continuous speech, min `500` when set)
 
 ## Rollout / tuning checklist
 
@@ -55,6 +55,7 @@ Streaming VAD/segmentation knobs:
 4. If speech starts are clipped, increase `VOCODE_VOICE_VAD_PREROLL_MS`.
 5. If latency feels high during speech bursts, lower `VOCODE_VOICE_STREAM_MIN_CHUNK_MS`.
 6. If chunk churn is high, raise `VOCODE_VOICE_STREAM_MAX_CHUNK_MS`.
+7. For long spoken explanations without mid-sentence commits, leave `VOCODE_VOICE_STREAM_MAX_UTTERANCE_MS` unset or `0`; set e.g. `8000` only if you want forced segment cuts during very long continuous speech.
 
 ## Debugging VAD
 

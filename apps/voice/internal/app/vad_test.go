@@ -64,6 +64,27 @@ func TestLocalVAD_Flush_EmptySendBufWhileInSpeech_EmitsCommitOnly(t *testing.T) 
 	}
 }
 
+func TestLocalVAD_UtteranceMaxDisabled_NoPeriodicCommit(t *testing.T) {
+	t.Setenv("VOCODE_VOICE_VAD_START_MS", "20")
+	t.Setenv("VOCODE_VOICE_VAD_END_MS", "750")
+	t.Setenv("VOCODE_VOICE_VAD_PREROLL_MS", "0")
+	t.Setenv("VOCODE_VOICE_VAD_THRESHOLD_MULTIPLIER", "1.1")
+
+	v := newLocalVAD(16000, 640, 1280, 0)
+	speech := makeFrame(640, 2000)
+	commits := 0
+	for i := 0; i < 100; i++ {
+		for _, c := range v.process(speech) {
+			if c.commit {
+				commits++
+			}
+		}
+	}
+	if commits != 0 {
+		t.Fatalf("expected no periodic commits when max utterance off, got %d", commits)
+	}
+}
+
 func TestLocalVAD_ForceCommitOnLongUtterance(t *testing.T) {
 	t.Setenv("VOCODE_VOICE_VAD_START_MS", "20")
 	t.Setenv("VOCODE_VOICE_VAD_END_MS", "750")

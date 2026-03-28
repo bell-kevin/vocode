@@ -13,14 +13,15 @@ type vadChunk struct {
 }
 
 type localVAD struct {
-	frameBytes     int
-	minChunkBytes  int
-	maxChunkBytes  int
-	startFrames    int
-	endFrames      int
-	maxUtterFrames int
-	threshold      float64
-	minEnergyFloor float64
+	frameBytes          int
+	minChunkBytes       int
+	maxChunkBytes       int
+	startFrames         int
+	endFrames           int
+	utteranceMaxEnabled bool
+	maxUtterFrames      int
+	threshold           float64
+	minEnergyFloor      float64
 
 	inSpeech       bool
 	speechFrames   int
@@ -56,20 +57,25 @@ func newLocalVAD(sampleRate int, minChunkBytes int, maxChunkBytes int, maxUttera
 	startFrames := maxInt(1, vadStartMS()/frameMS)
 	endFrames := maxInt(1, vadEndMS()/frameMS)
 	prerollCap := maxInt(0, vadPrerollMS()/frameMS)
-	maxUtterFrames := maxInt(1, maxUtteranceMS/frameMS)
+	utteranceMaxEnabled := maxUtteranceMS > 0
+	maxUtterFrames := 0
+	if utteranceMaxEnabled {
+		maxUtterFrames = maxInt(1, maxUtteranceMS/frameMS)
+	}
 
 	return &localVAD{
-		frameBytes:     frameBytes,
-		minChunkBytes:  minChunkBytes,
-		maxChunkBytes:  maxChunkBytes,
-		startFrames:    startFrames,
-		endFrames:      endFrames,
-		maxUtterFrames: maxUtterFrames,
-		threshold:      vadThresholdMultiplier(),
-		minEnergyFloor: vadMinEnergyFloor(),
-		noiseFloor:     vadMinEnergyFloor(),
-		prerollCap:     prerollCap,
-		prerollFrames:  make([][]byte, 0, prerollCap),
+		frameBytes:          frameBytes,
+		minChunkBytes:       minChunkBytes,
+		maxChunkBytes:       maxChunkBytes,
+		startFrames:         startFrames,
+		endFrames:           endFrames,
+		utteranceMaxEnabled: utteranceMaxEnabled,
+		maxUtterFrames:      maxUtterFrames,
+		threshold:           vadThresholdMultiplier(),
+		minEnergyFloor:      vadMinEnergyFloor(),
+		noiseFloor:          vadMinEnergyFloor(),
+		prerollCap:          prerollCap,
+		prerollFrames:       make([][]byte, 0, prerollCap),
 	}
 }
 
@@ -165,8 +171,8 @@ func (v *localVAD) process(frame []byte) []vadChunk {
 		return chunks
 	}
 
-	// Force periodic commits for very long utterances.
-	if v.inSpeechFrames >= v.maxUtterFrames && len(v.sendBuf) > 0 {
+	// Optional periodic commits for long continuous speech (VOCODE_VOICE_STREAM_MAX_UTTERANCE_MS > 0).
+	if v.utteranceMaxEnabled && v.inSpeechFrames >= v.maxUtterFrames && len(v.sendBuf) > 0 {
 		v.dbg("commit utterance_max in_speech_frames=%d max_frames=%d pcm_bytes=%d", v.inSpeechFrames, v.maxUtterFrames, len(v.sendBuf))
 		chunks = append(chunks, vadChunk{pcm: append([]byte(nil), v.sendBuf...), commit: true})
 		v.sendBuf = nil
