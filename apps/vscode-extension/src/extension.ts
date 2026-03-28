@@ -8,12 +8,12 @@ import {
 import { DaemonClient } from "./daemon/client";
 import { spawnDaemon } from "./daemon/spawn";
 import { applyTranscriptResult } from "./transcript/apply-result";
-import { TranscriptStore } from "./ui/transcript-store";
 import { VoiceStatusIndicator } from "./ui/status-bar";
 import {
   TranscriptPanelViewProvider,
   transcriptPanelViewType,
 } from "./ui/transcript-panel";
+import { TranscriptStore } from "./ui/transcript-store";
 import { VoiceSidecarClient } from "./voice/client";
 import { spawnVoiceSidecar } from "./voice/spawn";
 

@@ -1,6 +1,6 @@
 import type { DaemonClient } from "../daemon/client";
-import type { TranscriptStore } from "../ui/transcript-store";
 import type { VoiceStatusIndicator } from "../ui/status-bar";
+import type { TranscriptStore } from "../ui/transcript-store";
 import type { VoiceSidecarClient } from "../voice/client";
 
 export class VoiceSessionController {
