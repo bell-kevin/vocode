@@ -16,8 +16,8 @@ One “turn” starts when the extension calls the daemon RPC:
 
 ### What the daemon guarantees
 
-1. The daemon runs an iterative planner loop (`Agent.NextIntent` per turn; each step yields an `intents.Intent` validated with `ValidateIntent`).
-2. The daemon executes each validated `intents.Intent` in order using `intents/dispatch.Handler.DispatchIntent`.
+1. The daemon runs an iterative planner loop (`Agent.NextIntent` per turn; each step yields an `intents.Intent` validated with `Intent.Validate`).
+2. Each turn is handled by `intents/dispatch.Handler.Handle` (control intents vs executable intents in one switch).
 3. The daemon returns a `VoiceTranscriptResult` where `results` is an ordered list of execution results.
 4. Each execution result is exactly one of:
    - `kind: "edit"` with an `editDirective` (a single explicit variant of `EditDirective`)
@@ -95,8 +95,8 @@ One rule should have one owner. Duplicating ownership is a regression risk.
 - Agent/runtime: `apps/daemon/internal/agent`
 - Intent types + validation: `apps/daemon/internal/intents`
 - Voice transcript (`apps/daemon/internal/transcript/`): `service.go` (RPC + optional queue/coalesce); `execute.go` (`Executor` — iterative planner intents, context rounds, retries, then `intents/dispatch` routing)
-- Intent model + validation: `apps/daemon/internal/intents/` (`package intents` — `Intent`, per-kind payloads, `ValidateIntent`)
-- Intent dispatch (`apps/daemon/internal/intents/dispatch/`): root `dispatch.go` defines `Handler` + `DispatchIntent`; `dispatch/command|navigation|undo|edit/` mirror extension `src/directives/`. `command`, `navigation`, and `undo` expose `DispatchCommand` / `DispatchNavigation` / `DispatchUndo` in each `dispatch.go`; `edit` uses `Engine` + `DispatchEdit` in `engine.go` / `edit/dispatch.go` (stateful builder)
+- Intent model + validation: `apps/daemon/internal/intents/` (`package intents` — `Intent` union: `ControlIntent` | `ExecutableIntent`, `Validate`, JSON round-trip on `kind` + payloads)
+- Intent dispatch (`apps/daemon/internal/intents/dispatch/`): `dispatch.go` defines `Handler` + `Handle` (switches control vs executable). `dispatch/requestcontext` implements `request_context` fulfillment. `dispatch/command|navigation|undo|edit/` mirror extension `src/directives/`. `command`, `navigation`, and `undo` expose `DispatchCommand` / `DispatchNavigation` / `DispatchUndo` in each `dispatch.go`; `edit` uses `Engine` + `DispatchEdit` in `engine.go` / `edit/dispatch.go` (stateful builder)
 
 ### Extension
 

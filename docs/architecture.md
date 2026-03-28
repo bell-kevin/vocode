@@ -16,10 +16,10 @@ Expected daemon flow:
 `cmd/vocoded/main.go`  
 → `internal/app` (composition root)  
 → `internal/rpc` (transport/routing only)  
-→ `internal/transcript` — `Executor` runs one `voice.transcript`: calls `agent.NextIntent`, fulfills `request_context`, optional retries, then `intents/dispatch.Handler.DispatchIntent` per executable intent
+→ `internal/transcript` — `Executor` runs one `voice.transcript`: calls `agent.NextIntent`, applies caps, then `intents/dispatch.Handler.Handle` (control vs executable in one place)
 → `internal/agent` — iterative planner adapter (`Agent.NextIntent` → `intents.Intent` per turn)
-→ `internal/intents` — planner intent model (`package intents`: `Intent`, `EditIntent`, `ValidateIntent`)
-→ `internal/intents/dispatch` — `Handler.DispatchIntent` maps one executable intent to protocol directives (edit intents use `intents/dispatch/edit.Engine.DispatchEdit`; other kinds delegate to `intents/dispatch/command|navigation|undo`)
+→ `internal/intents` — planner union (`package intents`: `Intent` = `ControlIntent` | `ExecutableIntent`, `Intent.Validate`, JSON `kind` + payloads, types like `EditIntent`)
+→ `internal/intents/dispatch` — `Handler.Handle` switches on the union: `ControlIntent` (`done`, `request_context` via `requestcontext.Provider.Fulfill`) vs `ExecutableIntent` → protocol directives (`intents/dispatch/edit.Engine.DispatchEdit`, `command|navigation|undo`)
 → `internal/intents/dispatch/edit` — `Engine` (`BuildActions`, `DispatchEdit` → protocol edit results; not an RPC)
 
 ### Extension (`apps/vscode-extension`)

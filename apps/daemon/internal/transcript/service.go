@@ -8,9 +8,7 @@ import (
 	"time"
 
 	"vocoding.net/vocode/v2/apps/daemon/internal/agent"
-	"vocoding.net/vocode/v2/apps/daemon/internal/indexing"
 	"vocoding.net/vocode/v2/apps/daemon/internal/intents/dispatch"
-	"vocoding.net/vocode/v2/apps/daemon/internal/symbols"
 	protocol "vocoding.net/vocode/v2/packages/protocol/go"
 )
 
@@ -52,9 +50,7 @@ func NewService(
 	maxContextBytes := envInt("VOCODE_DAEMON_VOICE_MAX_CONTEXT_BYTES", 12000)
 	maxConsecutiveContextReq := envInt("VOCODE_DAEMON_VOICE_MAX_CONSECUTIVE_CONTEXT_REQUESTS", 3)
 
-	symbolResolver := symbols.NewTreeSitterResolver()
-	cp := indexing.NewContextProvider(symbolResolver)
-	exec := NewExecutor(agentRuntime, intentHandler, cp, ExecutorOptions{
+	exec := NewExecutor(agentRuntime, intentHandler, ExecutorOptions{
 		MaxPlannerTurns:          maxPlannerTurns,
 		MaxIntentRetries:         maxIntentRetries,
 		MaxContextRounds:         maxContextRounds,

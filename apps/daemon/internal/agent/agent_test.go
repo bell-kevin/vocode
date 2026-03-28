@@ -20,10 +20,10 @@ func TestIntentStubFlow(t *testing.T) {
 		if err != nil {
 			t.Fatalf("unexpected err: %v", err)
 		}
-		if err := intents.ValidateIntent(next); err != nil {
+		if err := next.Validate(); err != nil {
 			t.Fatalf("invalid next intent: %v", err)
 		}
-		if next.Kind == intents.IntentKindDone {
+		if next.Control != nil && next.Control.Kind == intents.ControlIntentKindDone {
 			t.Fatal("unexpected done before 4th step")
 		}
 		in.CompletedActions = append(in.CompletedActions, next)
@@ -33,7 +33,7 @@ func TestIntentStubFlow(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected err: %v", err)
 	}
-	if final.Kind != intents.IntentKindDone {
-		t.Fatalf("expected done, got %q", final.Kind)
+	if final.Control == nil || final.Control.Kind != intents.ControlIntentKindDone {
+		t.Fatalf("expected done control intent, got %+v", final)
 	}
 }

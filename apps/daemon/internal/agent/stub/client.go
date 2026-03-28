@@ -24,18 +24,18 @@ func (*Client) NextIntent(ctx context.Context, in agent.ModelInput) (intents.Int
 	_ = ctx
 	switch len(in.CompletedActions) {
 	case 0:
-		return intents.Intent{
-			Kind: intents.IntentKindNavigate,
+		return intents.FromExecutable(intents.ExecutableIntent{
+			Kind: intents.ExecutableIntentKindNavigate,
 			Navigate: &intents.NavigationIntent{
 				Kind: intents.NavigationIntentKindOpenFile,
 				OpenFile: &intents.OpenFileNavigationIntent{
 					Path: "test.js",
 				},
 			},
-		}, nil
+		}), nil
 	case 1:
-		return intents.Intent{
-			Kind: intents.IntentKindNavigate,
+		return intents.FromExecutable(intents.ExecutableIntent{
+			Kind: intents.ExecutableIntentKindNavigate,
 			Navigate: &intents.NavigationIntent{
 				Kind: intents.NavigationIntentKindRevealSymbol,
 				RevealSymbol: &intents.RevealSymbolNavigationIntent{
@@ -44,10 +44,10 @@ func (*Client) NextIntent(ctx context.Context, in agent.ModelInput) (intents.Int
 					SymbolKind: "function",
 				},
 			},
-		}, nil
+		}), nil
 	case 2:
-		return intents.Intent{
-			Kind: intents.IntentKindEdit,
+		return intents.FromExecutable(intents.ExecutableIntent{
+			Kind: intents.ExecutableIntentKindEdit,
 			Edit: &intents.EditIntent{
 				Kind: intents.EditIntentKindReplace,
 				Replace: &intents.ReplaceEditIntent{
@@ -65,14 +65,14 @@ func (*Client) NextIntent(ctx context.Context, in agent.ModelInput) (intents.Int
 					NewText: "\n  console.log(\"updated from stub\");\n",
 				},
 			},
-		}, nil
+		}), nil
 	case 3:
-		return intents.Intent{
-			Kind:    intents.IntentKindCommand,
+		return intents.FromExecutable(intents.ExecutableIntent{
+			Kind:    intents.ExecutableIntentKindCommand,
 			Command: stubEchoRunCommand(),
-		}, nil
+		}), nil
 	default:
-		return intents.Intent{Kind: intents.IntentKindDone}, nil
+		return intents.ControlDone(), nil
 	}
 }
 

@@ -1,4 +1,4 @@
-package indexing
+package requestcontext
 
 import (
 	"bufio"
@@ -11,21 +11,24 @@ import (
 	"strings"
 
 	"vocoding.net/vocode/v2/apps/daemon/internal/agent"
-	"vocoding.net/vocode/v2/apps/daemon/internal/intents/dispatch/edit"
 	"vocoding.net/vocode/v2/apps/daemon/internal/intents"
+	"vocoding.net/vocode/v2/apps/daemon/internal/intents/dispatch/edit"
 	"vocoding.net/vocode/v2/apps/daemon/internal/symbols"
 	protocol "vocoding.net/vocode/v2/packages/protocol/go"
 )
 
-type ContextProvider struct {
+// Provider fulfills request_context intents by enriching [agent.PlanningContext]
+// (symbols, file excerpts, usage notes). Used by the transcript executor, not the
+// directive pipeline (no protocol directive is emitted).
+type Provider struct {
 	symbols symbols.Resolver
 }
 
-func NewContextProvider(symbolResolver symbols.Resolver) *ContextProvider {
-	return &ContextProvider{symbols: symbolResolver}
+func NewProvider(symbolResolver symbols.Resolver) *Provider {
+	return &Provider{symbols: symbolResolver}
 }
 
-func (p *ContextProvider) Fulfill(
+func (p *Provider) Fulfill(
 	params protocol.VoiceTranscriptParams,
 	in agent.PlanningContext,
 	req *intents.RequestContextIntent,

@@ -133,17 +133,14 @@ Tree-sitter provisioning:
 ### Daemon planner protocol (iterative)
 
 `voice.transcript` runs an iterative planning loop inside the daemon:
-1. model returns one `intents.Intent`
+1. model returns one `intents.Intent` (control or executable; JSON has top-level `kind`)
 2. daemon validates and executes it (or fulfills `request_context`)
 3. daemon feeds accumulated context + completed actions back to the model
 4. repeats until `done` or guardrail limits are hit
 
-Current `intents.Intent` kinds:
-- `edit`
-- `command`
-- `navigate`
-- `request_context`
-- `done`
+Current planner `kind` values (executable unless noted):
+- `edit`, `command`, `navigate`, `undo`
+- `request_context` (control), `done` (control)
 
 `voice.transcript` returns `VoiceTranscriptResult`:
 - `accepted: true`

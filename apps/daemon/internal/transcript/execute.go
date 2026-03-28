@@ -13,17 +13,11 @@ import (
 	protocol "vocoding.net/vocode/v2/packages/protocol/go"
 )
 
-// ContextProvider resolves request_context intents by enriching planner state (symbols, excerpts).
-type ContextProvider interface {
-	Fulfill(params protocol.VoiceTranscriptParams, in agent.PlanningContext, req *intents.RequestContextIntent) (agent.PlanningContext, error)
-}
-
 // Executor runs one voice.transcript through the agent: iterative planner intents, optional context
-// rounds, retries, and dispatch into protocol directives via dispatch.Handler.
+// rounds, retries, and dispatch via [dispatch.Handler.Handle] (control vs executable).
 type Executor struct {
 	agent                    *agent.Agent
 	intentHandler            *dispatch.Handler
-	contextProvider          ContextProvider
 	maxPlannerTurns          int
 	maxIntentRetries         int
 	maxContextRounds         int
@@ -39,11 +33,10 @@ type ExecutorOptions struct {
 	MaxConsecutiveContextReq int
 }
 
-func NewExecutor(a *agent.Agent, h *dispatch.Handler, cp ContextProvider, opts ExecutorOptions) *Executor {
+func NewExecutor(a *agent.Agent, h *dispatch.Handler, opts ExecutorOptions) *Executor {
 	return &Executor{
 		agent:                    a,
 		intentHandler:            h,
-		contextProvider:          cp,
 		maxPlannerTurns:          opts.MaxPlannerTurns,
 		maxIntentRetries:         opts.MaxIntentRetries,
 		maxContextRounds:         opts.MaxContextRounds,
@@ -74,6 +67,7 @@ func (e *Executor) Execute(params protocol.VoiceTranscriptParams) (protocol.Voic
 	trace := make([]string, 0, maxTurns*2)
 	stopPlanning := false
 
+loop:
 	for i := 0; i < maxTurns; i++ {
 		turn := i + 1
 		next, err := e.agent.NextIntent(context.Background(), agent.ModelInput{
@@ -85,15 +79,29 @@ func (e *Executor) Execute(params protocol.VoiceTranscriptParams) (protocol.Voic
 			trace = appendTurnTrace(trace, turn, "model_error")
 			return protocol.VoiceTranscriptResult{Accepted: false}, true
 		}
-		if err := intents.ValidateIntent(next); err != nil {
+		if err := next.Validate(); err != nil {
 			trace = appendTurnTrace(trace, turn, "invalid_intent")
 			return protocol.VoiceTranscriptResult{Accepted: false}, true
 		}
-		trace = appendTurnTrace(trace, turn, "intent:"+string(next.Kind))
-		if next.Kind == intents.IntentKindDone {
-			break
+		trace = appendTurnTrace(trace, turn, "intent:"+next.Summary())
+
+		var editCtx edit.EditExecutionContext
+		if next.Executable != nil {
+			var planErr string
+			editCtx, planErr = buildEditExecutionContext(params, next.Executable)
+			if planErr != "" {
+				trace = appendTurnTrace(trace, turn, "pre_execute_error")
+				if maxRetries > 0 {
+					trace = appendTurnTrace(trace, turn, "retry:pre_execute")
+					turnCtx = appendPlanningNote(turnCtx, fmt.Sprintf("daemon rejected %q intent before execution: %s; retry with corrected intent", next.Executable.Kind, planErr))
+					maxRetries--
+					continue
+				}
+				return protocol.VoiceTranscriptResult{Accepted: false}, true
+			}
 		}
-		if next.Kind == intents.IntentKindRequestContext {
+
+		if c := next.Control; c != nil && c.Kind == intents.ControlIntentKindRequestContext {
 			contextRounds++
 			consecutiveContextReq++
 			if e.maxContextRounds > 0 && contextRounds > e.maxContextRounds {
@@ -104,75 +112,74 @@ func (e *Executor) Execute(params protocol.VoiceTranscriptParams) (protocol.Voic
 				trace = appendTurnTrace(trace, turn, "context:cap:consecutive_requests")
 				return protocol.VoiceTranscriptResult{Accepted: false}, true
 			}
-			if e.contextProvider == nil {
-				return protocol.VoiceTranscriptResult{Accepted: false}, true
-			}
-			updated, err := e.contextProvider.Fulfill(params, turnCtx, next.RequestContext)
-			if err != nil {
+		}
+
+		out, err := e.intentHandler.Handle(dispatch.HandleInput{
+			Params:  params,
+			TurnCtx: turnCtx,
+			Intent:  next,
+			EditCtx: editCtx,
+		})
+		if err != nil {
+			if next.Executable != nil {
+				trace = appendTurnTrace(trace, turn, "execute_error")
+				if maxRetries > 0 {
+					trace = appendTurnTrace(trace, turn, "retry:execute")
+					turnCtx = appendPlanningNote(turnCtx, fmt.Sprintf("daemon execution failed for %q intent: %v; retry with corrected intent", next.Executable.Kind, err))
+					maxRetries--
+					continue
+				}
+			} else {
 				trace = appendTurnTrace(trace, turn, "context:fulfill_error")
-				return protocol.VoiceTranscriptResult{Accepted: false}, true
 			}
-			if e.maxContextBytes > 0 && estimatePlanningContextBytes(updated) > e.maxContextBytes {
+			return protocol.VoiceTranscriptResult{Accepted: false}, true
+		}
+
+		switch out.Kind {
+		case dispatch.OutcomeDone:
+			break loop
+		case dispatch.OutcomeRequestContextFulfilled:
+			if e.maxContextBytes > 0 && estimatePlanningContextBytes(out.PlanningContext) > e.maxContextBytes {
 				trace = appendTurnTrace(trace, turn, "context:cap:byte_budget")
 				return protocol.VoiceTranscriptResult{Accepted: false}, true
 			}
 			trace = appendTurnTrace(trace, turn, "context:fulfilled")
-			turnCtx = updated
+			turnCtx = out.PlanningContext
 			completed = append(completed, next)
 			continue
-		}
-		consecutiveContextReq = 0
-		editCtx, planErr := buildEditExecutionContext(params, next)
-		if planErr != "" {
-			trace = appendTurnTrace(trace, turn, "pre_execute_error")
-			if maxRetries > 0 {
-				trace = appendTurnTrace(trace, turn, "retry:pre_execute")
-				turnCtx = appendPlanningNote(turnCtx, fmt.Sprintf("daemon rejected %q intent before execution: %s; retry with corrected intent", next.Kind, planErr))
-				maxRetries--
-				continue
+		case dispatch.OutcomeExecutableDispatched:
+			maxRetries = e.maxIntentRetries
+			if maxRetries < 0 {
+				maxRetries = 0
 			}
-			return protocol.VoiceTranscriptResult{Accepted: false}, true
-		}
-		st, err := e.intentHandler.DispatchIntent(next, editCtx)
-		if err != nil {
-			trace = appendTurnTrace(trace, turn, "execute_error")
-			if maxRetries > 0 {
-				trace = appendTurnTrace(trace, turn, "retry:execute")
-				turnCtx = appendPlanningNote(turnCtx, fmt.Sprintf("daemon execution failed for %q intent: %v; retry with corrected intent", next.Kind, err))
-				maxRetries--
-				continue
-			}
-			return protocol.VoiceTranscriptResult{Accepted: false}, true
-		}
-		maxRetries = e.maxIntentRetries
-		if maxRetries < 0 {
-			maxRetries = 0
-		}
-		switch {
-		case st.EditDirective != nil:
-			if st.EditDirective.Kind == "success" {
-				for i := range st.EditDirective.Actions {
-					if st.EditDirective.Actions[i].EditId == "" {
-						st.EditDirective.Actions[i].EditId = fmt.Sprintf("edit-%d", editCounter)
-						editCounter++
+			consecutiveContextReq = 0
+			st := out.Dispatch
+			switch {
+			case st.EditDirective != nil:
+				if st.EditDirective.Kind == "success" {
+					for j := range st.EditDirective.Actions {
+						if st.EditDirective.Actions[j].EditId == "" {
+							st.EditDirective.Actions[j].EditId = fmt.Sprintf("edit-%d", editCounter)
+							editCounter++
+						}
 					}
 				}
+				directives = append(directives, protocol.VoiceTranscriptDirective{Kind: "edit", EditDirective: st.EditDirective})
+				trace = appendTurnTrace(trace, turn, "result:edit:"+st.EditDirective.Kind)
+				completed = append(completed, next)
+			case st.CommandDirective != nil:
+				directives = append(directives, protocol.VoiceTranscriptDirective{Kind: "command", CommandDirective: st.CommandDirective})
+				trace = appendTurnTrace(trace, turn, "result:command")
+				completed = append(completed, next)
+			case st.NavigationDirective != nil:
+				directives = append(directives, protocol.VoiceTranscriptDirective{Kind: "navigate", NavigationDirective: st.NavigationDirective})
+				trace = appendTurnTrace(trace, turn, "result:navigate")
+				completed = append(completed, next)
+			case st.UndoDirective != nil:
+				directives = append(directives, protocol.VoiceTranscriptDirective{Kind: "undo", UndoDirective: st.UndoDirective})
+				trace = appendTurnTrace(trace, turn, "result:undo:"+st.UndoDirective.Scope)
+				completed = append(completed, next)
 			}
-			directives = append(directives, protocol.VoiceTranscriptDirective{Kind: "edit", EditDirective: st.EditDirective})
-			trace = appendTurnTrace(trace, turn, "result:edit:"+st.EditDirective.Kind)
-			completed = append(completed, next)
-		case st.CommandDirective != nil:
-			directives = append(directives, protocol.VoiceTranscriptDirective{Kind: "command", CommandDirective: st.CommandDirective})
-			trace = appendTurnTrace(trace, turn, "result:command")
-			completed = append(completed, next)
-		case st.NavigationDirective != nil:
-			directives = append(directives, protocol.VoiceTranscriptDirective{Kind: "navigate", NavigationDirective: st.NavigationDirective})
-			trace = appendTurnTrace(trace, turn, "result:navigate")
-			completed = append(completed, next)
-		case st.UndoDirective != nil:
-			directives = append(directives, protocol.VoiceTranscriptDirective{Kind: "undo", UndoDirective: st.UndoDirective})
-			trace = appendTurnTrace(trace, turn, "result:undo:"+st.UndoDirective.Scope)
-			completed = append(completed, next)
 		}
 		if stopPlanning {
 			break
@@ -189,16 +196,19 @@ func (e *Executor) Execute(params protocol.VoiceTranscriptParams) (protocol.Voic
 	return result, true
 }
 
-func buildEditExecutionContext(params protocol.VoiceTranscriptParams, next intents.Intent) (edit.EditExecutionContext, string) {
-	if next.Kind == intents.IntentKindUndo {
+func buildEditExecutionContext(params protocol.VoiceTranscriptParams, ex *intents.ExecutableIntent) (edit.EditExecutionContext, string) {
+	if ex == nil {
+		return edit.EditExecutionContext{}, "missing executable intent"
+	}
+	if ex.Kind == intents.ExecutableIntentKindUndo {
 		return edit.EditExecutionContext{}, ""
 	}
 	active := strings.TrimSpace(params.ActiveFile)
 	workspaceRoot := strings.TrimSpace(params.WorkspaceRoot)
-	if next.Kind == intents.IntentKindEdit && active == "" {
+	if ex.Kind == intents.ExecutableIntentKindEdit && active == "" {
 		return edit.EditExecutionContext{}, "activeFile is required when the next intent is an edit"
 	}
-	if next.Kind == intents.IntentKindEdit && workspaceRoot == "" {
+	if ex.Kind == intents.ExecutableIntentKindEdit && workspaceRoot == "" {
 		return edit.EditExecutionContext{}, "workspaceRoot is required when the next intent is an edit"
 	}
 	fileText := ""

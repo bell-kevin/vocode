@@ -6,12 +6,11 @@ import (
 	"vocoding.net/vocode/v2/apps/daemon/internal/intents"
 )
 
-// Agent is the daemon-side runtime facade around the planner [ModelClient].
+// Agent is the iterative planner facade.
 type Agent struct {
 	model ModelClient
 }
 
-// New builds an agent with the given [ModelClient] (stub, OpenAI, Anthropic, tests, …).
 func New(model ModelClient) *Agent {
 	return &Agent{model: model}
 }
