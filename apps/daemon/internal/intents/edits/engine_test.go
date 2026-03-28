@@ -13,7 +13,7 @@ import (
 func TestApplyInsertStatementInCurrentFunction(t *testing.T) {
 	t.Parallel()
 
-	service := NewService()
+	engine := NewEngine()
 	fileText := readFixture(t, "single-function.ts")
 	params := EditExecutionContext{
 		ActiveFile: "/tmp/single-function.ts",
@@ -37,7 +37,7 @@ func TestApplyInsertStatementInCurrentFunction(t *testing.T) {
 		},
 	}
 
-	result, failure := service.BuildActions(params, intent)
+	result, failure := engine.BuildActions(params, intent)
 	if failure != nil {
 		t.Fatalf("BuildActions returned failure: %+v", *failure)
 	}
@@ -57,7 +57,7 @@ func TestApplyInsertStatementInCurrentFunction(t *testing.T) {
 func TestApplyReplaceCurrentFunctionBody(t *testing.T) {
 	t.Parallel()
 
-	service := NewService()
+	engine := NewEngine()
 	fileText := readFixture(t, "single-function.ts")
 	params := EditExecutionContext{
 		ActiveFile: "/tmp/single-function.ts",
@@ -81,7 +81,7 @@ func TestApplyReplaceCurrentFunctionBody(t *testing.T) {
 		},
 	}
 
-	result, failure := service.BuildActions(params, intent)
+	result, failure := engine.BuildActions(params, intent)
 	if failure != nil {
 		t.Fatalf("BuildActions returned failure: %+v", *failure)
 	}
@@ -99,7 +99,7 @@ func TestApplyReplaceCurrentFunctionBody(t *testing.T) {
 func TestApplyFailsForAmbiguousCurrentFunction(t *testing.T) {
 	t.Parallel()
 
-	service := NewService()
+	engine := NewEngine()
 	fileText := readFixture(t, "multi-function.ts")
 	params := EditExecutionContext{
 		ActiveFile: "/tmp/multi-function.ts",
@@ -123,7 +123,7 @@ func TestApplyFailsForAmbiguousCurrentFunction(t *testing.T) {
 		},
 	}
 
-	_, failure := service.BuildActions(params, intent)
+	_, failure := engine.BuildActions(params, intent)
 	if failure == nil {
 		t.Fatal("expected failure but got success")
 	}
@@ -135,7 +135,7 @@ func TestApplyFailsForAmbiguousCurrentFunction(t *testing.T) {
 func TestApplyReplaceAnchoredBlock(t *testing.T) {
 	t.Parallel()
 
-	service := NewService()
+	engine := NewEngine()
 	fileText := readFixture(t, "anchored-block.ts")
 	params := EditExecutionContext{
 		ActiveFile: "/tmp/anchored-block.ts",
@@ -155,7 +155,7 @@ func TestApplyReplaceAnchoredBlock(t *testing.T) {
 		},
 	}
 
-	result, failure := service.BuildActions(params, intent)
+	result, failure := engine.BuildActions(params, intent)
 	if failure != nil {
 		t.Fatalf("unexpected failure: %+v", *failure)
 	}
@@ -170,7 +170,7 @@ func TestApplyReplaceAnchoredBlock(t *testing.T) {
 func TestApplyReplaceBySymbolIDFunction(t *testing.T) {
 	t.Parallel()
 
-	service := NewService()
+	engine := NewEngine()
 	fileText := readFixture(t, "multi-function.ts")
 	params := EditExecutionContext{
 		ActiveFile: "/tmp/multi-function.ts",
@@ -194,7 +194,7 @@ func TestApplyReplaceBySymbolIDFunction(t *testing.T) {
 		},
 	}
 
-	result, failure := service.BuildActions(params, intent)
+	result, failure := engine.BuildActions(params, intent)
 	if failure != nil {
 		t.Fatalf("unexpected failure: %+v", *failure)
 	}
@@ -206,11 +206,10 @@ func TestApplyReplaceBySymbolIDFunction(t *testing.T) {
 	}
 }
 
-
 func TestApplyAppendImportIfMissing(t *testing.T) {
 	t.Parallel()
 
-	service := NewService()
+	engine := NewEngine()
 	fileText := readFixture(t, "imports.go")
 	params := EditExecutionContext{
 		ActiveFile: "/tmp/imports.go",
@@ -223,7 +222,7 @@ func TestApplyAppendImportIfMissing(t *testing.T) {
 		},
 	}
 
-	result, failure := service.BuildActions(params, intent)
+	result, failure := engine.BuildActions(params, intent)
 	if failure != nil {
 		t.Fatalf("unexpected failure: %+v", *failure)
 	}

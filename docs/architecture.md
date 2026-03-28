@@ -18,8 +18,8 @@ Expected daemon flow:
 → `internal/rpc` (transport/routing only)  
 → `internal/agent` — iterative planner adapter (`NextIntent` per turn)
 → `internal/intent` — owns `NextIntent` / `EditIntent` / validation
-→ `internal/dispatch` — executes validated intents (edit intents use `edits.Service.ApplyIntent`)
-→ `internal/services/edits` — `Service` (`BuildActions`, `ApplyIntent` → protocol edit results; not an RPC)
+→ `internal/intents` — `Handler.DispatchIntent` executes validated intents (edit intents use `intents/edits.Engine.DispatchEdit`; other kinds delegate to `intents/command|navigation|undo`)
+→ `internal/intents/edits` — `Engine` (`BuildActions`, `DispatchEdit` → protocol edit results; not an RPC)
 
 ### Extension (`apps/vscode-extension`)
 
@@ -146,7 +146,7 @@ Rules:
 1. Add action schema in `packages/protocol/schema`.
 2. Wire action union schema updates.
 3. Regenerate TS/Go protocol types and keep validators aligned.
-4. Implement daemon action builder logic in `internal/services/edits`.
+4. Implement daemon action builder logic in `internal/intents/edits`.
 5. Add daemon validation for action safety/uniqueness.
 6. Implement extension mechanical apply logic for the new action kind.
 7. Add tests:
@@ -164,8 +164,8 @@ Rules:
 
 1. Extend `internal/agent` edit intent handling (or model output validation) as needed.
 2. Return deterministic `EditIntent`; edit-building failures are handled inside the daemon and never reach the extension.
-3. Keep intent-level semantics in agent, not in `internal/edits`.
-4. Ensure `edits.Service.DispatchIntent` maps intent + file snapshot to `EditDirective` variants.
+3. Keep intent-level semantics in agent, not in `internal/intents/edits`.
+4. Ensure `edits.Engine.DispatchEdit` maps intent + file snapshot to `EditDirective` variants.
 5. Add planner tests for:
    - supported instruction parsing
    - unsupported instruction failures
@@ -189,7 +189,7 @@ When touching architecture-sensitive code, include tests in the owning layer:
 ## Anti-patterns
 
 - Handler doing planning or target resolution
-- `internal/services/edits` orchestrating `internal/agent`
+- `internal/intents/edits` orchestrating `internal/agent`
 - Extension re-deciding daemon semantic policy
 - Ambiguous/overloaded result shapes
 - Placeholder layers/files with no active usage
@@ -202,7 +202,7 @@ Before merging:
 - `main.go` remains bootstrap-only
 - `internal/app` remains composition + orchestration owner
 - `internal/rpc` remains transport/routing only
-- `edits.Service.DispatchIntent` wraps `BuildActions` into protocol `EditDirective` (not an RPC)
+- `edits.Engine.DispatchEdit` wraps `BuildActions` into protocol `EditDirective` (not an RPC)
 - Extension contains only mechanical apply + UI policy
 - Protocol schema/types/validators/runtime behavior stay aligned
 - Tests cover variant invariants and boundary behavior

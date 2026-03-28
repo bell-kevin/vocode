@@ -6,12 +6,9 @@ import (
 
 	"vocoding.net/vocode/v2/apps/daemon/internal/agent"
 	"vocoding.net/vocode/v2/apps/daemon/internal/agent/stub"
-	"vocoding.net/vocode/v2/apps/daemon/internal/dispatch"
+	"vocoding.net/vocode/v2/apps/daemon/internal/intents"
+	"vocoding.net/vocode/v2/apps/daemon/internal/intents/edits"
 	"vocoding.net/vocode/v2/apps/daemon/internal/rpc"
-	"vocoding.net/vocode/v2/apps/daemon/internal/services/command"
-	"vocoding.net/vocode/v2/apps/daemon/internal/services/edits"
-	"vocoding.net/vocode/v2/apps/daemon/internal/services/navigation"
-	"vocoding.net/vocode/v2/apps/daemon/internal/services/undo"
 	"vocoding.net/vocode/v2/apps/daemon/internal/transcript"
 )
 
@@ -29,13 +26,10 @@ type App struct {
 
 func New(opts Options) (*App, error) {
 	agentRuntime := agent.New(stub.New())
-	editService := edits.NewService()
-	commandService := command.NewService()
-	navigationService := navigation.NewService()
-	undoService := undo.NewService()
-	dispatcher := dispatch.NewDispatcher(editService, commandService, navigationService, undoService)
+	editEngine := edits.NewEngine()
+	intentHandler := intents.NewHandler(editEngine)
 
-	voiceService := transcript.NewService(agentRuntime, dispatcher)
+	voiceService := transcript.NewService(agentRuntime, intentHandler)
 
 	router := rpc.NewRouter(opts.Logger)
 	for _, def := range rpc.BuildHandlers(voiceService) {

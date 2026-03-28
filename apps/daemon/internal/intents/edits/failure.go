@@ -8,4 +8,3 @@ type EditBuildFailure struct {
 	Code    string
 	Message string
 }
-

@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"vocoding.net/vocode/v2/apps/daemon/internal/agent"
-	"vocoding.net/vocode/v2/apps/daemon/internal/dispatch"
+	"vocoding.net/vocode/v2/apps/daemon/internal/intents"
 	"vocoding.net/vocode/v2/apps/daemon/internal/indexing"
 	"vocoding.net/vocode/v2/apps/daemon/internal/intentloop"
 	"vocoding.net/vocode/v2/apps/daemon/internal/symbols"
@@ -41,7 +41,7 @@ type transcriptAcceptResp struct {
 
 func NewService(
 	agentRuntime *agent.Agent,
-	dispatch *dispatch.Dispatcher,
+	intentHandler *intents.Handler,
 ) *TranscriptService {
 	queueSize := envInt("VOCODE_DAEMON_VOICE_TRANSCRIPT_QUEUE_SIZE", 10)
 	coalesceMs := envInt("VOCODE_DAEMON_VOICE_TRANSCRIPT_COALESCE_MS", 750)
@@ -55,7 +55,7 @@ func NewService(
 
 	symbolResolver := symbols.NewTreeSitterResolver()
 	cp := indexing.NewContextProvider(symbolResolver)
-	loop := intentloop.NewRunner(agentRuntime, dispatch, cp, intentloop.Options{
+	loop := intentloop.NewRunner(agentRuntime, intentHandler, cp, intentloop.Options{
 		MaxPlannerTurns:          maxPlannerTurns,
 		MaxIntentRetries:         maxIntentRetries,
 		MaxContextRounds:         maxContextRounds,

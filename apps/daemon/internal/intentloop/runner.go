@@ -7,8 +7,8 @@ import (
 	"strings"
 
 	"vocoding.net/vocode/v2/apps/daemon/internal/agent"
-	"vocoding.net/vocode/v2/apps/daemon/internal/dispatch"
-	"vocoding.net/vocode/v2/apps/daemon/internal/services/edits"
+	"vocoding.net/vocode/v2/apps/daemon/internal/intents"
+	"vocoding.net/vocode/v2/apps/daemon/internal/intents/edits"
 	"vocoding.net/vocode/v2/apps/daemon/internal/intent"
 	protocol "vocoding.net/vocode/v2/packages/protocol/go"
 )
@@ -19,7 +19,7 @@ type ContextProvider interface {
 
 type Runner struct {
 	agent                    *agent.Agent
-	dispatch                 *dispatch.Dispatcher
+	intents                  *intents.Handler
 	contextProvider          ContextProvider
 	maxPlannerTurns          int
 	maxIntentRetries         int
@@ -36,10 +36,10 @@ type Options struct {
 	MaxConsecutiveContextReq int
 }
 
-func NewRunner(a *agent.Agent, d *dispatch.Dispatcher, cp ContextProvider, opts Options) *Runner {
+func NewRunner(a *agent.Agent, h *intents.Handler, cp ContextProvider, opts Options) *Runner {
 	return &Runner{
 		agent:                    a,
-		dispatch:                 d,
+		intents:                  h,
 		contextProvider:          cp,
 		maxPlannerTurns:          opts.MaxPlannerTurns,
 		maxIntentRetries:         opts.MaxIntentRetries,
@@ -130,7 +130,7 @@ func (r *Runner) Execute(params protocol.VoiceTranscriptParams) (protocol.VoiceT
 			}
 			return protocol.VoiceTranscriptResult{Accepted: false}, true
 		}
-		st, err := r.dispatch.DispatchExecutableIntent(next, editCtx)
+		st, err := r.intents.DispatchIntent(next, editCtx)
 		if err != nil {
 			trace = appendTurnTrace(trace, turn, "execute_error")
 			if maxRetries > 0 {

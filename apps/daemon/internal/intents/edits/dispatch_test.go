@@ -7,10 +7,10 @@ import (
 	intentpkg "vocoding.net/vocode/v2/apps/daemon/internal/intent"
 )
 
-func TestDispatchIntentSuccess(t *testing.T) {
+func TestDispatchEditSuccess(t *testing.T) {
 	t.Parallel()
 
-	service := NewService()
+	engine := NewEngine()
 	fileText := readFixture(t, "anchored-block.ts")
 	params := EditExecutionContext{
 		Instruction: "replace inner",
@@ -31,9 +31,9 @@ func TestDispatchIntentSuccess(t *testing.T) {
 		},
 	}
 
-	result, err := service.DispatchIntent(params, intent)
+	result, err := engine.DispatchEdit(params, intent)
 	if err != nil {
-		t.Fatalf("DispatchIntent returned error: %v", err)
+		t.Fatalf("DispatchEdit returned error: %v", err)
 	}
 	if result.Kind != "success" {
 		t.Fatalf("expected success result, got %q", result.Kind)
@@ -46,10 +46,10 @@ func TestDispatchIntentSuccess(t *testing.T) {
 	}
 }
 
-func TestDispatchIntentNoopWhenImportAlreadyPresent(t *testing.T) {
+func TestDispatchEditNoopWhenImportAlreadyPresent(t *testing.T) {
 	t.Parallel()
 
-	service := NewService()
+	engine := NewEngine()
 	params := EditExecutionContext{
 		Instruction: "add fmt",
 		ActiveFile:  "/tmp/x.go",
@@ -69,9 +69,9 @@ func main() {
 		},
 	}
 
-	result, err := service.DispatchIntent(params, intent)
+	result, err := engine.DispatchEdit(params, intent)
 	if err != nil {
-		t.Fatalf("DispatchIntent returned error: %v", err)
+		t.Fatalf("DispatchEdit returned error: %v", err)
 	}
 	if result.Kind != "noop" {
 		t.Fatalf("expected noop result, got %q", result.Kind)

@@ -17,7 +17,7 @@ One “turn” starts when the extension calls the daemon RPC:
 ### What the daemon guarantees
 
 1. The daemon runs an iterative `NextIntent` loop (validated each turn).
-2. The daemon executes each intent in order using `dispatch.Dispatcher`.
+2. The daemon executes each intent in order using `intents.Handler.DispatchIntent`.
 3. The daemon returns a `VoiceTranscriptResult` where `results` is an ordered list of execution results.
 4. Each execution result is exactly one of:
    - `kind: "edit"` with an `editDirective` (a single explicit variant of `EditDirective`)
@@ -94,8 +94,7 @@ One rule should have one owner. Duplicating ownership is a regression risk.
 
 - Agent/runtime: `apps/daemon/internal/agent`
 - Intent types + validation: `apps/daemon/internal/intent`
-- Ordered intent dispatcher: `apps/daemon/internal/dispatch`
-- Directive services (one package each under `apps/daemon/internal/services/`): `edits`, `command`, `navigation`, `undo`
+- Intent execution (`apps/daemon/internal/intents/`): root `dispatch.go` defines `Handler` + `DispatchIntent`; subpackages mirror extension `src/directives/` (`command`, `edits`, `navigation`, `undo`). `command`, `navigation`, and `undo` expose `DispatchCommand` / `DispatchNavigation` / `DispatchUndo` in each `dispatch.go`; `edits` uses `Engine` + `DispatchEdit` in `engine.go` / `edits/dispatch.go` (stateful builder)
 - RPC adapter: `apps/daemon/internal/transcript/service.go`
 
 ### Extension
@@ -120,7 +119,7 @@ One rule should have one owner. Duplicating ownership is a regression risk.
 ### Add a new edit capability
 
 1. Add/extend `EditIntentKind` + validation in `apps/daemon/internal/intent`.
-2. Update `apps/daemon/internal/services/edits/ActionBuilder` to map intent + file snapshot → protocol edit actions.
+2. Update `apps/daemon/internal/intents/edits/ActionBuilder` to map intent + file snapshot → protocol edit actions.
 3. Update the extension mechanical apply logic if you introduce a new protocol action kind.
 4. Add tests in the owning layers:
    - daemon: intent parsing/validation + action building
@@ -130,7 +129,7 @@ One rule should have one owner. Duplicating ownership is a regression risk.
 ### Add a new command capability
 
 1. Ensure the model can emit a `CommandIntent` that maps to protocol `commandDirective`.
-2. Update daemon allowlist in `apps/daemon/internal/services/command/policy.go`.
+2. Update daemon allowlist in `apps/daemon/internal/intents/command/policy.go`.
 3. Update extension allowlist in `apps/vscode-extension/src/directives/command/execute-command.ts`.
 4. Keep execution semantics in the extension; keep command-shape validation in the daemon.
 
@@ -176,7 +175,7 @@ Rules:
 1. Add action schema in `packages/protocol/schema`.
 2. Wire the action union schema updates.
 3. Regenerate TS/Go protocol types with `pnpm codegen`.
-4. Implement daemon action building/validation in `apps/daemon/internal/services/edits`.
+4. Implement daemon action building/validation in `apps/daemon/internal/intents/edits`.
 5. Implement extension mechanical apply logic for the new action kind.
 6. Add tests:
    - daemon action-building + validation tests
@@ -191,7 +190,7 @@ Rules:
 
 1. Extend agent edit intent handling/validation in `apps/daemon/internal/agent`.
 2. Ensure the agent emits deterministic `EditIntent`; edit-building failures are handled inside the daemon.
-3. Ensure `edits.Service.DispatchIntent` maps intent + file snapshot to the correct `EditDirective` variants.
+3. Ensure `edits.Engine.DispatchEdit` maps intent + file snapshot to the correct `EditDirective` variants.
 4. Add planner tests for supported/unsupported instruction expectations and failure codes.
 
 Rules:
@@ -205,7 +204,7 @@ Before merging:
 
 - `internal/app` remains composition + orchestration owner.
 - `internal/rpc` remains transport/routing only (thin handlers).
-- `edits.Service.DispatchIntent` wraps `BuildActions` into protocol `EditDirective` (not an RPC).
+- `edits.Engine.DispatchEdit` wraps `BuildActions` into protocol `EditDirective` (not an RPC).
 - Extension contains only mechanical apply + UI-level orchestration; no semantic policy duplication.
 - Protocol schema/types/validators/runtime behavior stay aligned.
 - Tests cover variant invariants and boundary behavior.
@@ -236,7 +235,7 @@ These are the scripts you should run for cleanliness and correctness:
 ## Anti-patterns (regression risks)
 
 - Handler doing planning or target resolution.
-- `internal/services/edits` orchestrating `internal/agent`.
+- `internal/intents/edits` orchestrating `internal/agent`.
 - Extension re-deciding semantic policy already owned by daemon.
 - Ambiguous/overloaded result shapes (breaks runtime validators and tests).
 - Adding “temporary” policy logic in the extension to unblock daemon work.

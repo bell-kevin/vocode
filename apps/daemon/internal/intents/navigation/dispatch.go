@@ -5,14 +5,8 @@ import (
 	protocol "vocoding.net/vocode/v2/packages/protocol/go"
 )
 
-// Service validates navigation intents and returns protocol navigation directives.
-type Service struct{}
-
-func NewService() *Service {
-	return &Service{}
-}
-
-func (s *Service) DispatchIntent(nav intent.NavigationIntent) (protocol.NavigationDirective, error) {
+// DispatchNavigation validates a navigation intent and returns a protocol navigation directive.
+func DispatchNavigation(nav intent.NavigationIntent) (protocol.NavigationDirective, error) {
 	if err := intent.ValidateNavigationIntent(nav); err != nil {
 		return protocol.NavigationDirective{}, err
 	}
