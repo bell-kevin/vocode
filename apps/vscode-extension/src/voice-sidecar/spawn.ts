@@ -1,9 +1,10 @@
 import { type ChildProcessWithoutNullStreams, spawn } from "node:child_process";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import type * as vscode from "vscode";
+import * as vscode from "vscode";
 
 import { resolveVoiceSidecarPath } from "./paths";
+import { applyWorkspaceDotEnv } from "./workspace-env";
 
 export interface SpawnedVoiceSidecar {
   process: ChildProcessWithoutNullStreams;
@@ -21,6 +22,23 @@ export function spawnVoiceSidecar(
   const msysRoot = process.env.MSYS2_ROOT ?? "C:\\tools\\msys64";
   const mingw64Bin = path.join(msysRoot, "mingw64", "bin");
   const env = { ...process.env };
+  const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+  applyWorkspaceDotEnv(env, workspaceRoot);
+
+  const vadDebug = vscode.workspace
+    .getConfiguration("vocode")
+    .get<boolean>("voiceVadDebug");
+  if (vadDebug === true) {
+    env.VOCODE_VOICE_VAD_DEBUG = "1";
+  }
+
+  // Helps verify merged .env + settings (Developer Tools → Console when running the extension).
+  console.log(
+    "[vocode] voice sidecar spawn env:",
+    "VOCODE_VOICE_VAD_DEBUG=",
+    env.VOCODE_VOICE_VAD_DEBUG ?? "(unset)",
+  );
+
   if (process.platform === "win32" && fs.existsSync(mingw64Bin)) {
     env.PATH = `${mingw64Bin};${env.PATH ?? ""}`;
   }

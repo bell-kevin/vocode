@@ -17,6 +17,7 @@ export const startVoiceCommand: CommandDefinition = {
       }
       services.voiceSession.start();
       services.voiceSidecar.start();
+      services.transcriptStore.setVoiceListening(true);
       services.voiceStatus.setListening();
       void vscode.window.showInformationMessage("Vocode started listening.");
     } catch (error) {

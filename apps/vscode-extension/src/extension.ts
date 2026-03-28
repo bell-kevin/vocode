@@ -8,8 +8,11 @@ import {
 } from "./commands/services";
 import { DaemonClient } from "./daemon/client";
 import { spawnDaemon } from "./daemon/spawn";
-import { TranscriptSidebarProvider } from "./ui/sidebar-provider";
 import { VoiceStatusIndicator } from "./ui/status-bar";
+import {
+  TranscriptPanelViewProvider,
+  transcriptPanelViewType,
+} from "./ui/transcript-panel";
 import { MicrophoneCapture } from "./voice/microphone";
 import { TranscriptStore } from "./voice/transcript-store";
 import { VoiceSidecarClient } from "./voice-sidecar/client";
@@ -51,6 +54,10 @@ function createServices(
 
     let inFlightTranscripts = 0;
 
+    voiceSidecar.onAudioMeter((evt) => {
+      transcriptStore.setAudioMeter(evt.speaking, evt.rms);
+    });
+
     voiceSidecar.onError((evt) => {
       // Ensure user sees sidecar failures even when no transcript ever arrives.
       if (!voiceSession.isRunning()) return;
@@ -59,20 +66,33 @@ function createServices(
       );
       voiceSession.stop();
       voiceStatus.setIdle();
+      transcriptStore.setVoiceListening(false);
     });
 
     voiceSidecar.onTranscript((evt) => {
-      const kind = evt.committed === true ? "final" : "partial";
-      transcriptStore.add(evt.text, kind);
+      if (evt.committed !== true) {
+        transcriptStore.onPartial(evt.text);
+        if (!voiceSession.isRunning()) {
+          return;
+        }
+        return;
+      }
 
+      const pendingId = transcriptStore.enqueueCommitted(evt.text);
+
+      // Daemon work only while listening; the store still records late commits for the panel.
       if (!voiceSession.isRunning()) {
         return;
       }
-      // Only final/committed transcript hypotheses should be forwarded to the core daemon.
-      if (evt.committed !== true) return;
 
+      if (pendingId === null) {
+        return;
+      }
+
+      // Only final/committed transcript hypotheses should be forwarded to the core daemon.
       const editor = vscode.window.activeTextEditor;
       if (!editor) {
+        transcriptStore.markError(pendingId);
         void vscode.window.showWarningMessage(
           "Open a text editor so Vocode can run actions against the active file.",
         );
@@ -87,6 +107,8 @@ function createServices(
       }
       inFlightTranscripts++;
 
+      transcriptStore.markProcessing(pendingId);
+
       void (async () => {
         try {
           const result = await client.transcript({
@@ -95,7 +117,9 @@ function createServices(
             workspaceRoot: workspaceRootPath(),
           });
           await presentTranscriptResult(result, activeFile);
+          transcriptStore.markHandled(pendingId);
         } catch (err) {
+          transcriptStore.markError(pendingId);
           const message =
             err instanceof Error
               ? err.message
@@ -118,6 +142,7 @@ function createServices(
       voiceSession,
       microphone,
       voiceSidecar,
+      transcriptStore,
     };
   } catch (error) {
     const message =
@@ -134,6 +159,7 @@ function createServices(
       voiceSession: new VoiceSessionController(),
       microphone,
       voiceSidecar: null,
+      transcriptStore,
     };
   }
 }
@@ -143,29 +169,26 @@ export function activate(context: vscode.ExtensionContext) {
 
   const voiceStatus = new VoiceStatusIndicator();
   const transcriptStore = new TranscriptStore();
-  const transcriptSidebarProvider = new TranscriptSidebarProvider(
+  const transcriptPanel = new TranscriptPanelViewProvider(
+    context.extensionUri,
     transcriptStore,
   );
 
   context.subscriptions.push(
-    vscode.window.registerTreeDataProvider(
-      "vocode.liveTranscriptView",
-      transcriptSidebarProvider,
+    vscode.window.registerWebviewViewProvider(
+      transcriptPanelViewType,
+      transcriptPanel,
     ),
+    transcriptPanel,
   );
 
   const services = createServices(context, voiceStatus, transcriptStore);
 
-  context.subscriptions.push(
-    voiceStatus,
-    transcriptSidebarProvider,
-    ...registerAllCommands(services),
-    {
-      dispose: () => {
-        services.client?.dispose();
-      },
+  context.subscriptions.push(voiceStatus, ...registerAllCommands(services), {
+    dispose: () => {
+      services.client?.dispose();
     },
-  );
+  });
 }
 
 export function deactivate() {}

@@ -6,14 +6,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"os"
 	"strings"
 	"sync"
-	"time"
 )
 
 type App struct {
-	in  io.Reader
+	in io.Reader
 	out io.Writer
 
 	mu sync.Mutex
@@ -21,22 +19,12 @@ type App struct {
 	running bool
 	cancel  context.CancelFunc
 	wg      sync.WaitGroup
-
-	segmentSeconds int64
 }
 
 func New(in io.Reader, out io.Writer) *App {
-	segmentSeconds := int64(5)
-	if v := strings.TrimSpace(os.Getenv("VOCODE_VOICE_SEGMENT_SECONDS")); v != "" {
-		if parsed, err := time.ParseDuration(v + "s"); err == nil {
-			segmentSeconds = int64(parsed.Seconds())
-		}
-	}
-
 	return &App{
-		in:             in,
-		out:            out,
-		segmentSeconds: segmentSeconds,
+		in:  in,
+		out: out,
 	}
 }
 

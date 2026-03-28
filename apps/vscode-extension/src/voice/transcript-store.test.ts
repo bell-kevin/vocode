@@ -3,54 +3,103 @@ import test from "node:test";
 
 import { TranscriptStore } from "./transcript-store";
 
-test("stores transcript entries in reverse chronological order", () => {
+test("clears partial buffer when a committed line arrives", () => {
   const store = new TranscriptStore();
+  store.setVoiceListening(true);
 
-  store.add("first partial", "partial");
-  store.add("final transcript", "final");
+  store.onPartial("partial one");
+  store.onPartial("partial two");
 
-  const entries = store.getEntries();
+  assert.equal(store.getSnapshot().latestPartial, "partial two");
+  assert.ok(store.getSnapshot().partialRecent.length >= 1);
 
-  assert.equal(entries.length, 2);
-  assert.equal(entries[0]?.text, "final transcript");
-  assert.equal(entries[0]?.kind, "final");
-  assert.equal(entries[1]?.text, "first partial");
-  assert.equal(entries[1]?.kind, "partial");
+  store.enqueueCommitted("final line");
+
+  const snap = store.getSnapshot();
+  assert.equal(snap.latestPartial, null);
+  assert.equal(snap.partialRecent.length, 0);
+  assert.equal(snap.pending.length, 1);
+  assert.equal(snap.pending[0]?.text, "final line");
 });
 
-test("does not store empty transcript text", () => {
+test("does not enqueue empty committed text", () => {
   const store = new TranscriptStore();
 
-  store.add("   ", "partial");
-
-  assert.equal(store.getEntries().length, 0);
+  assert.equal(store.enqueueCommitted("   "), null);
+  assert.equal(store.getSnapshot().pending.length, 0);
 });
 
-test("notifies listeners when a transcript is added", () => {
+test("tracks pending through processing to handled", () => {
   const store = new TranscriptStore();
+  const id = store.enqueueCommitted("run tests");
+
+  assert.ok(id !== null);
+  assert.equal(store.getSnapshot().pending[0]?.status, "queued");
+
+  store.markProcessing(id);
+  assert.equal(store.getSnapshot().pending[0]?.status, "processing");
+
+  store.markHandled(id);
+  assert.equal(store.getSnapshot().pending.length, 0);
+  assert.equal(store.getSnapshot().recentHandled[0]?.text, "run tests");
+});
+
+test("markError leaves the line visible as error", () => {
+  const store = new TranscriptStore();
+  const id = store.enqueueCommitted("x") as number;
+
+  store.markError(id);
+  assert.equal(store.getSnapshot().pending[0]?.status, "error");
+});
+
+test("setVoiceListening false removes live hypothesis", () => {
+  const store = new TranscriptStore();
+  store.setVoiceListening(true);
+
+  store.onPartial("hello");
+  assert.ok(store.getSnapshot().latestPartial);
+
+  store.setVoiceListening(false);
+  assert.equal(store.getSnapshot().latestPartial, null);
+  assert.equal(store.getSnapshot().partialRecent.length, 0);
+  assert.equal(store.getSnapshot().voiceListening, false);
+});
+
+test("onPartial is ignored while not listening", () => {
+  const store = new TranscriptStore();
+
+  store.onPartial("hello");
+  assert.equal(store.getSnapshot().latestPartial, null);
+});
+
+test("notifies listeners on change", () => {
+  const store = new TranscriptStore();
+  store.setVoiceListening(true);
   let notifications = 0;
 
   const unsubscribe = store.onDidChange(() => {
     notifications += 1;
   });
 
-  store.add("hello", "partial");
+  store.onPartial("hello");
   unsubscribe();
-  store.add("world", "final");
+  store.onPartial("world");
 
   assert.equal(notifications, 1);
 });
 
-test("caps the number of retained transcript entries", () => {
+test("caps recent handled history", () => {
   const store = new TranscriptStore(2);
 
-  store.add("one", "partial");
-  store.add("two", "partial");
-  store.add("three", "final");
+  const a = store.enqueueCommitted("a") as number;
+  const b = store.enqueueCommitted("b") as number;
+  const c = store.enqueueCommitted("c") as number;
 
-  const entries = store.getEntries();
-  assert.deepEqual(
-    entries.map((entry) => entry.text),
-    ["three", "two"],
-  );
+  store.markHandled(a);
+  store.markHandled(b);
+  store.markHandled(c);
+
+  assert.equal(store.getSnapshot().recentHandled.length, 2);
+  assert.equal(store.getSnapshot().recentHandled[0]?.text, "c");
+  assert.equal(store.getSnapshot().recentHandled[1]?.text, "b");
 });

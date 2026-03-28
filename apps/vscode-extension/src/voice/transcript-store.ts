@@ -1,47 +1,193 @@
-export type TranscriptKind = "partial" | "final";
+const DEFAULT_MAX_HANDLED = 30;
+const PARTIAL_RECENT_MAX = 5;
+const WAVEFORM_SAMPLES = 64;
 
-export type TranscriptEntry = {
+/** Committed voice text not yet finished processing through the daemon + apply pipeline. */
+export type PendingStatus = "queued" | "processing" | "error";
+
+export type PendingTranscript = {
   readonly id: number;
   readonly text: string;
-  readonly kind: TranscriptKind;
   readonly receivedAt: Date;
+  status: PendingStatus;
 };
 
-const DEFAULT_MAX_ENTRIES = 50;
+export type TranscriptPanelSnapshot = {
+  /** Committed lines still in flight (queued, processing, or error). */
+  readonly pending: readonly PendingTranscript[];
+  /** Recently completed lines (newest first). */
+  readonly recentHandled: readonly {
+    readonly text: string;
+    readonly receivedAt: Date;
+  }[];
+  /** Latest partial hypothesis after the most recent committed event. */
+  readonly latestPartial: string | null;
+  /** Recent partial snapshots since last commit (oldest → newest). */
+  readonly partialRecent: readonly string[];
+  /** True while Start Voice is active (matches extension voice session). */
+  readonly voiceListening: boolean;
+  /** Sidecar VAD + level (streaming STT only); for waveform / level UI. */
+  readonly audioMeter: AudioMeterSnapshot;
+};
+
+export type AudioMeterSnapshot = {
+  readonly speaking: boolean;
+  /** Normalized 0–1 RMS level from sidecar. */
+  readonly rms: number;
+  /** Recent normalized levels (oldest → newest) for a simple waveform strip. */
+  readonly waveform: readonly number[];
+};
 
 export class TranscriptStore {
-  private readonly entries: TranscriptEntry[] = [];
   private readonly listeners = new Set<() => void>();
   private nextId = 1;
 
-  constructor(private readonly maxEntries: number = DEFAULT_MAX_ENTRIES) {}
+  private readonly pending: PendingTranscript[] = [];
+  private recentHandled: { text: string; receivedAt: Date }[] = [];
 
-  add(text: string, kind: TranscriptKind): TranscriptEntry {
-    const normalizedText = text.trim();
-    const entry: TranscriptEntry = {
-      id: this.nextId,
-      text: normalizedText,
-      kind,
-      receivedAt: new Date(),
-    };
+  private latestPartial: string | null = null;
+  private partialRecent: string[] = [];
+  private voiceListening = false;
 
-    this.nextId++;
+  private meterSpeaking = false;
+  private meterRms = 0;
+  private waveformRms: number[] = [];
 
-    if (!normalizedText) {
-      return entry;
+  constructor(private readonly maxHandled: number = DEFAULT_MAX_HANDLED) {}
+
+  /**
+   * Whether the user has started voice listening. The panel only shows live partials + typing dots
+   * when this is true and a partial exists (extension has no VAD; partials proxy “speech in flight”).
+   */
+  setVoiceListening(active: boolean): void {
+    if (this.voiceListening === active) {
+      return;
     }
-
-    this.entries.unshift(entry);
-    if (this.entries.length > this.maxEntries) {
-      this.entries.pop();
+    this.voiceListening = active;
+    if (!active) {
+      this.latestPartial = null;
+      this.partialRecent = [];
+      this.meterSpeaking = false;
+      this.meterRms = 0;
+      this.waveformRms = [];
+    } else {
+      this.meterSpeaking = false;
+      this.meterRms = 0;
+      this.waveformRms = [];
     }
-
     this.emit();
-    return entry;
   }
 
-  getEntries(): readonly TranscriptEntry[] {
-    return this.entries;
+  /** Mic level + VAD speech gate from sidecar `audio_meter` events (streaming only). */
+  setAudioMeter(speaking: boolean, rms: number): void {
+    if (!this.voiceListening) {
+      return;
+    }
+    const level = Number.isFinite(rms) ? Math.min(1, Math.max(0, rms)) : 0;
+    this.meterSpeaking = speaking;
+    this.meterRms = level;
+    this.waveformRms.push(level);
+    if (this.waveformRms.length > WAVEFORM_SAMPLES) {
+      this.waveformRms.shift();
+    }
+    this.emit();
+  }
+
+  /** Partial hypotheses after the latest committed transcript (cleared on each commit). */
+  onPartial(text: string): void {
+    if (!this.voiceListening) {
+      return;
+    }
+    const normalized = text.trim();
+    if (!normalized) {
+      this.latestPartial = null;
+      this.partialRecent = [];
+      this.emit();
+      return;
+    }
+
+    this.latestPartial = normalized;
+    const prev = this.partialRecent[this.partialRecent.length - 1];
+    if (prev !== normalized) {
+      this.partialRecent.push(normalized);
+      while (this.partialRecent.length > PARTIAL_RECENT_MAX) {
+        this.partialRecent.shift();
+      }
+    }
+    this.emit();
+  }
+
+  /**
+   * A committed line arrived from STT. Clears the partial buffer for the next utterance.
+   * Returns the id used to track this line through the daemon pipeline.
+   */
+  /** Returns null if the committed text was empty (nothing to track). */
+  enqueueCommitted(text: string): number | null {
+    const normalized = text.trim();
+    this.latestPartial = null;
+    this.partialRecent = [];
+
+    if (!normalized) {
+      this.emit();
+      return null;
+    }
+
+    const id = this.nextId++;
+    this.pending.push({
+      id,
+      text: normalized,
+      receivedAt: new Date(),
+      status: "queued",
+    });
+    this.emit();
+    return id;
+  }
+
+  markProcessing(id: number): void {
+    const item = this.pending.find((p) => p.id === id);
+    if (item) {
+      item.status = "processing";
+      this.emit();
+    }
+  }
+
+  markHandled(id: number): void {
+    const index = this.pending.findIndex((p) => p.id === id);
+    if (index === -1) {
+      return;
+    }
+    const [removed] = this.pending.splice(index, 1);
+    this.recentHandled.unshift({
+      text: removed.text,
+      receivedAt: removed.receivedAt,
+    });
+    while (this.recentHandled.length > this.maxHandled) {
+      this.recentHandled.pop();
+    }
+    this.emit();
+  }
+
+  markError(id: number): void {
+    const item = this.pending.find((p) => p.id === id);
+    if (item) {
+      item.status = "error";
+      this.emit();
+    }
+  }
+
+  getSnapshot(): TranscriptPanelSnapshot {
+    return {
+      pending: this.pending,
+      recentHandled: this.recentHandled,
+      latestPartial: this.latestPartial,
+      partialRecent: this.partialRecent,
+      voiceListening: this.voiceListening,
+      audioMeter: {
+        speaking: this.meterSpeaking,
+        rms: this.meterRms,
+        waveform: this.waveformRms,
+      },
+    };
   }
 
   onDidChange(listener: () => void): () => void {

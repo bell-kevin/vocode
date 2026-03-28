@@ -2,7 +2,9 @@ package app
 
 import (
 	"encoding/binary"
+	"fmt"
 	"math"
+	"os"
 )
 
 type vadChunk struct {
@@ -11,24 +13,29 @@ type vadChunk struct {
 }
 
 type localVAD struct {
-	frameBytes       int
-	minChunkBytes    int
-	maxChunkBytes    int
-	startFrames      int
-	endFrames        int
-	maxUtterFrames   int
-	threshold        float64
-	minEnergyFloor   float64
+	frameBytes     int
+	minChunkBytes  int
+	maxChunkBytes  int
+	startFrames    int
+	endFrames      int
+	maxUtterFrames int
+	threshold      float64
+	minEnergyFloor float64
 
-	inSpeech      bool
-	speechFrames  int
+	inSpeech       bool
+	speechFrames   int
 	inSpeechFrames int
-	silenceFrames int
-	noiseFloor    float64
+	silenceFrames  int
+	noiseFloor     float64
 
 	prerollFrames [][]byte
 	prerollCap    int
 	sendBuf       []byte
+
+	debug bool
+
+	// lastFrameRMS is the RMS energy of the most recently processed 20ms frame (for extension UI).
+	lastFrameRMS float64
 }
 
 func newLocalVAD(sampleRate int, minChunkBytes int, maxChunkBytes int, maxUtteranceMS int) *localVAD {
@@ -50,18 +57,31 @@ func newLocalVAD(sampleRate int, minChunkBytes int, maxChunkBytes int, maxUttera
 	maxUtterFrames := maxInt(1, maxUtteranceMS/frameMS)
 
 	return &localVAD{
-		frameBytes:       frameBytes,
-		minChunkBytes:    minChunkBytes,
-		maxChunkBytes:    maxChunkBytes,
-		startFrames:      startFrames,
-		endFrames:        endFrames,
-		maxUtterFrames:   maxUtterFrames,
-		threshold:        vadThresholdMultiplier(),
-		minEnergyFloor:   150.0,
-		noiseFloor:       150.0,
-		prerollCap:       prerollCap,
-		prerollFrames:    make([][]byte, 0, prerollCap),
+		frameBytes:     frameBytes,
+		minChunkBytes:  minChunkBytes,
+		maxChunkBytes:  maxChunkBytes,
+		startFrames:    startFrames,
+		endFrames:      endFrames,
+		maxUtterFrames: maxUtterFrames,
+		threshold:      vadThresholdMultiplier(),
+		minEnergyFloor: 150.0,
+		noiseFloor:     150.0,
+		prerollCap:     prerollCap,
+		prerollFrames:  make([][]byte, 0, prerollCap),
+		debug:          vadDebugEnabled(),
 	}
+}
+
+func (v *localVAD) dbg(format string, args ...any) {
+	if !v.debug {
+		return
+	}
+	fmt.Fprintf(os.Stderr, "[vocode-vad] "+format+"\n", args...)
+}
+
+// MeterSnapshot reports VAD speech gate and last frame loudness (PCM16 RMS of one 20ms frame).
+func (v *localVAD) MeterSnapshot() (speaking bool, rms float64) {
+	return v.inSpeech, v.lastFrameRMS
 }
 
 func (v *localVAD) process(frame []byte) []vadChunk {
@@ -69,6 +89,7 @@ func (v *localVAD) process(frame []byte) []vadChunk {
 		return nil
 	}
 	energy := pcm16RMS(frame)
+	v.lastFrameRMS = energy
 	isSpeech := energy > math.Max(v.noiseFloor*v.threshold, v.minEnergyFloor)
 	chunks := make([]vadChunk, 0, 2)
 
@@ -81,6 +102,13 @@ func (v *localVAD) process(frame []byte) []vadChunk {
 			v.updateNoiseFloor(energy)
 		}
 		if v.speechFrames >= v.startFrames {
+			v.dbg(
+				"speech_start energy=%.1f noise_floor=%.1f speech_threshold=%.1f (start_frames=%d)",
+				energy,
+				v.noiseFloor,
+				math.Max(v.noiseFloor*v.threshold, v.minEnergyFloor),
+				v.startFrames,
+			)
 			v.inSpeech = true
 			v.inSpeechFrames = 0
 			v.silenceFrames = 0
@@ -107,6 +135,7 @@ func (v *localVAD) process(frame []byte) []vadChunk {
 
 	if v.silenceFrames >= v.endFrames {
 		if len(v.sendBuf) > 0 {
+			v.dbg("commit utterance_end (silence) silence_frames=%d end_frames=%d pcm_bytes=%d", v.silenceFrames, v.endFrames, len(v.sendBuf))
 			chunks = append(chunks, vadChunk{pcm: append([]byte(nil), v.sendBuf...), commit: true})
 		}
 		v.sendBuf = nil
@@ -119,6 +148,7 @@ func (v *localVAD) process(frame []byte) []vadChunk {
 
 	// Force periodic commits for very long utterances.
 	if v.inSpeechFrames >= v.maxUtterFrames && len(v.sendBuf) > 0 {
+		v.dbg("commit utterance_max in_speech_frames=%d max_frames=%d pcm_bytes=%d", v.inSpeechFrames, v.maxUtterFrames, len(v.sendBuf))
 		chunks = append(chunks, vadChunk{pcm: append([]byte(nil), v.sendBuf...), commit: true})
 		v.sendBuf = nil
 		v.inSpeechFrames = 0
@@ -130,6 +160,7 @@ func (v *localVAD) flush() []vadChunk {
 	if len(v.sendBuf) == 0 {
 		return nil
 	}
+	v.dbg("commit flush pcm_bytes=%d", len(v.sendBuf))
 	ch := vadChunk{pcm: append([]byte(nil), v.sendBuf...), commit: true}
 	v.sendBuf = nil
 	return []vadChunk{ch}

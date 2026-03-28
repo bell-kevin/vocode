@@ -5,74 +5,31 @@ import (
 	"fmt"
 	"io"
 	"strings"
+	"time"
 
 	"vocoding.net/vocode/v2/apps/voice/internal/mic"
 	"vocoding.net/vocode/v2/apps/voice/internal/stt"
 )
+
+const audioMeterEmitInterval = 40 * time.Millisecond
+
+func normalizeMeterRMS(rms float64) float64 {
+	if rms <= 0 {
+		return 0
+	}
+	const ref = 12000.0
+	x := rms / ref
+	if x > 1 {
+		return 1
+	}
+	return x
+}
 
 func (a *App) transcribeLoop(ctx context.Context, apiKey string, modelID string, rec *mic.Recorder) {
 	defer func() {
 		_ = rec.Stop()
 	}()
 
-	if sttMode() == "stream" {
-		a.transcribeLoopStream(ctx, apiKey, modelID, rec)
-		return
-	}
-	a.transcribeLoopBatch(ctx, apiKey, modelID, rec)
-}
-
-func (a *App) transcribeLoopBatch(ctx context.Context, apiKey string, modelID string, rec *mic.Recorder) {
-	bytesPerSecond := int64(16000 * 1 * 2) // 16kHz * mono * int16
-	targetBytes := bytesPerSecond * a.segmentSeconds
-	if targetBytes <= 0 {
-		targetBytes = bytesPerSecond * 5
-	}
-
-	buf := make([]byte, 32*1024)
-	var segment []byte
-	contextWindow := newUtteranceWindow(4, 1200)
-
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		default:
-		}
-
-		n, err := rec.PCMReader().Read(buf)
-		if n > 0 {
-			segment = append(segment, buf[:n]...)
-		}
-
-		if int64(len(segment)) >= targetBytes {
-			wav, werr := mic.EncodeWavPCM16LE(segment, 16000, 1)
-			if werr != nil {
-				_ = a.write(Event{Type: "error", Message: fmt.Sprintf("failed to encode wav: %v", werr)})
-			} else {
-				text, terr := stt.TranscribeElevenLabs(apiKey, modelID, "audio/wav", wav, contextWindow.PreviousText())
-				if terr != nil {
-					_ = a.write(Event{Type: "error", Message: fmt.Sprintf("elevenlabs stt failed: %v", terr)})
-				} else if strings.TrimSpace(text) != "" {
-					committed := true
-					_ = a.write(Event{Type: "transcript", Text: text, Committed: &committed})
-					contextWindow.AddUtterance(text)
-				}
-			}
-			segment = nil
-		}
-
-		if err != nil {
-			if err == io.EOF {
-				return
-			}
-			_ = a.write(Event{Type: "error", Message: fmt.Sprintf("microphone read failed: %v", err)})
-			return
-		}
-	}
-}
-
-func (a *App) transcribeLoopStream(ctx context.Context, apiKey string, modelID string, rec *mic.Recorder) {
 	client, err := stt.NewElevenLabsStreamingClient(ctx, apiKey, modelID, 16000)
 	if err != nil {
 		_ = a.write(Event{Type: "error", Message: fmt.Sprintf("failed to start elevenlabs streaming stt: %v", err)})
@@ -96,6 +53,12 @@ func (a *App) transcribeLoopStream(ctx context.Context, apiKey string, modelID s
 	var chunk []byte
 	contextWindow := newUtteranceWindow(4, 1200)
 	vad := newLocalVAD(16000, int(minChunkBytes), int(maxChunkBytes), streamMaxUtteranceMS())
+	var lastAudioMeterEmit time.Time
+
+	// ElevenLabs realtime STT emits partial_transcript until it receives input_audio_chunk with
+	// commit: true, then it may emit committed_transcript for that segment (see stt.SendInputAudioChunk).
+	// Docs call that a "manual commit"; here we drive it from local VAD: commit=true at end of
+	// utterance (silence), periodic long-utterance cuts, and mic flush — not a separate UI action.
 
 	for {
 		select {
@@ -117,6 +80,14 @@ func (a *App) transcribeLoopStream(ctx context.Context, apiKey string, modelID s
 					_ = a.write(Event{Type: "error", Message: fmt.Sprintf("elevenlabs streaming send failed: %v", err)})
 					return
 				}
+			}
+			if time.Since(lastAudioMeterEmit) >= audioMeterEmitInterval {
+				lastAudioMeterEmit = time.Now()
+				speaking, raw := vad.MeterSnapshot()
+				norm := normalizeMeterRMS(raw)
+				sp := speaking
+				nr := norm
+				_ = a.write(Event{Type: "audio_meter", Speaking: &sp, Rms: &nr})
 			}
 		}
 

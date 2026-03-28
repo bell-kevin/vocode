@@ -86,6 +86,8 @@ func (c *ElevenLabsStreamingClient) Close() error {
 	return err
 }
 
+// SendInputAudioChunk sends PCM audio; commit asks ElevenLabs to finalize that segment (leading to
+// committed_transcript on the websocket). The app sets commit from local VAD boundaries.
 func (c *ElevenLabsStreamingClient) SendInputAudioChunk(pcm []byte, commit bool, previousText string) error {
 	if len(pcm) == 0 {
 		return nil

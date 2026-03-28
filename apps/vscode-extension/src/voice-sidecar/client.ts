@@ -8,6 +8,8 @@ interface VoiceSidecarEvent {
   version?: string;
   text?: string;
   committed?: boolean;
+  speaking?: boolean;
+  rms?: number;
 }
 
 export interface VoiceSidecarTranscriptEvent {
@@ -17,12 +19,20 @@ export interface VoiceSidecarTranscriptEvent {
   committed?: boolean;
 }
 
+export interface VoiceSidecarAudioMeterEvent {
+  type: "audio_meter";
+  speaking: boolean;
+  /** Normalized 0–1 RMS from sidecar. */
+  rms: number;
+}
+
 export class VoiceSidecarClient {
   private readonly process: ChildProcessWithoutNullStreams;
   private disposed = false;
   private transcriptHandler?: (evt: VoiceSidecarTranscriptEvent) => void;
   private stateHandler?: (evt: { type: "state"; state: string }) => void;
   private errorHandler?: (evt: { type: "error"; message: string }) => void;
+  private audioMeterHandler?: (evt: VoiceSidecarAudioMeterEvent) => void;
 
   constructor(process: ChildProcessWithoutNullStreams) {
     this.process = process;
@@ -39,33 +49,56 @@ export class VoiceSidecarClient {
       }
       try {
         const evt = JSON.parse(trimmed) as VoiceSidecarEvent;
-        if (evt.type === "ready") {
-          console.log(`[vocode-voiced] ready version=${evt.version ?? "?"}`);
-        } else if (evt.type === "state") {
-          console.log(`[vocode-voiced] state=${evt.state ?? "?"}`);
-          if (typeof evt.state === "string" && evt.state) {
-            this.stateHandler?.({ type: "state", state: evt.state });
-          }
-        } else if (evt.type === "error") {
-          console.warn(`[vocode-voiced] error: ${evt.message ?? "unknown"}`);
-          const message =
-            typeof evt.message === "string" ? evt.message : "unknown";
-          this.errorHandler?.({ type: "error", message });
-        } else if (evt.type === "transcript") {
-          const text = typeof evt.text === "string" ? evt.text : "";
-          const committed = this.getCommitted(evt);
-          if (!text) return;
-          this.transcriptHandler?.({
-            type: "transcript",
-            text,
-            committed,
-          });
-        }
+        this.dispatchSidecarEvent(evt);
       } catch (err) {
         console.error("[vocode-voiced] failed to parse stdout as JSON:", err);
         console.error("[vocode-voiced] raw line:", trimmed);
       }
     });
+  }
+
+  private dispatchSidecarEvent(evt: VoiceSidecarEvent): void {
+    if (evt.type === "ready") {
+      console.log(`[vocode-voiced] ready version=${evt.version ?? "?"}`);
+      return;
+    }
+    if (evt.type === "state") {
+      console.log(`[vocode-voiced] state=${evt.state ?? "?"}`);
+      if (typeof evt.state === "string" && evt.state) {
+        this.stateHandler?.({ type: "state", state: evt.state });
+      }
+      return;
+    }
+    if (evt.type === "error") {
+      console.warn(`[vocode-voiced] error: ${evt.message ?? "unknown"}`);
+      const message = typeof evt.message === "string" ? evt.message : "unknown";
+      this.errorHandler?.({ type: "error", message });
+      return;
+    }
+    if (evt.type === "audio_meter") {
+      const speaking = evt.speaking === true;
+      const raw = evt.rms;
+      const rms =
+        typeof raw === "number" && Number.isFinite(raw)
+          ? Math.min(1, Math.max(0, raw))
+          : 0;
+      this.audioMeterHandler?.({
+        type: "audio_meter",
+        speaking,
+        rms,
+      });
+      return;
+    }
+    if (evt.type === "transcript") {
+      const text = typeof evt.text === "string" ? evt.text : "";
+      const committed = this.getCommitted(evt);
+      if (!text) return;
+      this.transcriptHandler?.({
+        type: "transcript",
+        text,
+        committed,
+      });
+    }
   }
 
   public start(): void {
@@ -96,6 +129,10 @@ export class VoiceSidecarClient {
 
   public onError(handler: (evt: { type: "error"; message: string }) => void) {
     this.errorHandler = handler;
+  }
+
+  public onAudioMeter(handler: (evt: VoiceSidecarAudioMeterEvent) => void) {
+    this.audioMeterHandler = handler;
   }
 
   private send(msg: { type: string }): void {

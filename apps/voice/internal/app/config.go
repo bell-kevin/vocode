@@ -23,18 +23,6 @@ func sttEnabled() bool {
 	}
 }
 
-func sttMode() string {
-	v := strings.TrimSpace(strings.ToLower(os.Getenv("VOCODE_VOICE_STT_MODE")))
-	switch v {
-	case "", "batch":
-		return "batch"
-	case "stream", "streaming", "websocket", "ws":
-		return "stream"
-	default:
-		return "batch"
-	}
-}
-
 func sttModelID() string {
 	v := strings.TrimSpace(os.Getenv("ELEVENLABS_STT_MODEL_ID"))
 	if v == "" {
@@ -69,6 +57,17 @@ func streamMaxChunkMS() int {
 
 func streamMaxUtteranceMS() int {
 	return envInt("VOCODE_VOICE_STREAM_MAX_UTTERANCE_MS", 4000, 500, 20000)
+}
+
+// vadDebugEnabled logs VAD decisions to stderr (never stdout — stdout is JSON for the extension).
+func vadDebugEnabled() bool {
+	v := strings.TrimSpace(strings.ToLower(os.Getenv("VOCODE_VOICE_VAD_DEBUG")))
+	switch v {
+	case "1", "true", "yes", "y", "on":
+		return true
+	default:
+		return false
+	}
 }
 
 func envInt(name string, defaultValue int, minValue int, maxValue int) int {

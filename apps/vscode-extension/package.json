@@ -34,13 +34,34 @@
         "title": "Vocode: Send Transcript"
       }
     ],
-    "views": {
-      "explorer": [
+    "viewsContainers": {
+      "activitybar": [
         {
-          "id": "vocode.liveTranscriptView",
-          "name": "Vocode Live Transcript"
+          "id": "vocode",
+          "title": "Vocode",
+          "icon": "media/vocode-icon.svg"
         }
       ]
+    },
+    "views": {
+      "vocode": [
+        {
+          "id": "vocode.transcriptPanel",
+          "name": "Voice",
+          "type": "webview",
+          "contextualTitle": "Vocode"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "Vocode",
+      "properties": {
+        "vocode.voiceVadDebug": {
+          "type": "boolean",
+          "default": false,
+          "description": "Forward VOCODE_VOICE_VAD_DEBUG=1 to the voice sidecar ([vocode-vad] lines on stderr)."
+        }
+      }
     }
   },
   "scripts": {

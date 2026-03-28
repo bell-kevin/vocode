@@ -9,6 +9,7 @@ export const stopVoiceCommand: CommandDefinition = {
     services.voiceSession.stop();
     services.voiceSidecar?.stop();
     services.voiceStatus.setIdle();
+    services.transcriptStore.setVoiceListening(false);
     void vscode.window.showInformationMessage("Vocode stopped listening.");
   },
 };
