@@ -67,6 +67,13 @@ func vadPrerollMS() int {
 	return envInt("VOCODE_VOICE_VAD_PREROLL_MS", 320, 0, 1000)
 }
 
+// sttCommitResponseTimeoutMS: after commit:true we wait for committed_transcript before sending more
+// non-commit PCM; if it never arrives, flush deferred audio after this many ms. 0 = wait indefinitely
+// (can grow memory if the stream is broken).
+func sttCommitResponseTimeoutMS() int {
+	return envInt("VOCODE_VOICE_STT_COMMIT_RESPONSE_TIMEOUT_MS", 5000, 0, 120000)
+}
+
 func streamMinChunkMS() int {
 	return envInt("VOCODE_VOICE_STREAM_MIN_CHUNK_MS", 200, 50, 2000)
 }
