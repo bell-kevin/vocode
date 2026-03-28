@@ -25,12 +25,12 @@ export function spawnVoiceSidecar(
   const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
   applyWorkspaceDotEnv(env, workspaceRoot);
 
-  const vadDebug = vscode.workspace
-    .getConfiguration("vocode")
-    .get<boolean>("voiceVadDebug");
+  const vocodeConfig = vscode.workspace.getConfiguration("vocode");
+  const vadDebug = vocodeConfig.get<boolean>("voiceVadDebug");
   if (vadDebug === true) {
     env.VOCODE_VOICE_VAD_DEBUG = "1";
   }
+  const logProtocolStdout = vocodeConfig.get<boolean>("voiceSidecarLogProtocol") === true;
 
   // Helps verify merged .env + settings (Developer Tools → Console when running the extension).
   console.log(
@@ -50,7 +50,9 @@ export function spawnVoiceSidecar(
   });
 
   proc.stdout.on("data", (data: Buffer) => {
-    console.log("[vocode-voiced stdout]", data.toString());
+    if (logProtocolStdout) {
+      console.log("[vocode-voiced stdout]", data.toString());
+    }
   });
 
   proc.stderr.on("data", (data: Buffer) => {

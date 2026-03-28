@@ -66,11 +66,11 @@ func (a *App) transcribeLoop(ctx context.Context, apiKey string, modelID string,
 	var outboundCommitDeadline time.Time
 
 	if vadDebugEnabled() {
-		fmt.Fprintf(
-			os.Stderr,
-			"[vocode-vad] debug on (VOCODE_VOICE_VAD_DEBUG=%q)\n",
-			strings.TrimSpace(os.Getenv("VOCODE_VOICE_VAD_DEBUG")),
-		)
+		fmt.Fprintf(os.Stderr, "[vocode-vad] verbose VAD logging on (VOCODE_VOICE_VAD_DEBUG=1)\n")
+		stderrSync()
+	}
+	if sttPipelineDebugEnabled() {
+		fmt.Fprintf(os.Stderr, "[vocode-stt] pipeline logging on — commit, hold, committed_transcript (VOCODE_VOICE_STT_DEBUG=1)\n")
 		stderrSync()
 	}
 
@@ -107,13 +107,9 @@ func (a *App) transcribeLoop(ctx context.Context, apiKey string, modelID string,
 			chunk = chunk[vad.frameBytes:]
 			for _, c := range vad.process(frame) {
 				if c.commit {
-					if err := a.endOutboundHold(client, contextWindow, &awaitingOutboundCommitted, &outboundCommitDeadline, &sttDeferred); err != nil {
+					if err := a.endOutboundHold(client, contextWindow, &awaitingOutboundCommitted, &outboundCommitDeadline, &sttDeferred, "pre_commit"); err != nil {
 						_ = a.write(Event{Type: "error", Message: fmt.Sprintf("elevenlabs streaming send failed: %v", err)})
 						return
-					}
-					if vadDebugEnabled() {
-						fmt.Fprintf(os.Stderr, "[vocode-vad] sending commit pcm_bytes=%d\n", len(c.pcm))
-						stderrSync()
 					}
 					if err := a.sendSTTChunk(client, contextWindow, c.pcm, c.commit); err != nil {
 						_ = a.write(Event{Type: "error", Message: fmt.Sprintf("elevenlabs streaming send failed: %v", err)})
@@ -124,6 +120,11 @@ func (a *App) transcribeLoop(ctx context.Context, apiKey string, modelID string,
 						outboundCommitDeadline = time.Now().Add(time.Duration(commitResponseTimeoutMS) * time.Millisecond)
 					} else {
 						outboundCommitDeadline = time.Time{}
+					}
+					if sttPipelineDebugEnabled() {
+						fmt.Fprintf(os.Stderr, "[vocode-stt] commit_sent pcm_bytes=%d commit_only=%v hold_max_ms=%d\n",
+							len(c.pcm), len(c.pcm) == 0, commitResponseTimeoutMS)
+						stderrSync()
 					}
 					continue
 				}
@@ -159,18 +160,18 @@ func (a *App) transcribeLoop(ctx context.Context, apiKey string, modelID string,
 
 		if readErr != nil {
 			if readErr == io.EOF {
-				if err := a.endOutboundHold(client, contextWindow, &awaitingOutboundCommitted, &outboundCommitDeadline, &sttDeferred); err != nil {
+				if err := a.endOutboundHold(client, contextWindow, &awaitingOutboundCommitted, &outboundCommitDeadline, &sttDeferred, "mic_eof"); err != nil {
 					_ = a.write(Event{Type: "error", Message: fmt.Sprintf("elevenlabs streaming send failed: %v", err)})
 					return
 				}
 				for _, c := range vad.flush() {
-					if vadDebugEnabled() && c.commit {
-						fmt.Fprintf(os.Stderr, "[vocode-vad] sending commit pcm_bytes=%d (flush)\n", len(c.pcm))
-						stderrSync()
-					}
 					if err := a.sendSTTChunk(client, contextWindow, c.pcm, c.commit); err != nil {
 						_ = a.write(Event{Type: "error", Message: fmt.Sprintf("elevenlabs streaming send failed: %v", err)})
 						return
+					}
+					if sttPipelineDebugEnabled() && c.commit {
+						fmt.Fprintf(os.Stderr, "[vocode-stt] commit_sent pcm_bytes=%d commit_only=%v (mic_eof_flush)\n", len(c.pcm), len(c.pcm) == 0)
+						stderrSync()
 					}
 				}
 				return
@@ -207,7 +208,16 @@ func (a *App) flushSTTDeferred(client *stt.ElevenLabsStreamingClient, contextWin
 	return nil
 }
 
-func (a *App) endOutboundHold(client *stt.ElevenLabsStreamingClient, contextWindow *utteranceWindow, awaiting *bool, deadline *time.Time, deferred *[]vadChunk) error {
+func (a *App) endOutboundHold(client *stt.ElevenLabsStreamingClient, contextWindow *utteranceWindow, awaiting *bool, deadline *time.Time, deferred *[]vadChunk, reason string) error {
+	if sttPipelineDebugEnabled() && *awaiting {
+		n := len(*deferred)
+		pcmBytes := 0
+		for _, c := range *deferred {
+			pcmBytes += len(c.pcm)
+		}
+		fmt.Fprintf(os.Stderr, "[vocode-stt] hold_end reason=%s deferred_chunks=%d deferred_pcm_bytes=%d\n", reason, n, pcmBytes)
+		stderrSync()
+	}
 	*awaiting = false
 	*deadline = time.Time{}
 	return a.flushSTTDeferred(client, contextWindow, deferred)
@@ -218,14 +228,10 @@ func (a *App) considerReleasingOutboundHold(client *stt.ElevenLabsStreamingClien
 		return nil
 	}
 	if sawCommitted {
-		return a.endOutboundHold(client, contextWindow, awaiting, deadline, deferred)
+		return a.endOutboundHold(client, contextWindow, awaiting, deadline, deferred, "committed")
 	}
 	if !deadline.IsZero() && time.Now().After(*deadline) {
-		if vadDebugEnabled() {
-			fmt.Fprintf(os.Stderr, "[vocode-vad] post-commit outbound hold: max wait elapsed without committed_transcript; flushing deferred PCM\n")
-			stderrSync()
-		}
-		return a.endOutboundHold(client, contextWindow, awaiting, deadline, deferred)
+		return a.endOutboundHold(client, contextWindow, awaiting, deadline, deferred, "timeout")
 	}
 	return nil
 }
@@ -251,6 +257,16 @@ func (a *App) drainSTTClientEvents(client *stt.ElevenLabsStreamingClient, contex
 				if evt.IsFinal {
 					contextWindow.AddUtterance(evt.Text)
 					sawCommitted = true
+					if sttPipelineDebugEnabled() {
+						t := strings.TrimSpace(evt.Text)
+						runes := []rune(t)
+						preview := t
+						if len(runes) > 80 {
+							preview = string(runes[:80]) + "…"
+						}
+						fmt.Fprintf(os.Stderr, "[vocode-stt] committed_transcript chars=%d preview=%q\n", len(runes), preview)
+						stderrSync()
+					}
 				}
 			}
 		default:

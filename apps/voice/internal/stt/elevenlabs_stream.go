@@ -158,9 +158,9 @@ func formatWebSocketErr(err error) error {
 }
 
 // minUncommittedBytesBeforeCommit is how much commit:false audio ElevenLabs expects before commit:true
-// (see commit_throttled: "at least 0.3s"); we use a small margin above 300ms.
+// (see commit_throttled: "at least 0.3s"); use a small margin above 300ms.
 func (c *ElevenLabsStreamingClient) minUncommittedBytesBeforeCommit() int {
-	const ms = 320
+	const ms = 310
 	return c.sampleRate * 2 * ms / 1000
 }
 
@@ -182,7 +182,11 @@ func (c *ElevenLabsStreamingClient) SendInputAudioChunk(pcm []byte, commit bool,
 	// empty commit (matches sendSTTChunk: pcm commit false, then nil commit true).
 	if commit && len(pcm) == 0 {
 		minB := c.minUncommittedBytesBeforeCommit()
-		if c.pendingUncommittedBytes > 0 && c.pendingUncommittedBytes < minB {
+		// Never send commit:true with nothing to finalize — server returns commit_throttled.
+		if c.pendingUncommittedBytes == 0 {
+			return nil
+		}
+		if c.pendingUncommittedBytes < minB {
 			need := minB - c.pendingUncommittedBytes
 			if need%2 != 0 {
 				need++

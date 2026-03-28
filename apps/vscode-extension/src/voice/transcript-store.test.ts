@@ -102,6 +102,27 @@ test("a throwing listener does not block other listeners", () => {
   assert.equal(ok, 1);
 });
 
+test("empty partial debounces clearing latestPartial", async () => {
+  const store = new TranscriptStore(30, 40);
+  store.setVoiceListening(true);
+  store.onPartial("stay");
+  store.onPartial("   ");
+  assert.equal(store.getSnapshot().latestPartial, "stay");
+  await new Promise((r) => setTimeout(r, 70));
+  assert.equal(store.getSnapshot().latestPartial, null);
+});
+
+test("non-empty partial after empty cancels debounced clear", async () => {
+  const store = new TranscriptStore(30, 40);
+  store.setVoiceListening(true);
+  store.onPartial("a");
+  store.onPartial("   ");
+  await new Promise((r) => setTimeout(r, 20));
+  store.onPartial("b");
+  await new Promise((r) => setTimeout(r, 70));
+  assert.equal(store.getSnapshot().latestPartial, "b");
+});
+
 test("caps recent handled history", () => {
   const store = new TranscriptStore(2);
 

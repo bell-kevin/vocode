@@ -1,5 +1,7 @@
 const DEFAULT_MAX_HANDLED = 30;
 const WAVEFORM_SAMPLES = 64;
+/** STT sometimes sends empty/whitespace partials between words; debounce clearing so the Live card does not flicker off. */
+const DEFAULT_PARTIAL_CLEAR_DEBOUNCE_MS = 180;
 
 /** Committed voice text not yet finished processing through the daemon + apply pipeline. */
 export type PendingStatus = "queued" | "processing" | "error";
@@ -49,7 +51,12 @@ export class TranscriptStore {
   private meterRms = 0;
   private waveformRms: number[] = [];
 
-  constructor(private readonly maxHandled: number = DEFAULT_MAX_HANDLED) {}
+  private partialClearTimer: ReturnType<typeof setTimeout> | undefined;
+
+  constructor(
+    private readonly maxHandled: number = DEFAULT_MAX_HANDLED,
+    private readonly partialClearDebounceMs: number = DEFAULT_PARTIAL_CLEAR_DEBOUNCE_MS,
+  ) {}
 
   /**
    * Whether the user has started voice listening. The panel only shows live partials + typing dots
@@ -61,11 +68,13 @@ export class TranscriptStore {
     }
     this.voiceListening = active;
     if (!active) {
+      this.clearPartialClearTimer();
       this.latestPartial = null;
       this.meterSpeaking = false;
       this.meterRms = 0;
       this.waveformRms = [];
     } else {
+      this.clearPartialClearTimer();
       this.meterSpeaking = false;
       this.meterRms = 0;
       this.waveformRms = [];
@@ -95,11 +104,25 @@ export class TranscriptStore {
     }
     const normalized = text.trim();
     if (!normalized) {
-      this.latestPartial = null;
-      this.emit();
+      if (this.partialClearDebounceMs <= 0) {
+        this.latestPartial = null;
+        this.clearPartialClearTimer();
+        this.emit();
+        return;
+      }
+      this.clearPartialClearTimer();
+      this.partialClearTimer = setTimeout(() => {
+        this.partialClearTimer = undefined;
+        if (!this.voiceListening) {
+          return;
+        }
+        this.latestPartial = null;
+        this.emit();
+      }, this.partialClearDebounceMs);
       return;
     }
 
+    this.clearPartialClearTimer();
     this.latestPartial = normalized;
     this.emit();
   }
@@ -111,6 +134,7 @@ export class TranscriptStore {
   /** Returns null if the committed text was empty (nothing to track). */
   enqueueCommitted(text: string): number | null {
     const normalized = text.trim();
+    this.clearPartialClearTimer();
     this.latestPartial = null;
 
     if (!normalized) {
@@ -189,6 +213,13 @@ export class TranscriptStore {
       } catch (err) {
         console.error("[TranscriptStore] listener threw:", err);
       }
+    }
+  }
+
+  private clearPartialClearTimer(): void {
+    if (this.partialClearTimer !== undefined) {
+      clearTimeout(this.partialClearTimer);
+      this.partialClearTimer = undefined;
     }
   }
 }

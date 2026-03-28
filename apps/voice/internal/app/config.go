@@ -86,9 +86,21 @@ func streamMaxUtteranceMS() int {
 	return envInt("VOCODE_VOICE_STREAM_MAX_UTTERANCE_MS", 4000, 500, 20000)
 }
 
-// vadDebugEnabled logs VAD decisions to stderr (never stdout — stdout is JSON for the extension).
+// vadDebugEnabled logs per-frame VAD decisions (speech_start, commit reasons) to stderr — noisy.
 func vadDebugEnabled() bool {
 	v := strings.TrimSpace(strings.ToLower(os.Getenv("VOCODE_VOICE_VAD_DEBUG")))
+	switch v {
+	case "1", "true", "yes", "y", "on":
+		return true
+	default:
+		return false
+	}
+}
+
+// sttPipelineDebugEnabled logs ElevenLabs STT pipeline events: commit sent, outbound hold,
+// committed_transcript received, timeout flush (stderr only; never stdout JSON).
+func sttPipelineDebugEnabled() bool {
+	v := strings.TrimSpace(strings.ToLower(os.Getenv("VOCODE_VOICE_STT_DEBUG")))
 	switch v {
 	case "1", "true", "yes", "y", "on":
 		return true

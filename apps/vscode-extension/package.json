@@ -60,6 +60,11 @@
           "type": "boolean",
           "default": false,
           "description": "Forward VOCODE_VOICE_VAD_DEBUG=1 to the voice sidecar ([vocode-vad] lines on stderr)."
+        },
+        "vocode.voiceSidecarLogProtocol": {
+          "type": "boolean",
+          "default": false,
+          "description": "Log every JSON line from the voice sidecar to Developer Tools (very noisy). Leave off to see stderr debug lines ([vocode-vad], [vocode-stt]) clearly."
         }
       }
     }

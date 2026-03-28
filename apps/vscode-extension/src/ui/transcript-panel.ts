@@ -206,9 +206,22 @@ export class TranscriptPanelViewProvider
     function statusLabel(status) {
       switch (status) {
         case "queued": return "Queued";
-        case "processing": return "Working…";
+        case "processing": return "Applying…";
         case "error": return "Couldn’t run";
         default: return status;
+      }
+    }
+
+    function statusBadgeTitle(status) {
+      switch (status) {
+        case "queued":
+          return "Committed transcript — waiting to run in the workspace";
+        case "processing":
+          return "Running this committed line through the Vocode agent";
+        case "error":
+          return "Something went wrong applying this line";
+        default:
+          return "";
       }
     }
 
@@ -296,44 +309,62 @@ export class TranscriptPanelViewProvider
         voiceListening && typeof state.latestPartial === "string" && state.latestPartial.length > 0;
 
       const parts = [];
+      const sectionTitleMargin = ' style="margin-top:16px;"';
 
-      parts.push("<h1>In progress</h1>");
-      if (!pending.length && !showLive) {
-        if (!voiceListening) {
-          parts.push('<div class="empty">Start Voice to see live transcripts here.</div>');
-        } else {
-          parts.push('<div class="empty">Listening — speak to see partials update here.</div>');
-        }
+      parts.push("<h1>Live</h1>");
+      if (!voiceListening) {
+        parts.push(
+          '<div class="empty">Start Voice to stream speech-to-text here.</div>'
+        );
+      } else if (!showLive) {
+        parts.push(
+          '<div class="empty">No draft yet — speak to see streaming text.</div>'
+        );
       } else {
         parts.push('<div class="stack">');
+        parts.push(
+          '<div class="card live">' +
+            '<div class="meta">' +
+            '<span class="badge" title="Streaming speech-to-text — not final until it moves to Done">Live</span>' +
+            '<span title="Draft before the provider commits this segment">Draft</span>' +
+            "</div>" +
+            '<div class="text">' + esc(state.latestPartial) + "</div>" +
+            '<div class="typing" aria-hidden="true"><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>' +
+            "</div>"
+        );
+        parts.push("</div>");
+      }
 
+      parts.push("<h1" + sectionTitleMargin + ">Applying</h1>");
+      if (!pending.length) {
+        parts.push(
+          '<div class="empty">Nothing running on the workspace from voice yet.</div>'
+        );
+      } else {
+        parts.push('<div class="stack">');
         for (const p of pending) {
           const cls = "card pending " + p.status;
+          const bt = statusBadgeTitle(p.status);
+          const badge =
+            '<span class="badge"' +
+            (bt ? ' title="' + esc(bt) + '"' : "") +
+            ">" +
+            esc(statusLabel(p.status)) +
+            "</span>";
           parts.push(
             '<div class="' + esc(cls) + '">' +
               '<div class="meta">' +
-                '<span class="badge">' + esc(statusLabel(p.status)) + "</span>" +
+                badge +
                 "<span>" + esc(fmtTime(p.receivedAt)) + "</span>" +
               "</div>" +
               '<div class="text">' + esc(p.text) + "</div>" +
             "</div>"
           );
         }
-
-        if (showLive) {
-          parts.push(
-            '<div class="card live">' +
-              '<div class="meta"><span class="badge">Live</span><span>Partial</span></div>' +
-              '<div class="text">' + esc(state.latestPartial) + "</div>" +
-              '<div class="typing" aria-hidden="true"><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>' +
-            "</div>"
-          );
-        }
-
         parts.push("</div>");
       }
 
-      parts.push('<h1 style="margin-top:16px;">Done</h1>');
+      parts.push("<h1" + sectionTitleMargin + ">Done</h1>");
       if (!recentHandled.length) {
         parts.push('<div class="empty">Completed requests will appear here.</div>');
       } else {
