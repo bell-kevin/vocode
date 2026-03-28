@@ -6,8 +6,8 @@ import (
 
 	"vocoding.net/vocode/v2/apps/daemon/internal/agent"
 	"vocoding.net/vocode/v2/apps/daemon/internal/agent/stub"
-	"vocoding.net/vocode/v2/apps/daemon/internal/intents"
-	"vocoding.net/vocode/v2/apps/daemon/internal/intents/edits"
+	"vocoding.net/vocode/v2/apps/daemon/internal/intents/dispatch"
+	"vocoding.net/vocode/v2/apps/daemon/internal/intents/dispatch/edit"
 	"vocoding.net/vocode/v2/apps/daemon/internal/rpc"
 	"vocoding.net/vocode/v2/apps/daemon/internal/transcript"
 )
@@ -26,8 +26,8 @@ type App struct {
 
 func New(opts Options) (*App, error) {
 	agentRuntime := agent.New(stub.New())
-	editEngine := edits.NewEngine()
-	intentHandler := intents.NewHandler(editEngine)
+	editEngine := edit.NewEngine()
+	intentHandler := dispatch.NewHandler(editEngine)
 
 	voiceService := transcript.NewService(agentRuntime, intentHandler)
 

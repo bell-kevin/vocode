@@ -2,7 +2,7 @@ import type { VoiceTranscriptDirective } from "@vocode/protocol";
 
 import type { TranscriptApplyContext } from "../transcript/context";
 import { dispatchCommand } from "./command/dispatch";
-import { dispatchEdit } from "./edits/dispatch";
+import { dispatchEdit } from "./edit/dispatch";
 import { dispatchNavigation } from "./navigation/dispatch";
 import { dispatchUndo } from "./undo/dispatch";
 

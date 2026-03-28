@@ -3,7 +3,7 @@ import * as vscode from "vscode";
 
 import type { TranscriptApplyContext } from "../../transcript/context";
 import { recordAppliedEditUndoPaths } from "../undo/transcript-undo-ledger";
-import { dispatchEditResultWorkspaceEdits } from "./dispatch-workspace-edits";
+import { dispatchEditResultWorkspaceEdit } from "./dispatch-workspace-edit";
 
 /** Applies one edit directive; records undo paths for the transcript ledger. */
 export async function dispatchEdit(
@@ -14,7 +14,7 @@ export async function dispatchEdit(
     void vscode.window.showWarningMessage("Vocode: missing editDirective.");
     return false;
   }
-  const applyOutcome = await dispatchEditResultWorkspaceEdits(
+  const applyOutcome = await dispatchEditResultWorkspaceEdit(
     edit,
     ctx.activeDocumentPath,
   );

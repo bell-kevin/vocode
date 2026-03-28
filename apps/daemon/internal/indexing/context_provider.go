@@ -11,8 +11,8 @@ import (
 	"strings"
 
 	"vocoding.net/vocode/v2/apps/daemon/internal/agent"
-	"vocoding.net/vocode/v2/apps/daemon/internal/intents/edits"
-	"vocoding.net/vocode/v2/apps/daemon/internal/intent"
+	"vocoding.net/vocode/v2/apps/daemon/internal/intents/dispatch/edit"
+	"vocoding.net/vocode/v2/apps/daemon/internal/intents"
 	"vocoding.net/vocode/v2/apps/daemon/internal/symbols"
 	protocol "vocoding.net/vocode/v2/packages/protocol/go"
 )
@@ -28,14 +28,14 @@ func NewContextProvider(symbolResolver symbols.Resolver) *ContextProvider {
 func (p *ContextProvider) Fulfill(
 	params protocol.VoiceTranscriptParams,
 	in agent.PlanningContext,
-	req *intent.RequestContextIntent,
+	req *intents.RequestContextIntent,
 ) (agent.PlanningContext, error) {
 	if req == nil {
 		return in, fmt.Errorf("request_context missing payload")
 	}
 	out := in
 	switch req.Kind {
-	case intent.RequestContextKindSymbols:
+	case intents.RequestContextKindSymbols:
 		query := strings.TrimSpace(req.Query)
 		if query == "" {
 			return out, fmt.Errorf("request_symbols requires query")
@@ -66,9 +66,9 @@ func (p *ContextProvider) Fulfill(
 			}
 		}
 		return out, nil
-	case intent.RequestContextKindFileExcerpt:
+	case intents.RequestContextKindFileExcerpt:
 		target := strings.TrimSpace(req.Path)
-		ec := edits.EditExecutionContext{ActiveFile: params.ActiveFile, WorkspaceRoot: params.WorkspaceRoot}
+		ec := edit.EditExecutionContext{ActiveFile: params.ActiveFile, WorkspaceRoot: params.WorkspaceRoot}
 		path := ec.ResolvePath(target)
 		if path == "" {
 			return out, fmt.Errorf("request_file_excerpt requires resolvable path")
@@ -84,7 +84,7 @@ func (p *ContextProvider) Fulfill(
 		}
 		out.Excerpts = append(out.Excerpts, agent.FileExcerpt{Path: filepath.Clean(path), Content: content})
 		return out, nil
-	case intent.RequestContextKindUsages:
+	case intents.RequestContextKindUsages:
 		ref, err := symbols.ParseSymbolID(strings.TrimSpace(req.SymbolID))
 		if err != nil {
 			return out, fmt.Errorf("request_usages requires valid symbolId: %w", err)

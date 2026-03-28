@@ -6,10 +6,10 @@ import (
 
 	"vocoding.net/vocode/v2/apps/daemon/internal/agent"
 	"vocoding.net/vocode/v2/apps/daemon/internal/agent/stub"
-	"vocoding.net/vocode/v2/apps/daemon/internal/intent"
+	"vocoding.net/vocode/v2/apps/daemon/internal/intents"
 )
 
-func TestNextIntentStubFlow(t *testing.T) {
+func TestIntentStubFlow(t *testing.T) {
 	t.Parallel()
 
 	a := agent.New(stub.New())
@@ -20,10 +20,10 @@ func TestNextIntentStubFlow(t *testing.T) {
 		if err != nil {
 			t.Fatalf("unexpected err: %v", err)
 		}
-		if err := intent.ValidateNextIntent(next); err != nil {
+		if err := intents.ValidateIntent(next); err != nil {
 			t.Fatalf("invalid next intent: %v", err)
 		}
-		if next.Kind == intent.NextIntentKindDone {
+		if next.Kind == intents.IntentKindDone {
 			t.Fatal("unexpected done before 4th step")
 		}
 		in.CompletedActions = append(in.CompletedActions, next)
@@ -33,7 +33,7 @@ func TestNextIntentStubFlow(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected err: %v", err)
 	}
-	if final.Kind != intent.NextIntentKindDone {
+	if final.Kind != intents.IntentKindDone {
 		t.Fatalf("expected done, got %q", final.Kind)
 	}
 }

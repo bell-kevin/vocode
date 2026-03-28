@@ -1,10 +1,10 @@
-package edits
+package edit
 
 import (
 	"strings"
 	"testing"
 
-	intentpkg "vocoding.net/vocode/v2/apps/daemon/internal/intent"
+	"vocoding.net/vocode/v2/apps/daemon/internal/intents"
 )
 
 func TestDispatchEditSuccess(t *testing.T) {
@@ -17,12 +17,12 @@ func TestDispatchEditSuccess(t *testing.T) {
 		ActiveFile:  "/tmp/anchored-block.ts",
 		FileText:    fileText,
 	}
-	intent := intentpkg.EditIntent{
-		Kind: intentpkg.EditIntentKindReplace,
-		Replace: &intentpkg.ReplaceEditIntent{
-			Target: intentpkg.EditTarget{
-				Kind: intentpkg.EditTargetKindAnchor,
-				Anchor: &intentpkg.AnchorTarget{
+	intent := intents.EditIntent{
+		Kind: intents.EditIntentKindReplace,
+		Replace: &intents.ReplaceEditIntent{
+			Target: intents.EditTarget{
+				Kind: intents.EditTargetKindAnchor,
+				Anchor: &intents.AnchorTarget{
 					Before: "export function firstBraceAnchors() {",
 					After:  "}",
 				},
@@ -62,9 +62,9 @@ func main() {
 }
 `,
 	}
-	intent := intentpkg.EditIntent{
-		Kind: intentpkg.EditIntentKindInsertImport,
-		InsertImport: &intentpkg.InsertImportEditIntent{
+	intent := intents.EditIntent{
+		Kind: intents.EditIntentKindInsertImport,
+		InsertImport: &intents.InsertImportEditIntent{
 			Import: `import "fmt"`,
 		},
 	}

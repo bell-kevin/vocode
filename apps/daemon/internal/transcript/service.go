@@ -9,7 +9,7 @@ import (
 
 	"vocoding.net/vocode/v2/apps/daemon/internal/agent"
 	"vocoding.net/vocode/v2/apps/daemon/internal/indexing"
-	"vocoding.net/vocode/v2/apps/daemon/internal/intents"
+	"vocoding.net/vocode/v2/apps/daemon/internal/intents/dispatch"
 	"vocoding.net/vocode/v2/apps/daemon/internal/symbols"
 	protocol "vocoding.net/vocode/v2/packages/protocol/go"
 )
@@ -40,7 +40,7 @@ type transcriptAcceptResp struct {
 
 func NewService(
 	agentRuntime *agent.Agent,
-	intentHandler *intents.Handler,
+	intentHandler *dispatch.Handler,
 ) *TranscriptService {
 	queueSize := envInt("VOCODE_DAEMON_VOICE_TRANSCRIPT_QUEUE_SIZE", 10)
 	coalesceMs := envInt("VOCODE_DAEMON_VOICE_TRANSCRIPT_COALESCE_MS", 750)

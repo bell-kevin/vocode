@@ -1,4 +1,4 @@
-package intent
+package intents
 
 type RequestContextKind string
 
@@ -9,9 +9,9 @@ const (
 )
 
 type RequestContextIntent struct {
-	Kind RequestContextKind `json:"kind"`
-	Path      string `json:"path,omitempty"`
-	Query     string `json:"query,omitempty"`
-	SymbolID  string `json:"symbolId,omitempty"`
-	MaxResult int    `json:"maxResult,omitempty"`
+	Kind      RequestContextKind `json:"kind"`
+	Path      string             `json:"path,omitempty"`
+	Query     string             `json:"query,omitempty"`
+	SymbolID  string             `json:"symbolId,omitempty"`
+	MaxResult int                `json:"maxResult,omitempty"`
 }

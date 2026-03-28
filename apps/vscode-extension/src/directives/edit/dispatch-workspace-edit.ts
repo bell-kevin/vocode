@@ -36,7 +36,7 @@ function toAbsolutePath(
  * submitting workspace edits. Also returns per-action edit locations for
  * follow-up navigation (e.g. reveal_edit).
  */
-export async function dispatchEditResultWorkspaceEdits(
+export async function dispatchEditResultWorkspaceEdit(
   editDirective: EditDirective,
   activeDocumentPath: string,
 ): Promise<ApplyEditResultWorkspaceOutcome> {

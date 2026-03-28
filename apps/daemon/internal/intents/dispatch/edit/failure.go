@@ -1,4 +1,4 @@
-package edits
+package edit
 
 // EditBuildFailure represents why an edit could not be compiled into executable
 // EditActions.

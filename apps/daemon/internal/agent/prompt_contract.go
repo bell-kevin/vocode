@@ -1,10 +1,10 @@
 package agent
 
-// NextIntentPromptContract defines the required planner behavior for iterative
+// IntentPromptContract defines the required planner behavior for iterative
 // turns. Model clients should include this verbatim (or semantically equivalent)
 // in their system/developer instruction layer.
-const NextIntentPromptContract = `
-You are an iterative code-planning model. Return exactly one NextIntent per turn.
+const IntentPromptContract = `
+You are an iterative code-planning model. Return exactly one structured intent per turn.
 
 Rules:
 - Prefer deterministic edits. For symbol edits, use symbol_id targets only.

@@ -1,4 +1,4 @@
-package edits
+package edit
 
 import protocol "vocoding.net/vocode/v2/packages/protocol/go"
 

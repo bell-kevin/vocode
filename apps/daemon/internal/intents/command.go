@@ -1,4 +1,4 @@
-package intent
+package intents
 
 type CommandIntent struct {
 	Command   string   `json:"command"`

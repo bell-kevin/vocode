@@ -1,4 +1,4 @@
-package edits
+package edit
 
 import (
 	"os"
@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	intentpkg "vocoding.net/vocode/v2/apps/daemon/internal/intent"
+	"vocoding.net/vocode/v2/apps/daemon/internal/intents"
 	"vocoding.net/vocode/v2/apps/daemon/internal/symbols"
 )
 
@@ -19,12 +19,12 @@ func TestApplyInsertStatementInCurrentFunction(t *testing.T) {
 		ActiveFile: "/tmp/single-function.ts",
 		FileText:   fileText,
 	}
-	intent := intentpkg.EditIntent{
-		Kind: intentpkg.EditIntentKindInsert,
-		Insert: &intentpkg.InsertEditIntent{
-			Target: intentpkg.EditTarget{
-				Kind: intentpkg.EditTargetKindSymbolID,
-				SymbolID: &intentpkg.SymbolIDTarget{
+	intent := intents.EditIntent{
+		Kind: intents.EditIntentKindInsert,
+		Insert: &intents.InsertEditIntent{
+			Target: intents.EditTarget{
+				Kind: intents.EditTargetKindSymbolID,
+				SymbolID: &intents.SymbolIDTarget{
 					ID: symbols.BuildSymbolID(symbols.SymbolRef{
 						Name: "current_function",
 						Path: "/tmp/single-function.ts",
@@ -63,12 +63,12 @@ func TestApplyReplaceCurrentFunctionBody(t *testing.T) {
 		ActiveFile: "/tmp/single-function.ts",
 		FileText:   fileText,
 	}
-	intent := intentpkg.EditIntent{
-		Kind: intentpkg.EditIntentKindReplace,
-		Replace: &intentpkg.ReplaceEditIntent{
-			Target: intentpkg.EditTarget{
-				Kind: intentpkg.EditTargetKindSymbolID,
-				SymbolID: &intentpkg.SymbolIDTarget{
+	intent := intents.EditIntent{
+		Kind: intents.EditIntentKindReplace,
+		Replace: &intents.ReplaceEditIntent{
+			Target: intents.EditTarget{
+				Kind: intents.EditTargetKindSymbolID,
+				SymbolID: &intents.SymbolIDTarget{
 					ID: symbols.BuildSymbolID(symbols.SymbolRef{
 						Name: "current_function",
 						Path: "/tmp/single-function.ts",
@@ -105,12 +105,12 @@ func TestApplyFailsForAmbiguousCurrentFunction(t *testing.T) {
 		ActiveFile: "/tmp/multi-function.ts",
 		FileText:   fileText,
 	}
-	intent := intentpkg.EditIntent{
-		Kind: intentpkg.EditIntentKindInsert,
-		Insert: &intentpkg.InsertEditIntent{
-			Target: intentpkg.EditTarget{
-				Kind: intentpkg.EditTargetKindSymbolID,
-				SymbolID: &intentpkg.SymbolIDTarget{
+	intent := intents.EditIntent{
+		Kind: intents.EditIntentKindInsert,
+		Insert: &intents.InsertEditIntent{
+			Target: intents.EditTarget{
+				Kind: intents.EditTargetKindSymbolID,
+				SymbolID: &intents.SymbolIDTarget{
 					ID: symbols.BuildSymbolID(symbols.SymbolRef{
 						Name: "current_function",
 						Path: "/tmp/multi-function.ts",
@@ -141,12 +141,12 @@ func TestApplyReplaceAnchoredBlock(t *testing.T) {
 		ActiveFile: "/tmp/anchored-block.ts",
 		FileText:   fileText,
 	}
-	intent := intentpkg.EditIntent{
-		Kind: intentpkg.EditIntentKindReplace,
-		Replace: &intentpkg.ReplaceEditIntent{
-			Target: intentpkg.EditTarget{
-				Kind: intentpkg.EditTargetKindAnchor,
-				Anchor: &intentpkg.AnchorTarget{
+	intent := intents.EditIntent{
+		Kind: intents.EditIntentKindReplace,
+		Replace: &intents.ReplaceEditIntent{
+			Target: intents.EditTarget{
+				Kind: intents.EditTargetKindAnchor,
+				Anchor: &intents.AnchorTarget{
 					Before: "export function firstBraceAnchors() {",
 					After:  "}",
 				},
@@ -176,12 +176,12 @@ func TestApplyReplaceBySymbolIDFunction(t *testing.T) {
 		ActiveFile: "/tmp/multi-function.ts",
 		FileText:   fileText,
 	}
-	intent := intentpkg.EditIntent{
-		Kind: intentpkg.EditIntentKindReplace,
-		Replace: &intentpkg.ReplaceEditIntent{
-			Target: intentpkg.EditTarget{
-				Kind: intentpkg.EditTargetKindSymbolID,
-				SymbolID: &intentpkg.SymbolIDTarget{
+	intent := intents.EditIntent{
+		Kind: intents.EditIntentKindReplace,
+		Replace: &intents.ReplaceEditIntent{
+			Target: intents.EditTarget{
+				Kind: intents.EditTargetKindSymbolID,
+				SymbolID: &intents.SymbolIDTarget{
 					ID: symbols.BuildSymbolID(symbols.SymbolRef{
 						Name: "secondBraceAnchors",
 						Path: "/tmp/multi-function.ts",
@@ -215,9 +215,9 @@ func TestApplyAppendImportIfMissing(t *testing.T) {
 		ActiveFile: "/tmp/imports.go",
 		FileText:   fileText,
 	}
-	intent := intentpkg.EditIntent{
-		Kind: intentpkg.EditIntentKindInsertImport,
-		InsertImport: &intentpkg.InsertImportEditIntent{
+	intent := intents.EditIntent{
+		Kind: intents.EditIntentKindInsertImport,
+		InsertImport: &intents.InsertImportEditIntent{
 			Import: `import "fmt"`,
 		},
 	}

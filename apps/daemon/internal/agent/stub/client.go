@@ -7,7 +7,7 @@ import (
 	"runtime"
 
 	"vocoding.net/vocode/v2/apps/daemon/internal/agent"
-	"vocoding.net/vocode/v2/apps/daemon/internal/intent"
+	"vocoding.net/vocode/v2/apps/daemon/internal/intents"
 	"vocoding.net/vocode/v2/apps/daemon/internal/symbols"
 )
 
@@ -20,25 +20,25 @@ func New() *Client {
 }
 
 // NextIntent emits a deterministic 4-step sequence, then done.
-func (*Client) NextIntent(ctx context.Context, in agent.ModelInput) (intent.NextIntent, error) {
+func (*Client) NextIntent(ctx context.Context, in agent.ModelInput) (intents.Intent, error) {
 	_ = ctx
 	switch len(in.CompletedActions) {
 	case 0:
-		return intent.NextIntent{
-			Kind: intent.NextIntentKindNavigate,
-			Navigate: &intent.NavigationIntent{
-				Kind: intent.NavigationIntentKindOpenFile,
-				OpenFile: &intent.OpenFileNavigationIntent{
+		return intents.Intent{
+			Kind: intents.IntentKindNavigate,
+			Navigate: &intents.NavigationIntent{
+				Kind: intents.NavigationIntentKindOpenFile,
+				OpenFile: &intents.OpenFileNavigationIntent{
 					Path: "test.js",
 				},
 			},
 		}, nil
 	case 1:
-		return intent.NextIntent{
-			Kind: intent.NextIntentKindNavigate,
-			Navigate: &intent.NavigationIntent{
-				Kind: intent.NavigationIntentKindRevealSymbol,
-				RevealSymbol: &intent.RevealSymbolNavigationIntent{
+		return intents.Intent{
+			Kind: intents.IntentKindNavigate,
+			Navigate: &intents.NavigationIntent{
+				Kind: intents.NavigationIntentKindRevealSymbol,
+				RevealSymbol: &intents.RevealSymbolNavigationIntent{
 					Path:       "test.js",
 					SymbolName: "test",
 					SymbolKind: "function",
@@ -46,14 +46,14 @@ func (*Client) NextIntent(ctx context.Context, in agent.ModelInput) (intent.Next
 			},
 		}, nil
 	case 2:
-		return intent.NextIntent{
-			Kind: intent.NextIntentKindEdit,
-			Edit: &intent.EditIntent{
-				Kind: intent.EditIntentKindReplace,
-				Replace: &intent.ReplaceEditIntent{
-					Target: intent.EditTarget{
-						Kind: intent.EditTargetKindSymbolID,
-						SymbolID: &intent.SymbolIDTarget{
+		return intents.Intent{
+			Kind: intents.IntentKindEdit,
+			Edit: &intents.EditIntent{
+				Kind: intents.EditIntentKindReplace,
+				Replace: &intents.ReplaceEditIntent{
+					Target: intents.EditTarget{
+						Kind: intents.EditTargetKindSymbolID,
+						SymbolID: &intents.SymbolIDTarget{
 							ID: symbols.BuildSymbolID(symbols.SymbolRef{
 								Name: "test",
 								Path: "test.js",
@@ -67,25 +67,25 @@ func (*Client) NextIntent(ctx context.Context, in agent.ModelInput) (intent.Next
 			},
 		}, nil
 	case 3:
-		return intent.NextIntent{
-			Kind:    intent.NextIntentKindCommand,
+		return intents.Intent{
+			Kind:    intents.IntentKindCommand,
 			Command: stubEchoRunCommand(),
 		}, nil
 	default:
-		return intent.NextIntent{Kind: intent.NextIntentKindDone}, nil
+		return intents.Intent{Kind: intents.IntentKindDone}, nil
 	}
 }
 
 // stubEchoRunCommand: on Windows, `echo` is a cmd builtin (no echo.exe on PATH);
 // Go's exec needs cmd.exe /c. On Unix, /bin/echo (or PATH) is a real binary.
-func stubEchoRunCommand() *intent.CommandIntent {
+func stubEchoRunCommand() *intents.CommandIntent {
 	if runtime.GOOS == "windows" {
-		return &intent.CommandIntent{
+		return &intents.CommandIntent{
 			Command: "cmd.exe",
 			Args:    []string{"/c", "echo", "stub-model-client"},
 		}
 	}
-	return &intent.CommandIntent{
+	return &intents.CommandIntent{
 		Command: "echo",
 		Args:    []string{"stub-model-client"},
 	}

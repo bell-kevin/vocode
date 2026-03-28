@@ -1,13 +1,13 @@
 package navigation
 
 import (
-	"vocoding.net/vocode/v2/apps/daemon/internal/intent"
+	"vocoding.net/vocode/v2/apps/daemon/internal/intents"
 	protocol "vocoding.net/vocode/v2/packages/protocol/go"
 )
 
 // DispatchNavigation validates a navigation intent and returns a protocol navigation directive.
-func DispatchNavigation(nav intent.NavigationIntent) (protocol.NavigationDirective, error) {
-	if err := intent.ValidateNavigationIntent(nav); err != nil {
+func DispatchNavigation(nav intents.NavigationIntent) (protocol.NavigationDirective, error) {
+	if err := intents.ValidateNavigationIntent(nav); err != nil {
 		return protocol.NavigationDirective{}, err
 	}
 	action := protocol.NavigationAction{Kind: string(nav.Kind)}

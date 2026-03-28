@@ -7,22 +7,22 @@ import (
 	"strings"
 
 	"vocoding.net/vocode/v2/apps/daemon/internal/agent"
-	"vocoding.net/vocode/v2/apps/daemon/internal/intent"
 	"vocoding.net/vocode/v2/apps/daemon/internal/intents"
-	"vocoding.net/vocode/v2/apps/daemon/internal/intents/edits"
+	"vocoding.net/vocode/v2/apps/daemon/internal/intents/dispatch"
+	"vocoding.net/vocode/v2/apps/daemon/internal/intents/dispatch/edit"
 	protocol "vocoding.net/vocode/v2/packages/protocol/go"
 )
 
 // ContextProvider resolves request_context intents by enriching planner state (symbols, excerpts).
 type ContextProvider interface {
-	Fulfill(params protocol.VoiceTranscriptParams, in agent.PlanningContext, req *intent.RequestContextIntent) (agent.PlanningContext, error)
+	Fulfill(params protocol.VoiceTranscriptParams, in agent.PlanningContext, req *intents.RequestContextIntent) (agent.PlanningContext, error)
 }
 
-// Executor runs one voice.transcript through the agent: iterative NextIntent, optional context
-// rounds, retries, and dispatch into protocol directives via intents.Handler.
+// Executor runs one voice.transcript through the agent: iterative planner intents, optional context
+// rounds, retries, and dispatch into protocol directives via dispatch.Handler.
 type Executor struct {
 	agent                    *agent.Agent
-	intentHandler            *intents.Handler
+	intentHandler            *dispatch.Handler
 	contextProvider          ContextProvider
 	maxPlannerTurns          int
 	maxIntentRetries         int
@@ -39,7 +39,7 @@ type ExecutorOptions struct {
 	MaxConsecutiveContextReq int
 }
 
-func NewExecutor(a *agent.Agent, h *intents.Handler, cp ContextProvider, opts ExecutorOptions) *Executor {
+func NewExecutor(a *agent.Agent, h *dispatch.Handler, cp ContextProvider, opts ExecutorOptions) *Executor {
 	return &Executor{
 		agent:                    a,
 		intentHandler:            h,
@@ -66,7 +66,7 @@ func (e *Executor) Execute(params protocol.VoiceTranscriptParams) (protocol.Voic
 		maxRetries = 0
 	}
 	turnCtx := agent.PlanningContext{}
-	completed := make([]intent.NextIntent, 0, maxTurns)
+	completed := make([]intents.Intent, 0, maxTurns)
 	contextRounds := 0
 	consecutiveContextReq := 0
 	editCounter := 0
@@ -78,22 +78,22 @@ func (e *Executor) Execute(params protocol.VoiceTranscriptParams) (protocol.Voic
 		turn := i + 1
 		next, err := e.agent.NextIntent(context.Background(), agent.ModelInput{
 			Transcript:       text,
-			CompletedActions: append([]intent.NextIntent(nil), completed...),
+			CompletedActions: append([]intents.Intent(nil), completed...),
 			Context:          turnCtx,
 		})
 		if err != nil {
 			trace = appendTurnTrace(trace, turn, "model_error")
 			return protocol.VoiceTranscriptResult{Accepted: false}, true
 		}
-		if err := intent.ValidateNextIntent(next); err != nil {
-			trace = appendTurnTrace(trace, turn, "invalid_next_intent")
+		if err := intents.ValidateIntent(next); err != nil {
+			trace = appendTurnTrace(trace, turn, "invalid_intent")
 			return protocol.VoiceTranscriptResult{Accepted: false}, true
 		}
 		trace = appendTurnTrace(trace, turn, "intent:"+string(next.Kind))
-		if next.Kind == intent.NextIntentKindDone {
+		if next.Kind == intents.IntentKindDone {
 			break
 		}
-		if next.Kind == intent.NextIntentKindRequestContext {
+		if next.Kind == intents.IntentKindRequestContext {
 			contextRounds++
 			consecutiveContextReq++
 			if e.maxContextRounds > 0 && contextRounds > e.maxContextRounds {
@@ -189,27 +189,27 @@ func (e *Executor) Execute(params protocol.VoiceTranscriptParams) (protocol.Voic
 	return result, true
 }
 
-func buildEditExecutionContext(params protocol.VoiceTranscriptParams, next intent.NextIntent) (edits.EditExecutionContext, string) {
-	if next.Kind == intent.NextIntentKindUndo {
-		return edits.EditExecutionContext{}, ""
+func buildEditExecutionContext(params protocol.VoiceTranscriptParams, next intents.Intent) (edit.EditExecutionContext, string) {
+	if next.Kind == intents.IntentKindUndo {
+		return edit.EditExecutionContext{}, ""
 	}
 	active := strings.TrimSpace(params.ActiveFile)
 	workspaceRoot := strings.TrimSpace(params.WorkspaceRoot)
-	if next.Kind == intent.NextIntentKindEdit && active == "" {
-		return edits.EditExecutionContext{}, "activeFile is required when the next intent is an edit"
+	if next.Kind == intents.IntentKindEdit && active == "" {
+		return edit.EditExecutionContext{}, "activeFile is required when the next intent is an edit"
 	}
-	if next.Kind == intent.NextIntentKindEdit && workspaceRoot == "" {
-		return edits.EditExecutionContext{}, "workspaceRoot is required when the next intent is an edit"
+	if next.Kind == intents.IntentKindEdit && workspaceRoot == "" {
+		return edit.EditExecutionContext{}, "workspaceRoot is required when the next intent is an edit"
 	}
 	fileText := ""
 	if active != "" {
 		b, err := os.ReadFile(active)
 		if err != nil {
-			return edits.EditExecutionContext{}, fmt.Sprintf("read active file: %v", err)
+			return edit.EditExecutionContext{}, fmt.Sprintf("read active file: %v", err)
 		}
 		fileText = string(b)
 	}
-	return edits.EditExecutionContext{
+	return edit.EditExecutionContext{
 		Instruction:   params.Text,
 		ActiveFile:    params.ActiveFile,
 		FileText:      fileText,
