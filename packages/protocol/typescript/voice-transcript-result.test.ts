@@ -55,3 +55,18 @@ test("isVoiceTranscriptResult rejects extra keys (unexpected property)", () => {
     false,
   );
 });
+
+test("isVoiceTranscriptResult accepts undo directive", () => {
+  assert.equal(
+    isVoiceTranscriptResult({
+      accepted: true,
+      directives: [
+        {
+          kind: "undo",
+          undoDirective: { scope: "last_transcript" },
+        },
+      ],
+    }),
+    true,
+  );
+});

@@ -200,6 +200,15 @@ function isNavigationDirective(value: unknown): boolean {
   return false;
 }
 
+function isUndoDirective(value: unknown): boolean {
+  return (
+    isRecord(value) &&
+    hasOnlyKeys(value, ["scope"]) &&
+    typeof value.scope === "string" &&
+    (value.scope === "last_edit" || value.scope === "last_transcript")
+  );
+}
+
 export function isVoiceTranscriptDirective(
   value: unknown,
 ): value is VoiceTranscriptDirective {
@@ -222,6 +231,12 @@ export function isVoiceTranscriptDirective(
     return (
       hasOnlyKeys(value, ["kind", "navigationDirective"]) &&
       isNavigationDirective(value.navigationDirective)
+    );
+  }
+  if (value.kind === "undo") {
+    return (
+      hasOnlyKeys(value, ["kind", "undoDirective"]) &&
+      isUndoDirective(value.undoDirective)
     );
   }
   return false;

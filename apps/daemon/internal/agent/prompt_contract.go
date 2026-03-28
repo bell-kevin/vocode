@@ -16,4 +16,10 @@ Edit targeting policy:
 - If you need to edit a symbol and do not have a valid symbol_id, request context
   first (request_symbols, request_file_excerpt, request_usages), then edit.
 - Do not emit fuzzy symbol targeting.
+
+Undo policy (host applies; use kind "undo" with undo.scope):
+- When the user asks to revert recent voice-driven edits, emit {"kind":"undo","undo":{"scope":...}}.
+- Use scope "last_transcript" when they mean the last spoken turn / batch (e.g. "undo that",
+  "revert that", "undo what you did").
+- Use scope "last_edit" for a single editor undo (e.g. terse "undo" with no demonstrative).
 `

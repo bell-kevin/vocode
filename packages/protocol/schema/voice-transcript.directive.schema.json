@@ -7,7 +7,7 @@
   "properties": {
     "kind": {
       "type": "string",
-      "enum": ["edit", "command", "navigate"]
+      "enum": ["edit", "command", "navigate", "undo"]
     },
     "editDirective": {
       "$ref": "./edit-directive.schema.json"
@@ -17,6 +17,9 @@
     },
     "navigationDirective": {
       "$ref": "./navigation-directive.schema.json"
+    },
+    "undoDirective": {
+      "$ref": "./undo-directive.schema.json"
     }
   },
   "required": ["kind"]

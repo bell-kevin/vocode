@@ -35,13 +35,13 @@ func (r EditDirective) Validate() error {
 func (s VoiceTranscriptDirective) Validate() error {
 	switch s.Kind {
 	case "edit":
-		if s.EditDirective == nil || s.CommandDirective != nil || s.NavigationDirective != nil {
-			return errors.New("voice transcript step: kind edit requires editDirective and no commandDirective/navigationDirective")
+		if s.EditDirective == nil || s.CommandDirective != nil || s.NavigationDirective != nil || s.UndoDirective != nil {
+			return errors.New("voice transcript step: kind edit requires editDirective and no other directive payloads")
 		}
 		return s.EditDirective.Validate()
 	case "command":
-		if s.CommandDirective == nil || s.EditDirective != nil || s.NavigationDirective != nil {
-			return errors.New("voice transcript step: kind command requires commandDirective and no editDirective/navigationDirective")
+		if s.CommandDirective == nil || s.EditDirective != nil || s.NavigationDirective != nil || s.UndoDirective != nil {
+			return errors.New("voice transcript step: kind command requires commandDirective and no other directive payloads")
 		}
 		if strings.TrimSpace(s.CommandDirective.Command) == "" {
 			return errors.New("voice transcript step: command requires non-empty commandDirective.command")
@@ -50,12 +50,29 @@ func (s VoiceTranscriptDirective) Validate() error {
 		// policy executes the safety checks.
 		return nil
 	case "navigate":
-		if s.NavigationDirective == nil || s.EditDirective != nil || s.CommandDirective != nil {
-			return errors.New("voice transcript step: kind navigate requires navigationDirective and no editDirective/commandDirective")
+		if s.NavigationDirective == nil || s.EditDirective != nil || s.CommandDirective != nil || s.UndoDirective != nil {
+			return errors.New("voice transcript step: kind navigate requires navigationDirective and no other directive payloads")
 		}
 		return validateNavigationDirective(s.NavigationDirective)
+	case "undo":
+		if s.UndoDirective == nil || s.EditDirective != nil || s.CommandDirective != nil || s.NavigationDirective != nil {
+			return errors.New("voice transcript step: kind undo requires undoDirective and no other directive payloads")
+		}
+		return validateUndoDirective(s.UndoDirective)
 	default:
 		return fmt.Errorf("voice transcript step: unknown kind %q", s.Kind)
+	}
+}
+
+func validateUndoDirective(u *UndoDirective) error {
+	if u == nil {
+		return errors.New("voice transcript step: undo requires undoDirective")
+	}
+	switch strings.TrimSpace(u.Scope) {
+	case "last_edit", "last_transcript":
+		return nil
+	default:
+		return fmt.Errorf("voice transcript step: undo scope must be last_edit or last_transcript, got %q", u.Scope)
 	}
 }
 
@@ -157,4 +174,3 @@ func (r VoiceTranscriptResult) Validate() error {
 	}
 	return nil
 }
-

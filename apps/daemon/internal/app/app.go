@@ -12,6 +12,7 @@ import (
 	"vocoding.net/vocode/v2/apps/daemon/internal/navigation"
 	"vocoding.net/vocode/v2/apps/daemon/internal/rpc"
 	"vocoding.net/vocode/v2/apps/daemon/internal/transcript"
+	"vocoding.net/vocode/v2/apps/daemon/internal/undo"
 )
 
 type Options struct {
@@ -31,7 +32,8 @@ func New(opts Options) (*App, error) {
 	editService := edits.NewService()
 	commandService := commandexec.NewService()
 	navigationService := navigation.NewService()
-	dispatcher := dispatch.NewDispatcher(editService, commandService, navigationService)
+	undoService := undo.NewService()
+	dispatcher := dispatch.NewDispatcher(editService, commandService, navigationService, undoService)
 
 	voiceService := transcript.NewService(agentRuntime, dispatcher)
 

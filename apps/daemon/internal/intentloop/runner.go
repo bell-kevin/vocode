@@ -166,6 +166,10 @@ func (r *Runner) Execute(params protocol.VoiceTranscriptParams) (protocol.VoiceT
 			directives = append(directives, protocol.VoiceTranscriptDirective{Kind: "navigate", NavigationDirective: st.NavigationDirective})
 			trace = appendTurnTrace(trace, turn, "result:navigate")
 			completed = append(completed, next)
+		case st.UndoDirective != nil:
+			directives = append(directives, protocol.VoiceTranscriptDirective{Kind: "undo", UndoDirective: st.UndoDirective})
+			trace = appendTurnTrace(trace, turn, "result:undo:"+st.UndoDirective.Scope)
+			completed = append(completed, next)
 		}
 		if stopPlanning {
 			break
@@ -183,6 +187,9 @@ func (r *Runner) Execute(params protocol.VoiceTranscriptParams) (protocol.VoiceT
 }
 
 func buildEditExecutionContext(params protocol.VoiceTranscriptParams, next intent.NextIntent) (edits.EditExecutionContext, string) {
+	if next.Kind == intent.NextIntentKindUndo {
+		return edits.EditExecutionContext{}, ""
+	}
 	active := strings.TrimSpace(params.ActiveFile)
 	workspaceRoot := strings.TrimSpace(params.WorkspaceRoot)
 	if next.Kind == intent.NextIntentKindEdit && active == "" {

@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vocoding.net/schemas/undo-directive.schema.json",
+  "title": "UndoDirective",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "scope": {
+      "type": "string",
+      "enum": ["last_edit", "last_transcript"],
+      "description": "last_edit: one editor undo; last_transcript: reverse each workspace edit from the last voice turn that applied edits."
+    }
+  },
+  "required": ["scope"]
+}

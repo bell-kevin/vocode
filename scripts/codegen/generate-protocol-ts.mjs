@@ -25,6 +25,7 @@ const entries = [
   { file: "ping.params.schema.json", name: "PingParams" },
   { file: "ping.result.schema.json", name: "PingResult" },
   { file: "edit-directive.schema.json", name: "EditDirective" },
+  { file: "undo-directive.schema.json", name: "UndoDirective" },
   {
     file: "voice-transcript.params.schema.json",
     name: "VoiceTranscriptParams",

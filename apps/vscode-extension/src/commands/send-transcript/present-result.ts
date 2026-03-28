@@ -11,6 +11,12 @@ import {
   type EditLocationMap,
   executeNavigationStep,
 } from "../../navigation/execute-navigation-intent";
+import {
+  applyUndoDirective,
+  beginTranscriptUndoSession,
+  finalizeTranscriptUndoSessionIfEditsApplied,
+  recordAppliedEditUndoPaths,
+} from "../../voice/transcript-undo-ledger";
 
 /** Applies workspace edits and surfaces per-step edit/command outcomes in the UI. */
 export async function presentTranscriptResult(
@@ -24,40 +30,58 @@ export async function presentTranscriptResult(
     return;
   }
 
-  for (const step of result.directives ?? []) {
-    switch (step.kind) {
-      case "edit": {
-        if (
-          !(await handleEditStep(
-            step.editDirective,
-            activeDocumentPath,
-            editLocations,
-          ))
-        ) {
-          return;
+  beginTranscriptUndoSession();
+  try {
+    for (const step of result.directives ?? []) {
+      switch (step.kind) {
+        case "edit": {
+          if (
+            !(await handleEditStep(
+              step.editDirective,
+              activeDocumentPath,
+              editLocations,
+            ))
+          ) {
+            return;
+          }
+          break;
         }
-        break;
-      }
 
-      case "command": {
-        if (!(await handleCommandStep(step.commandDirective))) {
-          return;
+        case "command": {
+          if (!(await handleCommandStep(step.commandDirective))) {
+            return;
+          }
+          break;
         }
-        break;
-      }
 
-      case "navigate": {
-        try {
-          await executeNavigationStep(step, activeDocumentPath, editLocations);
-        } catch (err) {
-          const message =
-            err instanceof Error ? err.message : "navigation failed";
-          void vscode.window.showErrorMessage(`Vocode navigation: ${message}`);
-          return;
+        case "navigate": {
+          try {
+            await executeNavigationStep(
+              step,
+              activeDocumentPath,
+              editLocations,
+            );
+          } catch (err) {
+            const message =
+              err instanceof Error ? err.message : "navigation failed";
+            void vscode.window.showErrorMessage(
+              `Vocode navigation: ${message}`,
+            );
+            return;
+          }
+          break;
         }
-        break;
+
+        case "undo": {
+          if (!(await applyUndoDirective(step.undoDirective))) {
+            return;
+          }
+          break;
+        }
       }
     }
+  } finally {
+    finalizeTranscriptUndoSessionIfEditsApplied();
   }
 }
 
@@ -77,6 +101,7 @@ async function handleEditStep(
   if (!applyOutcome.ok) {
     return false;
   }
+  recordAppliedEditUndoPaths(applyOutcome.undoStackOrderPaths);
   for (const loc of applyOutcome.appliedEdits) {
     if (!loc.editId) continue;
     editLocations[loc.editId] = {

@@ -13,6 +13,8 @@ export interface AppliedEditLocation {
 export interface ApplyEditResultWorkspaceOutcome {
   ok: boolean;
   appliedEdits: AppliedEditLocation[];
+  /** One path per successful `workspace.applyEdit` (reverse order for transcript undo). */
+  undoStackOrderPaths: string[];
 }
 
 function toAbsolutePath(
@@ -39,10 +41,11 @@ export async function dispatchEditResultWorkspaceEdits(
   activeDocumentPath: string,
 ): Promise<ApplyEditResultWorkspaceOutcome> {
   if (editDirective.kind !== "success" || editDirective.actions.length === 0) {
-    return { ok: true, appliedEdits: [] };
+    return { ok: true, appliedEdits: [], undoStackOrderPaths: [] };
   }
 
   const appliedEdits: AppliedEditLocation[] = [];
+  const undoStackOrderPaths: string[] = [];
 
   for (const action of editDirective.actions) {
     const actionPath = toAbsolutePath(action.path, activeDocumentPath);
@@ -98,7 +101,7 @@ export async function dispatchEditResultWorkspaceEdits(
       void vscode.window.showWarningMessage(
         "Vocode: workspace edit was not applied.",
       );
-      return { ok: false, appliedEdits };
+      return { ok: false, appliedEdits, undoStackOrderPaths };
     }
 
     const savedDocument = await vscode.workspace.openTextDocument(actionPath);
@@ -107,9 +110,11 @@ export async function dispatchEditResultWorkspaceEdits(
       void vscode.window.showWarningMessage(
         `Vocode: could not save ${path.basename(actionPath)} after applying edit.`,
       );
-      return { ok: false, appliedEdits };
+      return { ok: false, appliedEdits, undoStackOrderPaths };
     }
+
+    undoStackOrderPaths.push(actionPath);
   }
 
-  return { ok: true, appliedEdits };
+  return { ok: true, appliedEdits, undoStackOrderPaths };
 }
