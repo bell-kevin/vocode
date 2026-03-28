@@ -11,13 +11,11 @@ test("clears partial buffer when a committed line arrives", () => {
   store.onPartial("partial two");
 
   assert.equal(store.getSnapshot().latestPartial, "partial two");
-  assert.ok(store.getSnapshot().partialRecent.length >= 1);
 
   store.enqueueCommitted("final line");
 
   const snap = store.getSnapshot();
   assert.equal(snap.latestPartial, null);
-  assert.equal(snap.partialRecent.length, 0);
   assert.equal(snap.pending.length, 1);
   assert.equal(snap.pending[0]?.text, "final line");
 });
@@ -61,7 +59,6 @@ test("setVoiceListening false removes live hypothesis", () => {
 
   store.setVoiceListening(false);
   assert.equal(store.getSnapshot().latestPartial, null);
-  assert.equal(store.getSnapshot().partialRecent.length, 0);
   assert.equal(store.getSnapshot().voiceListening, false);
 });
 
@@ -86,6 +83,23 @@ test("notifies listeners on change", () => {
   store.onPartial("world");
 
   assert.equal(notifications, 1);
+});
+
+test("a throwing listener does not block other listeners", () => {
+  const store = new TranscriptStore();
+  store.setVoiceListening(true);
+  let ok = 0;
+
+  store.onDidChange(() => {
+    throw new Error("bad listener");
+  });
+  store.onDidChange(() => {
+    ok += 1;
+  });
+
+  store.onPartial("hello");
+
+  assert.equal(ok, 1);
 });
 
 test("caps recent handled history", () => {

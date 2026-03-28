@@ -1,5 +1,4 @@
 const DEFAULT_MAX_HANDLED = 30;
-const PARTIAL_RECENT_MAX = 5;
 const WAVEFORM_SAMPLES = 64;
 
 /** Committed voice text not yet finished processing through the daemon + apply pipeline. */
@@ -22,8 +21,6 @@ export type TranscriptPanelSnapshot = {
   }[];
   /** Latest partial hypothesis after the most recent committed event. */
   readonly latestPartial: string | null;
-  /** Recent partial snapshots since last commit (oldest → newest). */
-  readonly partialRecent: readonly string[];
   /** True while Start Voice is active (matches extension voice session). */
   readonly voiceListening: boolean;
   /** Sidecar VAD + level (streaming STT only); for waveform / level UI. */
@@ -46,7 +43,6 @@ export class TranscriptStore {
   private recentHandled: { text: string; receivedAt: Date }[] = [];
 
   private latestPartial: string | null = null;
-  private partialRecent: string[] = [];
   private voiceListening = false;
 
   private meterSpeaking = false;
@@ -66,7 +62,6 @@ export class TranscriptStore {
     this.voiceListening = active;
     if (!active) {
       this.latestPartial = null;
-      this.partialRecent = [];
       this.meterSpeaking = false;
       this.meterRms = 0;
       this.waveformRms = [];
@@ -101,19 +96,11 @@ export class TranscriptStore {
     const normalized = text.trim();
     if (!normalized) {
       this.latestPartial = null;
-      this.partialRecent = [];
       this.emit();
       return;
     }
 
     this.latestPartial = normalized;
-    const prev = this.partialRecent[this.partialRecent.length - 1];
-    if (prev !== normalized) {
-      this.partialRecent.push(normalized);
-      while (this.partialRecent.length > PARTIAL_RECENT_MAX) {
-        this.partialRecent.shift();
-      }
-    }
     this.emit();
   }
 
@@ -125,7 +112,6 @@ export class TranscriptStore {
   enqueueCommitted(text: string): number | null {
     const normalized = text.trim();
     this.latestPartial = null;
-    this.partialRecent = [];
 
     if (!normalized) {
       this.emit();
@@ -180,7 +166,6 @@ export class TranscriptStore {
       pending: this.pending,
       recentHandled: this.recentHandled,
       latestPartial: this.latestPartial,
-      partialRecent: this.partialRecent,
       voiceListening: this.voiceListening,
       audioMeter: {
         speaking: this.meterSpeaking,
@@ -199,7 +184,11 @@ export class TranscriptStore {
 
   private emit(): void {
     for (const listener of this.listeners) {
-      listener();
+      try {
+        listener();
+      } catch (err) {
+        console.error("[TranscriptStore] listener threw:", err);
+      }
     }
   }
 }

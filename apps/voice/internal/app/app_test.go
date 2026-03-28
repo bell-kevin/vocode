@@ -19,6 +19,9 @@ func TestRun_EmitsReadyAndShutdownState(t *testing.T) {
 	if !strings.Contains(got, `"type":"ready"`) {
 		t.Fatalf("expected ready event, got output: %s", got)
 	}
+	if !strings.Contains(got, `"transcript_committed_field":true`) {
+		t.Fatalf("expected ready event to advertise transcript_committed_field, got output: %s", got)
+	}
 	if !strings.Contains(got, `"state":"shutdown"`) {
 		t.Fatalf("expected shutdown state, got output: %s", got)
 	}
@@ -27,8 +30,8 @@ func TestRun_EmitsReadyAndShutdownState(t *testing.T) {
 func TestSttModelID_Default(t *testing.T) {
 	t.Setenv("ELEVENLABS_STT_MODEL_ID", "")
 	t.Setenv("STT_MODEL_ID", "")
-	if got := sttModelID(); got != "scribe_v2" {
-		t.Fatalf("expected default model scribe_v2, got %q", got)
+	if got := sttModelID(); got != "scribe_v2_realtime" {
+		t.Fatalf("expected default model scribe_v2_realtime, got %q", got)
 	}
 }
 

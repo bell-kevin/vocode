@@ -48,9 +48,25 @@ func TestLocalVAD_SpeechThenSilenceProducesCommit(t *testing.T) {
 	}
 }
 
+func TestLocalVAD_Flush_EmptySendBufWhileInSpeech_EmitsCommitOnly(t *testing.T) {
+	v := newLocalVAD(16000, 6400, 16000, 4000)
+	v.inSpeech = true
+	v.sendBuf = nil
+	out := v.flush()
+	if len(out) != 1 {
+		t.Fatalf("expected one chunk, got %d", len(out))
+	}
+	if !out[0].commit || len(out[0].pcm) != 0 {
+		t.Fatalf("expected commit-only chunk, got commit=%v len(pcm)=%d", out[0].commit, len(out[0].pcm))
+	}
+	if v.inSpeech {
+		t.Fatal("expected inSpeech cleared after flush")
+	}
+}
+
 func TestLocalVAD_ForceCommitOnLongUtterance(t *testing.T) {
 	t.Setenv("VOCODE_VOICE_VAD_START_MS", "20")
-	t.Setenv("VOCODE_VOICE_VAD_END_MS", "500")
+	t.Setenv("VOCODE_VOICE_VAD_END_MS", "750")
 	t.Setenv("VOCODE_VOICE_VAD_PREROLL_MS", "0")
 	t.Setenv("VOCODE_VOICE_VAD_THRESHOLD_MULTIPLIER", "1.1")
 

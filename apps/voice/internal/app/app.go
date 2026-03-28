@@ -12,7 +12,8 @@ import (
 
 type App struct {
 	in io.Reader
-	out io.Writer
+	// Buffered so each JSON line is flushed promptly to the extension (line-oriented protocol).
+	outBuf *bufio.Writer
 
 	mu sync.Mutex
 
@@ -23,15 +24,19 @@ type App struct {
 
 func New(in io.Reader, out io.Writer) *App {
 	return &App{
-		in:  in,
-		out: out,
+		in:     in,
+		outBuf: bufio.NewWriter(out),
 	}
 }
 
 func (a *App) Run() error {
 	if err := a.write(Event{
 		Type:    "ready",
-		Version: "0.1.0",
+		Version: "0.2.0",
+		Features: map[string]bool{
+			"transcript_committed_field": true,
+			"audio_meter":                true,
+		},
 	}); err != nil {
 		return err
 	}
@@ -86,8 +91,28 @@ func (a *App) Run() error {
 }
 
 func (a *App) write(evt Event) error {
+	return a.writeJSON(evt)
+}
+
+func (a *App) writeJSON(v any) error {
 	a.mu.Lock()
 	defer a.mu.Unlock()
-	enc := json.NewEncoder(a.out)
-	return enc.Encode(evt)
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+	b = append(b, '\n')
+	if _, err := a.outBuf.Write(b); err != nil {
+		return err
+	}
+	return a.outBuf.Flush()
+}
+
+// writeTranscript emits transcript JSON with committed always present (extension treats missing as partial-only).
+func (a *App) writeTranscript(text string, committed bool) error {
+	return a.writeJSON(struct {
+		Type      string `json:"type"`
+		Text      string `json:"text"`
+		Committed bool   `json:"committed"`
+	}{Type: "transcript", Text: text, Committed: committed})
 }

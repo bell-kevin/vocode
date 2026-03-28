@@ -59,11 +59,28 @@ function createServices(
     });
 
     voiceSidecar.onError((evt) => {
-      // Ensure user sees sidecar failures even when no transcript ever arrives.
-      if (!voiceSession.isRunning()) return;
-      void vscode.window.showWarningMessage(
-        `Vocode voice sidecar error: ${evt.message}`,
-      );
+      const message =
+        typeof evt.message === "string" ? evt.message : "unknown error";
+      // Always clear partial / meter UI — do not gate on isRunning (avoids a stuck "Live" card).
+      transcriptStore.setVoiceListening(false);
+      voiceStatus.setIdle();
+      if (voiceSession.isRunning()) {
+        voiceSession.stop();
+        void vscode.window.showWarningMessage(
+          `Vocode voice sidecar error: ${message}`,
+        );
+      }
+      // Sync stdin protocol so a future start is not confused with an orphaned session.
+      voiceSidecar.stop();
+    });
+
+    voiceSidecar.onState((evt) => {
+      if (evt.state !== "stopped" && evt.state !== "shutdown") {
+        return;
+      }
+      if (!voiceSession.isRunning()) {
+        return;
+      }
       voiceSession.stop();
       voiceStatus.setIdle();
       transcriptStore.setVoiceListening(false);

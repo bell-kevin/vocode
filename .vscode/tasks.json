@@ -8,14 +8,25 @@
       "problemMatcher": []
     },
     {
+      "label": "build:voice",
+      "type": "shell",
+      "command": "pnpm --filter @vocode/voice build",
+      "problemMatcher": []
+    },
+    {
       "label": "build:vscode-extension",
       "type": "shell",
       "command": "pnpm --filter ./apps/vscode-extension build",
       "problemMatcher": "$tsc"
     },
     {
+      "label": "build:native",
+      "dependsOn": ["build:daemon", "build:voice"],
+      "dependsOrder": "parallel"
+    },
+    {
       "label": "build:dev-host",
-      "dependsOn": ["build:daemon", "build:vscode-extension"],
+      "dependsOn": ["build:native", "build:vscode-extension"],
       "dependsOrder": "sequence"
     }
   ]

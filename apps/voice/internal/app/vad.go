@@ -32,10 +32,12 @@ type localVAD struct {
 	prerollCap    int
 	sendBuf       []byte
 
-	debug bool
-
 	// lastFrameRMS is the RMS energy of the most recently processed 20ms frame (for extension UI).
 	lastFrameRMS float64
+	// lastFrameSpeechClass is true when the last frame cleared the energy gate (same as isSpeech).
+	lastFrameSpeechClass bool
+	// meterSmoothed is a fast-attack / slow-decay envelope of RMS for a steadier level meter.
+	meterSmoothed float64
 }
 
 func newLocalVAD(sampleRate int, minChunkBytes int, maxChunkBytes int, maxUtteranceMS int) *localVAD {
@@ -64,24 +66,30 @@ func newLocalVAD(sampleRate int, minChunkBytes int, maxChunkBytes int, maxUttera
 		endFrames:      endFrames,
 		maxUtterFrames: maxUtterFrames,
 		threshold:      vadThresholdMultiplier(),
-		minEnergyFloor: 150.0,
-		noiseFloor:     150.0,
+		minEnergyFloor: vadMinEnergyFloor(),
+		noiseFloor:     vadMinEnergyFloor(),
 		prerollCap:     prerollCap,
 		prerollFrames:  make([][]byte, 0, prerollCap),
-		debug:          vadDebugEnabled(),
 	}
+}
+
+func stderrSync() {
+	_ = os.Stderr.Sync()
 }
 
 func (v *localVAD) dbg(format string, args ...any) {
-	if !v.debug {
+	if !vadDebugEnabled() {
 		return
 	}
 	fmt.Fprintf(os.Stderr, "[vocode-vad] "+format+"\n", args...)
+	stderrSync()
 }
 
-// MeterSnapshot reports VAD speech gate and last frame loudness (PCM16 RMS of one 20ms frame).
+// MeterSnapshot reports whether the UI should show “speaking” and a smoothed RMS for the level bar.
+// Speaking is true during an utterance (inSpeech) or when the current frame’s energy passes the gate,
+// so short dips between phonemes don’t flash “Quiet” while you’re still talking.
 func (v *localVAD) MeterSnapshot() (speaking bool, rms float64) {
-	return v.inSpeech, v.lastFrameRMS
+	return v.inSpeech || v.lastFrameSpeechClass, v.meterSmoothed
 }
 
 func (v *localVAD) process(frame []byte) []vadChunk {
@@ -90,7 +98,9 @@ func (v *localVAD) process(frame []byte) []vadChunk {
 	}
 	energy := pcm16RMS(frame)
 	v.lastFrameRMS = energy
+	v.smoothMeterLevel(energy)
 	isSpeech := energy > math.Max(v.noiseFloor*v.threshold, v.minEnergyFloor)
+	v.lastFrameSpeechClass = isSpeech
 	chunks := make([]vadChunk, 0, 2)
 
 	if !v.inSpeech {
@@ -113,13 +123,16 @@ func (v *localVAD) process(frame []byte) []vadChunk {
 			v.inSpeechFrames = 0
 			v.silenceFrames = 0
 			v.speechFrames = 0
-			for _, f := range v.prerollFrames {
-				v.sendBuf = append(v.sendBuf, f...)
-			}
 			v.prerollFrames = v.prerollFrames[:0]
+			// Preroll was already streamed below as non-commit PCM; only buffer this frame for
+			// commit segmentation (same audio was not duplicated in sendBuf).
+			v.sendBuf = append(v.sendBuf, frame...)
 			chunks = append(chunks, v.drainNonCommitChunks()...)
+			return chunks
 		}
-		return chunks
+		// Stream every frame upstream while waiting for speech_start so STT doesn’t miss the
+		// start of the next phrase after a commit (local VAD silence).
+		return []vadChunk{{pcm: append([]byte(nil), frame...), commit: false}}
 	}
 
 	v.sendBuf = append(v.sendBuf, frame...)
@@ -137,6 +150,12 @@ func (v *localVAD) process(frame []byte) []vadChunk {
 		if len(v.sendBuf) > 0 {
 			v.dbg("commit utterance_end (silence) silence_frames=%d end_frames=%d pcm_bytes=%d", v.silenceFrames, v.endFrames, len(v.sendBuf))
 			chunks = append(chunks, vadChunk{pcm: append([]byte(nil), v.sendBuf...), commit: true})
+		} else {
+			// Audio for this utterance was already sent as non-commit chunks (sendBuf fully drained
+			// while trailing silence used large chunk sizes). STT still needs a finalize commit or
+			// the segment stays open and the client shows a stuck partial.
+			v.dbg("commit utterance_end (silence) pcm_bytes=0 commit_only (drained tail)")
+			chunks = append(chunks, vadChunk{pcm: nil, commit: true})
 		}
 		v.sendBuf = nil
 		v.inSpeech = false
@@ -157,13 +176,19 @@ func (v *localVAD) process(frame []byte) []vadChunk {
 }
 
 func (v *localVAD) flush() []vadChunk {
-	if len(v.sendBuf) == 0 {
-		return nil
+	if len(v.sendBuf) > 0 {
+		v.dbg("commit flush pcm_bytes=%d", len(v.sendBuf))
+		ch := vadChunk{pcm: append([]byte(nil), v.sendBuf...), commit: true}
+		v.sendBuf = nil
+		v.inSpeech = false
+		return []vadChunk{ch}
 	}
-	v.dbg("commit flush pcm_bytes=%d", len(v.sendBuf))
-	ch := vadChunk{pcm: append([]byte(nil), v.sendBuf...), commit: true}
-	v.sendBuf = nil
-	return []vadChunk{ch}
+	if v.inSpeech {
+		v.dbg("commit flush pcm_bytes=0 commit_only (in speech, drained)")
+		v.inSpeech = false
+		return []vadChunk{{pcm: nil, commit: true}}
+	}
+	return nil
 }
 
 func (v *localVAD) currentChunkBytes() int {
@@ -203,6 +228,21 @@ func (v *localVAD) pushPreroll(frame []byte) {
 		return
 	}
 	v.prerollFrames = append(v.prerollFrames, cp)
+}
+
+func (v *localVAD) smoothMeterLevel(energy float64) {
+	// Attack follows peaks quickly; decay slowly so the bar matches perceived loudness.
+	const attackMix = 0.42
+	const decayMix = 0.14
+	if v.meterSmoothed <= 0 {
+		v.meterSmoothed = energy
+		return
+	}
+	if energy >= v.meterSmoothed {
+		v.meterSmoothed = (1-attackMix)*v.meterSmoothed + attackMix*energy
+	} else {
+		v.meterSmoothed = (1-decayMix)*v.meterSmoothed + decayMix*energy
+	}
 }
 
 func (v *localVAD) updateNoiseFloor(energy float64) {

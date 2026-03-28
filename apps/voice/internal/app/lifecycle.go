@@ -41,6 +41,7 @@ func (a *App) handleStart() error {
 	a.wg.Add(1)
 	go func() {
 		defer a.wg.Done()
+		defer a.markTranscribeFinished()
 		a.transcribeLoop(ctx, apiKey, sttModelID(), rec)
 	}()
 
@@ -69,4 +70,19 @@ func (a *App) stopIfRunning() {
 		}
 		a.wg.Wait()
 	}
+}
+
+// markTranscribeFinished runs when the transcribe goroutine exits. If the session was still marked
+// running (e.g. STT WebSocket closed without handleStop), clear flags and emit stopped so clients
+// can restart and the extension is not stuck thinking the session is active.
+func (a *App) markTranscribeFinished() {
+	if !a.running {
+		return
+	}
+	a.running = false
+	if a.cancel != nil {
+		a.cancel()
+		a.cancel = nil
+	}
+	_ = a.write(Event{Type: "state", State: "stopped"})
 }

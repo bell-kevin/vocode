@@ -238,6 +238,20 @@ export class TranscriptPanelViewProvider
       );
     }
 
+    /** Stable key for #root; when only audio_meter changes, skip replacing #root so live-card CSS animations are not reset ~25/s. */
+    function mainContentSignature(state) {
+      return JSON.stringify({
+        v: state.voiceListening === true,
+        lp: typeof state.latestPartial === "string" ? state.latestPartial : "",
+        p: Array.isArray(state.pending) ? state.pending : [],
+        r: Array.isArray(state.recentHandled) ? state.recentHandled : [],
+      });
+    }
+
+    var lastAppliedMainSig = null;
+    var mainDebounceTimer = null;
+    var pendingMainState = null;
+
     function drawWaveform(canvas, samples) {
       if (!canvas || !canvas.getContext) return;
       const ctx = canvas.getContext("2d");
@@ -247,7 +261,16 @@ export class TranscriptPanelViewProvider
       ctx.clearRect(0, 0, w, h);
       const fg = getComputedStyle(document.body).getPropertyValue("--vscode-textLink-foreground").trim() || "#3794ff";
       const arr = Array.isArray(samples) ? samples : [];
-      if (!arr.length) return;
+      if (!arr.length) {
+        ctx.strokeStyle = fg;
+        ctx.globalAlpha = 0.22;
+        ctx.beginPath();
+        ctx.moveTo(0, h - 2);
+        ctx.lineTo(w, h - 2);
+        ctx.stroke();
+        ctx.globalAlpha = 1;
+        return;
+      }
       const n = arr.length;
       const gap = 1;
       const barW = Math.max(1, (w - (n - 1) * gap) / n);
@@ -263,13 +286,7 @@ export class TranscriptPanelViewProvider
       ctx.globalAlpha = 1;
     }
 
-    function render(state) {
-      const meterWrap = document.getElementById("meterWrap");
-      const root = document.getElementById("root");
-      if (!meterWrap || !root) return;
-
-      meterWrap.innerHTML = buildMeter(state);
-
+    function buildRootHtml(state) {
       const pending = Array.isArray(state.pending) ? state.pending : [];
       const recentHandled = Array.isArray(state.recentHandled)
         ? state.recentHandled
@@ -304,13 +321,9 @@ export class TranscriptPanelViewProvider
         }
 
         if (showLive) {
-          const crumbs = (state.partialRecent || []).slice(0, -1).map(function (t) {
-            return '<div class="text" style="opacity:0.65;font-size:11px;">' + esc(t) + "</div>";
-          }).join("");
           parts.push(
             '<div class="card live">' +
-              '<div class="meta"><span class="badge">Live</span><span>Partial (since last commit)</span></div>' +
-              crumbs +
+              '<div class="meta"><span class="badge">Live</span><span>Partial</span></div>' +
               '<div class="text">' + esc(state.latestPartial) + "</div>" +
               '<div class="typing" aria-hidden="true"><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>' +
             "</div>"
@@ -338,11 +351,56 @@ export class TranscriptPanelViewProvider
 
       parts.push('<p class="hint">Vocode · voice to code</p>');
 
-      root.innerHTML = parts.join("");
+      return parts.join("");
+    }
 
-      const cv = document.getElementById("waveCanvas");
-      const am = state.audioMeter || {};
-      drawWaveform(cv, am.waveform);
+    function flushMainDebounce() {
+      if (mainDebounceTimer !== null) {
+        clearTimeout(mainDebounceTimer);
+        mainDebounceTimer = null;
+      }
+      pendingMainState = null;
+    }
+
+    function render(state) {
+      const meterWrap = document.getElementById("meterWrap");
+      const root = document.getElementById("root");
+      if (!meterWrap || !root) return;
+
+      meterWrap.innerHTML = buildMeter(state);
+      const cv0 = document.getElementById("waveCanvas");
+      drawWaveform(cv0, (state.audioMeter || {}).waveform);
+
+      const sig = mainContentSignature(state);
+      if (sig === lastAppliedMainSig) {
+        flushMainDebounce();
+        return;
+      }
+
+      if (
+        pendingMainState !== null &&
+        mainContentSignature(pendingMainState) === sig
+      ) {
+        return;
+      }
+
+      pendingMainState = state;
+      if (mainDebounceTimer !== null) {
+        clearTimeout(mainDebounceTimer);
+      }
+      var delay = lastAppliedMainSig === null ? 0 : 45;
+      mainDebounceTimer = setTimeout(function () {
+        mainDebounceTimer = null;
+        var s = pendingMainState;
+        pendingMainState = null;
+        if (!s) return;
+        var finalSig = mainContentSignature(s);
+        if (finalSig === lastAppliedMainSig) return;
+        root.innerHTML = buildRootHtml(s);
+        lastAppliedMainSig = finalSig;
+        var cv = document.getElementById("waveCanvas");
+        drawWaveform(cv, (s.audioMeter || {}).waveform);
+      }, delay);
     }
 
     window.addEventListener("message", function (event) {

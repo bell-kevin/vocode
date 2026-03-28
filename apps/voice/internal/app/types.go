@@ -9,9 +9,10 @@ type Event struct {
 	State   string `json:"state,omitempty"`
 	Message string `json:"message,omitempty"`
 	Version string `json:"version,omitempty"`
-	Text    string `json:"text,omitempty"`
-	// Committed indicates whether this transcript is a final/committed hypothesis.
-	// When omitted, the event is considered backwards-compatible.
+	// Features is set on "ready" so the extension can detect a stale sidecar binary.
+	Features map[string]bool `json:"features,omitempty"`
+	Text     string          `json:"text,omitempty"`
+	// Committed is used by generic write(); transcript lines use writeTranscript() so committed is always present.
 	Committed *bool `json:"committed,omitempty"`
 	// Speaking and Rms are set for type "audio_meter" (mic level + VAD in-speech for extension UI).
 	Speaking *bool    `json:"speaking,omitempty"`

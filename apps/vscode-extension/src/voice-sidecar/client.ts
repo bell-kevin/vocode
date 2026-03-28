@@ -1,16 +1,25 @@
 import type { ChildProcessWithoutNullStreams } from "node:child_process";
 import { createInterface } from "node:readline";
+import * as vscode from "vscode";
 
 interface VoiceSidecarEvent {
   type: string;
   state?: string;
   message?: string;
   version?: string;
+  /** Present on `ready` when built from current sources (stale binary omits this). */
+  features?: {
+    transcript_committed_field?: boolean;
+    audio_meter?: boolean;
+  };
   text?: string;
   committed?: boolean;
   speaking?: boolean;
   rms?: number;
 }
+
+const staleSidecarMessage =
+  "Vocode voice sidecar is outdated. From the repo root run: pnpm --filter @vocode/voice build, then reload the window (or restart the Extension Development Host).";
 
 export interface VoiceSidecarTranscriptEvent {
   type: "transcript";
@@ -29,6 +38,7 @@ export interface VoiceSidecarAudioMeterEvent {
 export class VoiceSidecarClient {
   private readonly process: ChildProcessWithoutNullStreams;
   private disposed = false;
+  private warnedStaleSidecar = false;
   private transcriptHandler?: (evt: VoiceSidecarTranscriptEvent) => void;
   private stateHandler?: (evt: { type: "state"; state: string }) => void;
   private errorHandler?: (evt: { type: "error"; message: string }) => void;
@@ -59,7 +69,17 @@ export class VoiceSidecarClient {
 
   private dispatchSidecarEvent(evt: VoiceSidecarEvent): void {
     if (evt.type === "ready") {
-      console.log(`[vocode-voiced] ready version=${evt.version ?? "?"}`);
+      const f = evt.features;
+      const ok =
+        f?.transcript_committed_field === true && f?.audio_meter === true;
+      console.log(
+        `[vocode-voiced] ready version=${evt.version ?? "?"} features=${ok ? "ok" : "STALE_OR_OLD"}`,
+      );
+      if (!ok && !this.warnedStaleSidecar) {
+        this.warnedStaleSidecar = true;
+        console.warn(`[vocode-voiced] ${staleSidecarMessage}`);
+        void vscode.window.showWarningMessage(staleSidecarMessage);
+      }
       return;
     }
     if (evt.type === "state") {
@@ -92,6 +112,14 @@ export class VoiceSidecarClient {
     if (evt.type === "transcript") {
       const text = typeof evt.text === "string" ? evt.text : "";
       const committed = this.getCommitted(evt);
+      if (typeof evt.committed !== "boolean" && !this.warnedStaleSidecar) {
+        this.warnedStaleSidecar = true;
+        console.warn(
+          "[vocode-voiced] transcript line missing boolean `committed` — sidecar binary is not current.",
+        );
+        console.warn(`[vocode-voiced] ${staleSidecarMessage}`);
+        void vscode.window.showWarningMessage(staleSidecarMessage);
+      }
       if (!text) return;
       this.transcriptHandler?.({
         type: "transcript",
