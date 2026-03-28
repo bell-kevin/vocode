@@ -94,8 +94,8 @@ One rule should have one owner. Duplicating ownership is a regression risk.
 
 - Agent/runtime: `apps/daemon/internal/agent`
 - Intent types + validation: `apps/daemon/internal/intent`
+- Voice transcript (`apps/daemon/internal/transcript/`): `service.go` (RPC + optional queue/coalesce); `execute.go` (`Executor` — iterative `NextIntent`, context rounds, retries, then `intents.Handler` dispatch)
 - Intent execution (`apps/daemon/internal/intents/`): root `dispatch.go` defines `Handler` + `DispatchIntent`; subpackages mirror extension `src/directives/` (`command`, `edits`, `navigation`, `undo`). `command`, `navigation`, and `undo` expose `DispatchCommand` / `DispatchNavigation` / `DispatchUndo` in each `dispatch.go`; `edits` uses `Engine` + `DispatchEdit` in `engine.go` / `edits/dispatch.go` (stateful builder)
-- RPC adapter: `apps/daemon/internal/transcript/service.go`
 
 ### Extension
 

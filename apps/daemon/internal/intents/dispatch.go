@@ -30,7 +30,7 @@ type DispatchResult struct {
 }
 
 // DispatchIntent handles only executable intents (edit/command/navigate/undo).
-// Control-flow intents (done/request_context) are handled by the intent loop.
+// Control-flow intents (done/request_context) are handled by the transcript executor.
 func (h *Handler) DispatchIntent(next intent.NextIntent, editCtx edits.EditExecutionContext) (DispatchResult, error) {
 	if err := intent.ValidateNextIntent(next); err != nil {
 		return DispatchResult{}, err

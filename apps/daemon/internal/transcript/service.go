@@ -8,9 +8,8 @@ import (
 	"time"
 
 	"vocoding.net/vocode/v2/apps/daemon/internal/agent"
-	"vocoding.net/vocode/v2/apps/daemon/internal/intents"
 	"vocoding.net/vocode/v2/apps/daemon/internal/indexing"
-	"vocoding.net/vocode/v2/apps/daemon/internal/intentloop"
+	"vocoding.net/vocode/v2/apps/daemon/internal/intents"
 	"vocoding.net/vocode/v2/apps/daemon/internal/symbols"
 	protocol "vocoding.net/vocode/v2/packages/protocol/go"
 )
@@ -19,14 +18,14 @@ import (
 // action-plan execution (edits via structured results for the extension;
 // commands on the daemon).
 type TranscriptService struct {
-	loop *intentloop.Runner
+	executor *Executor
 
 	queue chan transcriptJob
 
 	coalesceWindow time.Duration
 	maxMergeJobs   int
 	maxMergeChars  int
-	startOnce sync.Once
+	startOnce      sync.Once
 }
 
 type transcriptJob struct {
@@ -55,7 +54,7 @@ func NewService(
 
 	symbolResolver := symbols.NewTreeSitterResolver()
 	cp := indexing.NewContextProvider(symbolResolver)
-	loop := intentloop.NewRunner(agentRuntime, intentHandler, cp, intentloop.Options{
+	exec := NewExecutor(agentRuntime, intentHandler, cp, ExecutorOptions{
 		MaxPlannerTurns:          maxPlannerTurns,
 		MaxIntentRetries:         maxIntentRetries,
 		MaxContextRounds:         maxContextRounds,
@@ -64,7 +63,7 @@ func NewService(
 	})
 
 	s := &TranscriptService{
-		loop:          loop,
+		executor:       exec,
 		coalesceWindow: time.Duration(coalesceMs) * time.Millisecond,
 		maxMergeJobs:   maxMergeJobs,
 		maxMergeChars:  maxMergeChars,
@@ -90,7 +89,7 @@ func (s *TranscriptService) AcceptTranscript(
 
 	// If the queue is disabled, execute immediately.
 	if s.queue == nil {
-		return s.loop.Execute(params)
+		return s.executor.Execute(params)
 	}
 
 	respCh := make(chan transcriptAcceptResp, 1)
@@ -174,7 +173,7 @@ func (s *TranscriptService) runWorker() {
 		mergedParams := primary.params
 		mergedParams.Text = strings.Join(mergedTextParts, " ")
 
-		mergedResult, ok := s.loop.Execute(mergedParams)
+		mergedResult, ok := s.executor.Execute(mergedParams)
 
 		// Respond: only the primary job returns the actual execution.
 		// Coalesced jobs succeed with an empty result to avoid duplicate UI edits.
@@ -205,4 +204,3 @@ func envInt(key string, def int) int {
 	}
 	return i
 }
-

@@ -1,4 +1,4 @@
-package intentloop
+package transcript
 
 import (
 	"context"
@@ -7,19 +7,22 @@ import (
 	"strings"
 
 	"vocoding.net/vocode/v2/apps/daemon/internal/agent"
+	"vocoding.net/vocode/v2/apps/daemon/internal/intent"
 	"vocoding.net/vocode/v2/apps/daemon/internal/intents"
 	"vocoding.net/vocode/v2/apps/daemon/internal/intents/edits"
-	"vocoding.net/vocode/v2/apps/daemon/internal/intent"
 	protocol "vocoding.net/vocode/v2/packages/protocol/go"
 )
 
+// ContextProvider resolves request_context intents by enriching planner state (symbols, excerpts).
 type ContextProvider interface {
 	Fulfill(params protocol.VoiceTranscriptParams, in agent.PlanningContext, req *intent.RequestContextIntent) (agent.PlanningContext, error)
 }
 
-type Runner struct {
+// Executor runs one voice.transcript through the agent: iterative NextIntent, optional context
+// rounds, retries, and dispatch into protocol directives via intents.Handler.
+type Executor struct {
 	agent                    *agent.Agent
-	intents                  *intents.Handler
+	intentHandler            *intents.Handler
 	contextProvider          ContextProvider
 	maxPlannerTurns          int
 	maxIntentRetries         int
@@ -28,7 +31,7 @@ type Runner struct {
 	maxConsecutiveContextReq int
 }
 
-type Options struct {
+type ExecutorOptions struct {
 	MaxPlannerTurns          int
 	MaxIntentRetries         int
 	MaxContextRounds         int
@@ -36,10 +39,10 @@ type Options struct {
 	MaxConsecutiveContextReq int
 }
 
-func NewRunner(a *agent.Agent, h *intents.Handler, cp ContextProvider, opts Options) *Runner {
-	return &Runner{
+func NewExecutor(a *agent.Agent, h *intents.Handler, cp ContextProvider, opts ExecutorOptions) *Executor {
+	return &Executor{
 		agent:                    a,
-		intents:                  h,
+		intentHandler:            h,
 		contextProvider:          cp,
 		maxPlannerTurns:          opts.MaxPlannerTurns,
 		maxIntentRetries:         opts.MaxIntentRetries,
@@ -49,16 +52,16 @@ func NewRunner(a *agent.Agent, h *intents.Handler, cp ContextProvider, opts Opti
 	}
 }
 
-func (r *Runner) Execute(params protocol.VoiceTranscriptParams) (protocol.VoiceTranscriptResult, bool) {
+func (e *Executor) Execute(params protocol.VoiceTranscriptParams) (protocol.VoiceTranscriptResult, bool) {
 	text := strings.TrimSpace(params.Text)
 	if text == "" {
 		return protocol.VoiceTranscriptResult{}, false
 	}
-	maxTurns := r.maxPlannerTurns
+	maxTurns := e.maxPlannerTurns
 	if maxTurns <= 0 {
 		maxTurns = 8
 	}
-	maxRetries := r.maxIntentRetries
+	maxRetries := e.maxIntentRetries
 	if maxRetries < 0 {
 		maxRetries = 0
 	}
@@ -73,7 +76,7 @@ func (r *Runner) Execute(params protocol.VoiceTranscriptParams) (protocol.VoiceT
 
 	for i := 0; i < maxTurns; i++ {
 		turn := i + 1
-		next, err := r.agent.NextIntent(context.Background(), agent.ModelInput{
+		next, err := e.agent.NextIntent(context.Background(), agent.ModelInput{
 			Transcript:       text,
 			CompletedActions: append([]intent.NextIntent(nil), completed...),
 			Context:          turnCtx,
@@ -93,23 +96,23 @@ func (r *Runner) Execute(params protocol.VoiceTranscriptParams) (protocol.VoiceT
 		if next.Kind == intent.NextIntentKindRequestContext {
 			contextRounds++
 			consecutiveContextReq++
-			if r.maxContextRounds > 0 && contextRounds > r.maxContextRounds {
+			if e.maxContextRounds > 0 && contextRounds > e.maxContextRounds {
 				trace = appendTurnTrace(trace, turn, "context:cap:max_rounds")
 				return protocol.VoiceTranscriptResult{Accepted: false}, true
 			}
-			if r.maxConsecutiveContextReq > 0 && consecutiveContextReq > r.maxConsecutiveContextReq {
+			if e.maxConsecutiveContextReq > 0 && consecutiveContextReq > e.maxConsecutiveContextReq {
 				trace = appendTurnTrace(trace, turn, "context:cap:consecutive_requests")
 				return protocol.VoiceTranscriptResult{Accepted: false}, true
 			}
-			if r.contextProvider == nil {
+			if e.contextProvider == nil {
 				return protocol.VoiceTranscriptResult{Accepted: false}, true
 			}
-			updated, err := r.contextProvider.Fulfill(params, turnCtx, next.RequestContext)
+			updated, err := e.contextProvider.Fulfill(params, turnCtx, next.RequestContext)
 			if err != nil {
 				trace = appendTurnTrace(trace, turn, "context:fulfill_error")
 				return protocol.VoiceTranscriptResult{Accepted: false}, true
 			}
-			if r.maxContextBytes > 0 && estimatePlanningContextBytes(updated) > r.maxContextBytes {
+			if e.maxContextBytes > 0 && estimatePlanningContextBytes(updated) > e.maxContextBytes {
 				trace = appendTurnTrace(trace, turn, "context:cap:byte_budget")
 				return protocol.VoiceTranscriptResult{Accepted: false}, true
 			}
@@ -130,7 +133,7 @@ func (r *Runner) Execute(params protocol.VoiceTranscriptParams) (protocol.VoiceT
 			}
 			return protocol.VoiceTranscriptResult{Accepted: false}, true
 		}
-		st, err := r.intents.DispatchIntent(next, editCtx)
+		st, err := e.intentHandler.DispatchIntent(next, editCtx)
 		if err != nil {
 			trace = appendTurnTrace(trace, turn, "execute_error")
 			if maxRetries > 0 {
@@ -141,7 +144,7 @@ func (r *Runner) Execute(params protocol.VoiceTranscriptParams) (protocol.VoiceT
 			}
 			return protocol.VoiceTranscriptResult{Accepted: false}, true
 		}
-		maxRetries = r.maxIntentRetries
+		maxRetries = e.maxIntentRetries
 		if maxRetries < 0 {
 			maxRetries = 0
 		}

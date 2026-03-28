@@ -16,9 +16,10 @@ Expected daemon flow:
 `cmd/vocoded/main.go`  
 → `internal/app` (composition root)  
 → `internal/rpc` (transport/routing only)  
+→ `internal/transcript` — `Executor` runs one `voice.transcript`: calls `agent.NextIntent`, fulfills `request_context`, optional retries, then `intents.Handler.DispatchIntent` per executable intent
 → `internal/agent` — iterative planner adapter (`NextIntent` per turn)
 → `internal/intent` — owns `NextIntent` / `EditIntent` / validation
-→ `internal/intents` — `Handler.DispatchIntent` executes validated intents (edit intents use `intents/edits.Engine.DispatchEdit`; other kinds delegate to `intents/command|navigation|undo`)
+→ `internal/intents` — `Handler.DispatchIntent` maps one executable intent to protocol directives (edit intents use `intents/edits.Engine.DispatchEdit`; other kinds delegate to `intents/command|navigation|undo`)
 → `internal/intents/edits` — `Engine` (`BuildActions`, `DispatchEdit` → protocol edit results; not an RPC)
 
 ### Extension (`apps/vscode-extension`)
