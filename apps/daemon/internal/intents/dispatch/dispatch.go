@@ -1,3 +1,8 @@
+// Package dispatch routes validated planner intents to outcomes (control vs executable).
+//
+// Strategy-style layout: [Handler] holds long-lived services (edit engine, request-context provider).
+// [HandleInput] is the per-call runtime (transcript params, planning snapshot, intent, edit snapshot).
+// Kind-specific logic lives in subpackages, each exporting a Dispatch function for its payload.
 package dispatch
 
 import (
@@ -10,8 +15,8 @@ import (
 	protocol "vocoding.net/vocode/v2/packages/protocol/go"
 )
 
-// Handler routes planner intents: control intents (done / request_context) vs executables
-// (edit / command / navigate / undo → protocol directives).
+// Handler is the dispatch context: shared dependencies for intent fulfillment strategies.
+// It routes control intents (done / request_context) vs executables (edit / command / navigate / undo).
 type Handler struct {
 	engine  *edit.Engine
 	request *requestcontext.Provider
@@ -52,10 +57,9 @@ type HandleOutcome struct {
 	Executable *ExecutableResult
 }
 
-// HandleInput is everything one [Handler.Handle] call needs: transcript params, planner
-// context snapshot, the validated intent union, and (for executable intents) edit execution
-// state built by the transcript executor. Control vs executable branches read different fields;
-// unused fields are intentionally ignored (e.g. done ignores all of this; edit uses Engine + EditCtx).
+// HandleInput is per-call dispatch context: transcript params, planner snapshot, validated [intents.Intent],
+// and edit execution state from the transcript executor. Strategies read only the fields they need;
+// others are ignored (e.g. done uses neither Params nor EditCtx; request_context uses Params + TurnCtx).
 type HandleInput struct {
 	Params  protocol.VoiceTranscriptParams
 	TurnCtx agent.PlanningContext
