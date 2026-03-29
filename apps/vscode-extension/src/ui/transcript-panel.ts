@@ -110,6 +110,13 @@ export class TranscriptPanelViewProvider
       white-space: pre-wrap;
       word-break: break-word;
     }
+    .error-detail {
+      margin-top: 8px;
+      font-size: 11px;
+      color: var(--vscode-errorForeground);
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
     .card.pending { border-left: 3px solid var(--vscode-progressBar-background); }
     .card.processing { border-left: 3px solid var(--vscode-textLink-foreground); }
     .card.error { border-left: 3px solid var(--vscode-errorForeground); }
@@ -369,6 +376,9 @@ export class TranscriptPanelViewProvider
                 "<span>" + esc(fmtTime(p.receivedAt)) + "</span>" +
               "</div>" +
               '<div class="text">' + esc(p.text) + "</div>" +
+              (p.status === "error" && typeof p.errorMessage === "string" && p.errorMessage.length > 0
+                ? '<div class="error-detail">Error: ' + esc(p.errorMessage) + "</div>"
+                : "") +
             "</div>"
           );
         }

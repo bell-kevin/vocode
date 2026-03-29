@@ -64,6 +64,31 @@ test("markError leaves the line visible as error", () => {
 
   store.markError(id);
   assert.equal(store.getSnapshot().pending[0]?.status, "error");
+  assert.equal(store.getSnapshot().pending[0]?.errorMessage, undefined);
+});
+
+test("markError keeps a readable error message for the panel", () => {
+  const store = new TranscriptStore();
+  const id = store.enqueueCommitted("x") as number;
+
+  store.markError(id, "  failed to apply directive  ");
+  assert.equal(store.getSnapshot().pending[0]?.status, "error");
+  assert.equal(
+    store.getSnapshot().pending[0]?.errorMessage,
+    "failed to apply directive",
+  );
+});
+
+test("markProcessing clears stale error message", () => {
+  const store = new TranscriptStore();
+  const id = store.enqueueCommitted("x") as number;
+
+  store.markError(id, "failed");
+  assert.equal(store.getSnapshot().pending[0]?.errorMessage, "failed");
+
+  store.markProcessing(id);
+  assert.equal(store.getSnapshot().pending[0]?.status, "processing");
+  assert.equal(store.getSnapshot().pending[0]?.errorMessage, undefined);
 });
 
 test("setVoiceListening false removes live hypothesis", () => {

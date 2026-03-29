@@ -94,10 +94,10 @@ function createServices(
       // Only final/committed transcript hypotheses should be forwarded to the core daemon.
       const editor = vscode.window.activeTextEditor;
       if (!editor) {
-        transcriptStore.markError(pendingId);
-        void vscode.window.showWarningMessage(
-          "Open a text editor so Vocode can run actions against the active file.",
-        );
+        const message =
+          "Open a text editor so Vocode can run actions against the active file.";
+        transcriptStore.markError(pendingId, message);
+        void vscode.window.showWarningMessage(message);
         return;
       }
 
@@ -126,11 +126,11 @@ function createServices(
                 : undefined,
           });
         } catch (err) {
-          transcriptStore.markError(pendingId);
           const message =
             err instanceof Error
               ? err.message
               : "unknown voice->transcript error";
+          transcriptStore.markError(pendingId, message);
           void vscode.window.showWarningMessage(
             `Vocode voice error: ${message}`,
           );

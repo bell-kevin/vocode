@@ -15,6 +15,7 @@ export type PendingTranscript = {
   readonly text: string;
   readonly receivedAt: Date;
   status: PendingStatus;
+  errorMessage?: string;
 };
 
 export type TranscriptPanelSnapshot = {
@@ -166,6 +167,7 @@ export class TranscriptStore {
     const item = this.pending.find((p) => p.id === id);
     if (item) {
       item.status = "processing";
+      item.errorMessage = undefined;
       this.emit();
     }
   }
@@ -212,10 +214,11 @@ export class TranscriptStore {
     this.emit();
   }
 
-  markError(id: number): void {
+  markError(id: number, errorMessage?: string): void {
     const item = this.pending.find((p) => p.id === id);
     if (item) {
       item.status = "error";
+      item.errorMessage = errorMessage?.trim() || undefined;
       this.emit();
     }
   }
