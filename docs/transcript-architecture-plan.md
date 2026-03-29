@@ -11,7 +11,7 @@
 
 ### A — Wire + pending apply batch (daemon authority)
 
-- Result: `applyBatchId` when `accepted` and `directives.length > 0`; remove `directiveIntentSteps`.
+- Result: `applyBatchId` when `success` and `directives.length > 0`; remove `directiveIntentSteps`.
 - Params: `lastBatchApply` (`ok` + optional `message`), `reportApplyBatchId` when reporting.
 - `TranscriptService` (`transcript` package) holds `VoiceSessionStore`, `executeMu`, and `transcript/executor.Executor`; `Executor` returns a new `DirectiveApplyBatch` when the result includes directives. Session load/save + apply report stripping live in `transcript/voicesession`; env in `transcript/config`.
 - `Executor` collects parallel `[]intents.Intent` for each emitted directive; returns pending payload; rename helper to **source-intent** wording internally.

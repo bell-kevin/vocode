@@ -1,5 +1,4 @@
 import type { VoiceTranscriptDirective } from "@vocode/protocol";
-import * as vscode from "vscode";
 
 import type { TranscriptApplyContext } from "../../transcript/context";
 import { executeNavigationDirective } from "./execute-navigation-intent";
@@ -16,9 +15,7 @@ export async function dispatchNavigation(
       ctx.editLocations,
     );
     return true;
-  } catch (err) {
-    const message = err instanceof Error ? err.message : "navigation failed";
-    void vscode.window.showErrorMessage(`Vocode navigation: ${message}`);
+  } catch {
     return false;
   }
 }

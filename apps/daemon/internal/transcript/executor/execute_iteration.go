@@ -29,10 +29,10 @@ func (e *Executor) runOneAgentLoopIteration(
 	turnCtx := agentcontext.ComposeTurnContext(params, text, succeededThisRPC, failedThisRPC, st.gathered, hostCursor)
 	next, err := e.agent.NextIntent(context.Background(), turnCtx)
 	if err != nil {
-		return advanceContinue, protocol.VoiceTranscriptResult{Accepted: false}, true
+		return advanceContinue, protocol.VoiceTranscriptResult{Success: false}, true
 	}
 	if err := next.Validate(); err != nil {
-		return advanceContinue, protocol.VoiceTranscriptResult{Accepted: false}, true
+		return advanceContinue, protocol.VoiceTranscriptResult{Success: false}, true
 	}
 
 	var editCtx edit.EditExecutionContext
@@ -50,7 +50,7 @@ func (e *Executor) runOneAgentLoopIteration(
 				st.maxRetries--
 				return advanceContinue, protocol.VoiceTranscriptResult{}, false
 			}
-			return advanceContinue, protocol.VoiceTranscriptResult{Accepted: false}, true
+			return advanceContinue, protocol.VoiceTranscriptResult{Success: false}, true
 		}
 	}
 
@@ -58,10 +58,10 @@ func (e *Executor) runOneAgentLoopIteration(
 		st.contextRounds++
 		st.consecutiveContextReq++
 		if e.maxContextRounds > 0 && st.contextRounds > e.maxContextRounds {
-			return advanceContinue, protocol.VoiceTranscriptResult{Accepted: false}, true
+			return advanceContinue, protocol.VoiceTranscriptResult{Success: false}, true
 		}
 		if e.maxConsecutiveContextReq > 0 && st.consecutiveContextReq > e.maxConsecutiveContextReq {
-			return advanceContinue, protocol.VoiceTranscriptResult{Accepted: false}, true
+			return advanceContinue, protocol.VoiceTranscriptResult{Success: false}, true
 		}
 	}
 
@@ -84,7 +84,7 @@ func (e *Executor) runOneAgentLoopIteration(
 				return advanceContinue, protocol.VoiceTranscriptResult{}, false
 			}
 		}
-		return advanceContinue, protocol.VoiceTranscriptResult{Accepted: false}, true
+		return advanceContinue, protocol.VoiceTranscriptResult{Success: false}, true
 	}
 
 	return e.applyHandleOutcome(out, next, st)

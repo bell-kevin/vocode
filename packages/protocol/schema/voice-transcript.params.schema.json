@@ -12,7 +12,7 @@
     },
     "workspaceRoot": {
       "type": "string",
-      "description": "Absolute workspace root path used for deterministic relative path resolution in daemon symbol/edit context."
+      "description": "Absolute workspace folder when one is open; otherwise the host may send the active file's parent directory so relative paths still resolve (single-file windows)."
     },
     "cursorPosition": {
       "type": "object",

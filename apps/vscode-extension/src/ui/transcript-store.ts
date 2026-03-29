@@ -195,21 +195,26 @@ export class TranscriptStore {
 
   /**
    * Records a completed transcript that did not go through the pending queue (e.g. manual send).
-   * Shown under Done; optional summary appears in the Summary section.
+   * Shown under Done; optional summary appears in the Summary section; optional errorMessage shows a failed card.
    */
   recordCompletedTranscript(
     text: string,
-    options?: { summary?: string },
+    options?: { summary?: string; errorMessage?: string },
   ): void {
     const normalized = text.trim();
     if (!normalized) {
       return;
     }
     const summary = options?.summary?.trim();
+    const err = options?.errorMessage?.trim();
     this.recentHandled.unshift({
       text: normalized,
       receivedAt: new Date(),
-      ...(summary ? { summary } : {}),
+      ...(err !== undefined && err !== ""
+        ? { errorMessage: err }
+        : summary
+          ? { summary }
+          : {}),
     });
     while (this.recentHandled.length > this.maxHandled) {
       this.recentHandled.pop();

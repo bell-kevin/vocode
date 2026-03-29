@@ -5,6 +5,23 @@ import (
 	"testing"
 )
 
+func TestEffectiveWorkspaceRoot(t *testing.T) {
+	t.Parallel()
+	wd := t.TempDir()
+	abs := filepath.Join(wd, "deep", "file.go")
+
+	if got := EffectiveWorkspaceRoot("/ws", abs); got != "/ws" {
+		t.Fatalf("got %q want /ws", got)
+	}
+	wantDir := filepath.Dir(filepath.Clean(abs))
+	if got := EffectiveWorkspaceRoot("", abs); got != wantDir {
+		t.Fatalf("got %q want %q", got, wantDir)
+	}
+	if got := EffectiveWorkspaceRoot("", ""); got != "" {
+		t.Fatalf("got %q want empty", got)
+	}
+}
+
 func TestResolveTargetPath(t *testing.T) {
 	t.Parallel()
 	wd := t.TempDir()
@@ -33,9 +50,11 @@ func TestResolveTargetPath(t *testing.T) {
 		}
 	})
 
-	t.Run("empty workspace root with relative target", func(t *testing.T) {
-		if got := ResolveTargetPath("", abs, rel); got != "" {
-			t.Fatalf("got %q want empty", got)
+	t.Run("empty workspace root falls back to active file directory", func(t *testing.T) {
+		want := filepath.Clean(filepath.Join(filepath.Dir(abs), rel))
+		got := ResolveTargetPath("", abs, rel)
+		if got != want {
+			t.Fatalf("got %q want %q", got, want)
 		}
 	})
 }

@@ -20,13 +20,13 @@ func (e *Executor) applyHandleOutcome(out dispatch.HandleOutcome, next intents.I
 		if cr.Fulfilled != nil {
 			updated := cr.Fulfilled.UpdatedGathered
 			if e.maxContextBytes > 0 && agentcontext.EstimatedGatheredBytes(updated) > e.maxContextBytes {
-				return advanceContinue, protocol.VoiceTranscriptResult{Accepted: false}, true
+				return advanceContinue, protocol.VoiceTranscriptResult{Success: false}, true
 			}
 			st.gathered = updated
 			st.completed = append(st.completed, next)
 			return advanceContinue, protocol.VoiceTranscriptResult{}, false
 		}
-		return advanceContinue, protocol.VoiceTranscriptResult{Accepted: false}, true
+		return advanceContinue, protocol.VoiceTranscriptResult{Success: false}, true
 
 	case out.Executable != nil:
 		st.maxRetries = e.maxIntentRetries
@@ -63,11 +63,11 @@ func (e *Executor) applyHandleOutcome(out dispatch.HandleOutcome, next intents.I
 			st.completed = append(st.completed, next)
 			appendSourceIntentForDirective(&st.batchSourceIntents, next)
 		default:
-			return advanceContinue, protocol.VoiceTranscriptResult{Accepted: false}, true
+			return advanceContinue, protocol.VoiceTranscriptResult{Success: false}, true
 		}
 		return advanceContinue, protocol.VoiceTranscriptResult{}, false
 
 	default:
-		return advanceContinue, protocol.VoiceTranscriptResult{Accepted: false}, true
+		return advanceContinue, protocol.VoiceTranscriptResult{Success: false}, true
 	}
 }

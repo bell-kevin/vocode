@@ -8,10 +8,10 @@ import (
 
 func finalizeExecute(st *agentLoopState, maxLoopIters int) (protocol.VoiceTranscriptResult, agentcontext.Gathered, *agentcontext.DirectiveApplyBatch, bool) {
 	if len(st.completed) >= maxLoopIters {
-		return protocol.VoiceTranscriptResult{Accepted: false}, st.gathered, nil, true
+		return protocol.VoiceTranscriptResult{Success: false}, st.gathered, nil, true
 	}
 	result := protocol.VoiceTranscriptResult{
-		Accepted:   true,
+		Success:    true,
 		Directives: st.directives,
 		Summary:    st.transcriptSummary,
 	}
@@ -19,7 +19,7 @@ func finalizeExecute(st *agentLoopState, maxLoopIters int) (protocol.VoiceTransc
 	if len(st.directives) > 0 {
 		bid, err := newDirectiveApplyBatchID()
 		if err != nil {
-			return protocol.VoiceTranscriptResult{Accepted: false}, st.gathered, nil, true
+			return protocol.VoiceTranscriptResult{Success: false}, st.gathered, nil, true
 		}
 		result.ApplyBatchId = bid
 		pending = &agentcontext.DirectiveApplyBatch{
@@ -28,7 +28,7 @@ func finalizeExecute(st *agentLoopState, maxLoopIters int) (protocol.VoiceTransc
 		}
 	}
 	if err := result.Validate(); err != nil {
-		return protocol.VoiceTranscriptResult{Accepted: false}, st.gathered, nil, true
+		return protocol.VoiceTranscriptResult{Success: false}, st.gathered, nil, true
 	}
 	return result, st.gathered, pending, true
 }

@@ -1,5 +1,4 @@
 import type { EditDirective } from "@vocode/protocol";
-import * as vscode from "vscode";
 
 import type { TranscriptApplyContext } from "../../transcript/context";
 import { recordAppliedEditUndoPaths } from "../undo/transcript-undo-ledger";
@@ -11,7 +10,6 @@ export async function dispatchEdit(
   ctx: TranscriptApplyContext,
 ): Promise<boolean> {
   if (!edit) {
-    void vscode.window.showWarningMessage("Vocode: missing editDirective.");
     return false;
   }
   const applyOutcome = await dispatchEditResultWorkspaceEdit(

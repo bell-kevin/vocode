@@ -12,6 +12,7 @@ import (
 	"vocoding.net/vocode/v2/apps/daemon/internal/intents/dispatch/edit"
 	"vocoding.net/vocode/v2/apps/daemon/internal/symbols"
 	"vocoding.net/vocode/v2/apps/daemon/internal/symbols/tags"
+	"vocoding.net/vocode/v2/apps/daemon/internal/workspace"
 	protocol "vocoding.net/vocode/v2/packages/protocol/go"
 )
 
@@ -63,7 +64,7 @@ func buildEditExecutionContext(params protocol.VoiceTranscriptParams, ex *intent
 		return edit.EditExecutionContext{}, ""
 	}
 	active := strings.TrimSpace(params.ActiveFile)
-	workspaceRoot := strings.TrimSpace(params.WorkspaceRoot)
+	workspaceRoot := workspace.EffectiveWorkspaceRoot(params.WorkspaceRoot, active)
 	if ex.Kind == intents.ExecutableIntentKindEdit && active == "" {
 		return edit.EditExecutionContext{}, "activeFile is required when the next intent is an edit"
 	}

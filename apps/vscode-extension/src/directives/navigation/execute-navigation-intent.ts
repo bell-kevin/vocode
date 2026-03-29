@@ -111,10 +111,9 @@ export async function executeNavigationDirective(
     case "reveal_edit": {
       const loc = editLocations?.[nav.revealEdit.editId];
       if (!loc) {
-        void vscode.window.showWarningMessage(
-          `Vocode: reveal_edit target not found (${nav.revealEdit.editId}).`,
+        throw new Error(
+          `reveal_edit target not found (${nav.revealEdit.editId}).`,
         );
-        return;
       }
       const editor = await openDoc(resolvePath(loc.path, activeDocumentPath));
       if (loc.selectionStart && loc.selectionEnd) {

@@ -1,13 +1,12 @@
 import type { VoiceTranscriptResult } from "@vocode/protocol";
-import * as vscode from "vscode";
 
 import { dispatchTranscript } from "../directives/dispatch";
 import {
   beginTranscriptUndoSession,
   finalizeTranscriptUndoSessionIfEditsApplied,
 } from "../directives/undo/transcript-undo-ledger";
-import type { TranscriptApplyContext } from "./context";
 import type { DirectiveApplyOutcome } from "./carry";
+import type { TranscriptApplyContext } from "./context";
 
 /**
  * Applies a daemon `VoiceTranscriptResult` to the workspace (edits, commands, navigation, undo).
@@ -18,8 +17,7 @@ export async function applyTranscriptResult(
   result: VoiceTranscriptResult,
   activeDocumentPath: string,
 ): Promise<DirectiveApplyOutcome[]> {
-  if (!result.accepted) {
-    void vscode.window.showErrorMessage("Vocode: transcript was not accepted.");
+  if (!result.success) {
     return [];
   }
 

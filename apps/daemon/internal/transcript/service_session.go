@@ -19,7 +19,7 @@ func (s *TranscriptService) runExecute(params protocol.VoiceTranscriptParams) (p
 
 	extSucc, extFail, err := voicesession.ConsumeIncomingApplyReport(&params, &vs)
 	if err != nil {
-		return protocol.VoiceTranscriptResult{Accepted: false}, true
+		return protocol.VoiceTranscriptResult{Success: false}, true
 	}
 
 	activeFile := strings.TrimSpace(params.ActiveFile)
@@ -33,7 +33,7 @@ func (s *TranscriptService) runExecute(params protocol.VoiceTranscriptParams) (p
 		vs.Gathered = agentcontext.ApplyGatheredRollingCap(vs.Gathered, activeFile, maxGatheredBytes, maxGatheredExcerpts)
 	}
 
-	if ok && res.Accepted && len(res.Directives) > 0 && pending != nil {
+	if ok && res.Success && len(res.Directives) > 0 && pending != nil {
 		vs.PendingDirectiveApply = pending
 	} else {
 		vs.PendingDirectiveApply = nil

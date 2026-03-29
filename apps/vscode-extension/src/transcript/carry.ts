@@ -36,7 +36,7 @@ export function recordTranscriptApplyCycle(
   const dirs = result.directives ?? [];
   const batchId = result.applyBatchId?.trim() ?? "";
   if (
-    result.accepted &&
+    result.success &&
     dirs.length > 0 &&
     batchId !== "" &&
     outcomes.length === dirs.length

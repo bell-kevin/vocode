@@ -39,15 +39,11 @@ export async function applyUndoDirective(
   directive: UndoDirective | undefined,
 ): Promise<boolean> {
   if (!directive) {
-    void vscode.window.showWarningMessage("Vocode: missing undoDirective.");
     return false;
   }
 
   if (directive.scope === "last_edit") {
     if (!vscode.window.activeTextEditor) {
-      void vscode.window.showWarningMessage(
-        "Open a text editor before undoing the last edit.",
-      );
       return false;
     }
     await vscode.commands.executeCommand("undo");
@@ -60,9 +56,6 @@ export async function applyUndoDirective(
         ? [...currentSessionUndoPaths]
         : [...lastTranscriptUndoPaths];
     if (stack.length === 0) {
-      void vscode.window.showInformationMessage(
-        "Vocode: nothing to undo for the last transcript (no edits were applied).",
-      );
       return true;
     }
     for (let i = stack.length - 1; i >= 0; i--) {
@@ -76,8 +69,5 @@ export async function applyUndoDirective(
     return true;
   }
 
-  void vscode.window.showErrorMessage(
-    `Vocode: unknown undo scope ${String(directive.scope)}.`,
-  );
   return false;
 }

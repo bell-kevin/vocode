@@ -249,7 +249,7 @@ function isVoiceTranscriptResultApplyBatchIdField(
   if (idRaw !== undefined && typeof idRaw !== "string") {
     return false;
   }
-  if (value.accepted !== true) {
+  if (value.success !== true) {
     return idRaw === undefined;
   }
   const batchID = typeof idRaw === "string" ? idRaw.trim() : "";
@@ -263,11 +263,11 @@ function isVoiceTranscriptResultApplyBatchIdField(
 export function isVoiceTranscriptResult(
   value: unknown,
 ): value is VoiceTranscriptResult {
-  if (!isRecord(value) || typeof value.accepted !== "boolean") {
+  if (!isRecord(value) || typeof value.success !== "boolean") {
     return false;
   }
   const allowedKeys = new Set([
-    "accepted",
+    "success",
     "directives",
     "summary",
     "applyBatchId",
@@ -291,10 +291,10 @@ export function isVoiceTranscriptResult(
       return false;
     }
   }
-  if (value.accepted !== true && value.directives !== undefined) {
+  if (value.success !== true && value.directives !== undefined) {
     return false;
   }
-  if (value.accepted !== true && value.summary !== undefined) {
+  if (value.success !== true && value.summary !== undefined) {
     return false;
   }
   return isVoiceTranscriptResultApplyBatchIdField(value);

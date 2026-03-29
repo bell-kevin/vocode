@@ -12,6 +12,8 @@ import {
   mergeCarriedTranscriptParams,
   recordTranscriptApplyCycle,
 } from "./transcript/carry";
+import { FAILED_TO_PROCESS_TRANSCRIPT } from "./transcript/messages";
+import { transcriptWorkspaceRoot } from "./transcript/workspace-root";
 import { VoiceStatusIndicator } from "./ui/status-bar";
 import {
   TranscriptPanelViewProvider,
@@ -20,10 +22,6 @@ import {
 import { TranscriptStore } from "./ui/transcript-store";
 import { VoiceSidecarClient } from "./voice/client";
 import { spawnVoiceSidecar } from "./voice/spawn";
-
-function workspaceRootPath(): string | undefined {
-  return vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
-}
 
 function createServices(
   context: vscode.ExtensionContext,
@@ -122,7 +120,7 @@ function createServices(
             mergeCarriedTranscriptParams({
               text,
               activeFile,
-              workspaceRoot: workspaceRootPath(),
+              workspaceRoot: transcriptWorkspaceRoot(activeFile),
               cursorPosition: { line: pos.line, character: pos.character },
               contextSessionId: voiceSession.contextSessionId(),
             }),
@@ -130,9 +128,9 @@ function createServices(
           const outcomes = await applyTranscriptResult(result, activeFile);
           recordTranscriptApplyCycle(result, outcomes);
           const firstBad = outcomes.find((o) => !o.ok);
-          if (!result.accepted || firstBad) {
-            const msg = !result.accepted
-              ? "Transcript was not accepted."
+          if (!result.success || firstBad) {
+            const msg = !result.success
+              ? FAILED_TO_PROCESS_TRANSCRIPT
               : firstBad?.message && firstBad.message !== "not attempted"
                 ? firstBad.message
                 : "A directive failed to apply.";
@@ -146,11 +144,8 @@ function createServices(
           const message =
             err instanceof Error
               ? err.message
-              : "unknown voice->transcript error";
+              : "Unknown error while running the transcript.";
           transcriptStore.markError(pendingId, message);
-          void vscode.window.showWarningMessage(
-            `Vocode voice error: ${message}`,
-          );
         } finally {
           inFlightTranscripts = Math.max(0, inFlightTranscripts - 1);
           if (voiceSession.isRunning() && inFlightTranscripts === 0) {

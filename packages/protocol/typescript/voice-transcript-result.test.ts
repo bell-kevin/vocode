@@ -3,38 +3,38 @@ import test from "node:test";
 
 import { isVoiceTranscriptResult } from "./validators";
 
-test("isVoiceTranscriptResult accepts accepted=true shape", () => {
-  assert.equal(isVoiceTranscriptResult({ accepted: true }), true);
+test("isVoiceTranscriptResult accepts success=true shape", () => {
+  assert.equal(isVoiceTranscriptResult({ success: true }), true);
 });
 
-test("isVoiceTranscriptResult accepts summary when accepted", () => {
+test("isVoiceTranscriptResult accepts summary when success", () => {
   assert.equal(
     isVoiceTranscriptResult({
-      accepted: true,
+      success: true,
       summary: "Renamed the handler and fixed imports.",
     }),
     true,
   );
 });
 
-test("isVoiceTranscriptResult rejects summary when not accepted", () => {
+test("isVoiceTranscriptResult rejects summary when not success", () => {
   assert.equal(
     isVoiceTranscriptResult({
-      accepted: false,
+      success: false,
       summary: "oops",
     }),
     false,
   );
 });
 
-test("isVoiceTranscriptResult rejects accepted=false shape", () => {
-  assert.equal(isVoiceTranscriptResult({ accepted: false }), true);
+test("isVoiceTranscriptResult allows success=false minimal shape", () => {
+  assert.equal(isVoiceTranscriptResult({ success: false }), true);
 });
 
 test("isVoiceTranscriptResult rejects extra keys", () => {
   assert.equal(
     isVoiceTranscriptResult({
-      accepted: true,
+      success: true,
       extra: 123,
     }),
     false,
@@ -44,7 +44,7 @@ test("isVoiceTranscriptResult rejects extra keys", () => {
 test("isVoiceTranscriptResult accepts directives with edit directive success", () => {
   assert.equal(
     isVoiceTranscriptResult({
-      accepted: true,
+      success: true,
       directives: [
         {
           kind: "edit",
@@ -70,7 +70,7 @@ test("isVoiceTranscriptResult accepts directives with edit directive success", (
 test("isVoiceTranscriptResult rejects directives without applyBatchId", () => {
   assert.equal(
     isVoiceTranscriptResult({
-      accepted: true,
+      success: true,
       directives: [
         {
           kind: "command",
@@ -85,7 +85,7 @@ test("isVoiceTranscriptResult rejects directives without applyBatchId", () => {
 test("isVoiceTranscriptResult rejects extra keys (unexpected property)", () => {
   assert.equal(
     isVoiceTranscriptResult({
-      accepted: true,
+      success: true,
       unexpected: "bad",
       directives: [
         {
@@ -102,7 +102,7 @@ test("isVoiceTranscriptResult rejects extra keys (unexpected property)", () => {
 test("isVoiceTranscriptResult accepts undo directive", () => {
   assert.equal(
     isVoiceTranscriptResult({
-      accepted: true,
+      success: true,
       directives: [
         {
           kind: "undo",

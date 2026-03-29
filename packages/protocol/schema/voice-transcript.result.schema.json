@@ -5,7 +5,10 @@
   "type": "object",
   "additionalProperties": false,
   "properties": {
-    "accepted": { "type": "boolean" },
+    "success": {
+      "type": "boolean",
+      "description": "True when the daemon finished this transcript successfully (agent loop completed in a good state). False on failure, cap, or invalid result; the host must not treat directives as valid to apply when false."
+    },
     "summary": {
       "type": "string",
       "description": "Human-readable summary when the agent ends the loop (control_done); for host UI.",
@@ -19,8 +22,8 @@
     },
     "applyBatchId": {
       "type": "string",
-      "description": "Correlates host apply reports with daemon-held intents; present when accepted and directives is non-empty."
+      "description": "Correlates host apply reports with daemon-held intents; present when success is true and directives is non-empty."
     }
   },
-  "required": ["accepted"]
+  "required": ["success"]
 }

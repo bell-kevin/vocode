@@ -58,6 +58,17 @@ test("recordCompletedTranscript appends done entry without pending", () => {
   assert.equal(h?.summary, "Done.");
 });
 
+test("recordCompletedTranscript can record a failed manual line for the panel", () => {
+  const store = new TranscriptStore();
+  store.recordCompletedTranscript("manual line", {
+    errorMessage: "Failed to process transcript.",
+  });
+  const h = store.getSnapshot().recentHandled[0];
+  assert.equal(h?.text, "manual line");
+  assert.equal(h?.errorMessage, "Failed to process transcript.");
+  assert.equal(h?.summary, undefined);
+});
+
 test("markError moves the line to Done without blocking Applying", () => {
   const store = new TranscriptStore();
   const id = store.enqueueCommitted("x") as number;

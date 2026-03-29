@@ -50,7 +50,8 @@ func Dispatch(
 		if p.symbols == nil {
 			return out, fmt.Errorf("symbol resolver unavailable")
 		}
-		matches, err := p.symbols.ResolveSymbol(strings.TrimSpace(params.WorkspaceRoot), query, "", strings.TrimSpace(params.ActiveFile))
+		root := workspace.EffectiveWorkspaceRoot(params.WorkspaceRoot, params.ActiveFile)
+		matches, err := p.symbols.ResolveSymbol(root, query, "", strings.TrimSpace(params.ActiveFile))
 		if err != nil {
 			return out, err
 		}
@@ -97,7 +98,11 @@ func Dispatch(
 		}
 		limit := clampContextMax(req.MaxResult, 10)
 		pattern := `\b` + regexp.QuoteMeta(strings.TrimSpace(ref.Name)) + `\b`
-		cmd := exec.Command("rg", "-n", pattern, strings.TrimSpace(params.WorkspaceRoot))
+		searchRoot := workspace.EffectiveWorkspaceRoot(params.WorkspaceRoot, params.ActiveFile)
+		if searchRoot == "" {
+			return out, nil
+		}
+		cmd := exec.Command("rg", "-n", pattern, searchRoot)
 		var stdout bytes.Buffer
 		cmd.Stdout = &stdout
 		if err := cmd.Run(); err != nil && stdout.Len() == 0 {

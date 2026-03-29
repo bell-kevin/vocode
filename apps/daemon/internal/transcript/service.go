@@ -109,7 +109,7 @@ func (s *TranscriptService) AcceptTranscript(
 	default:
 		job.resp <- transcriptAcceptResp{
 			result: protocol.VoiceTranscriptResult{
-				Accepted: false,
+				Success: false,
 			},
 			ok: true,
 		}

@@ -143,13 +143,13 @@ Current intent `kind` values (executable unless noted):
 - `request_context` (control), `done` (control)
 
 `voice.transcript` returns `VoiceTranscriptResult`:
-- `accepted: true`
+- `success: true` when the daemon finished successfully
 - `directives[]` (ordered execution directives with `edit`, `command`, or `navigate`)
-- `accepted: false` when the daemon rejects/aborts the transcript before emitting directives
+- `success: false` when the daemon rejects/aborts the transcript before emitting directives
 
 ### Agent loop troubleshooting
 
-When `accepted` is `false`, no directives are emitted and the extension should ignore the transcript (or show a generic error to the user).
+When `success` is `false`, no directives are emitted and the extension should ignore the transcript (or show an error in the transcript panel).
 
 Useful knobs while debugging the agent loop:
 - `VOCODE_DAEMON_VOICE_MAX_AGENT_TURNS`

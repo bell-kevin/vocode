@@ -6,6 +6,8 @@ import {
   mergeCarriedTranscriptParams,
   recordTranscriptApplyCycle,
 } from "../transcript/carry";
+import { FAILED_TO_PROCESS_TRANSCRIPT } from "../transcript/messages";
+import { transcriptWorkspaceRoot } from "../transcript/workspace-root";
 import type { ExtensionServices } from "./services";
 import type { CommandDefinition } from "./types";
 
@@ -52,7 +54,6 @@ async function sendTranscript(
   }
 
   const activePath = editor.document.uri.fsPath;
-  const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
 
   try {
     services.voiceStatus.setProcessing();
@@ -61,7 +62,7 @@ async function sendTranscript(
       mergeCarriedTranscriptParams({
         text: trimmedText,
         activeFile: activePath,
-        workspaceRoot,
+        workspaceRoot: transcriptWorkspaceRoot(activePath),
         cursorPosition: { line: pos.line, character: pos.character },
         contextSessionId: services.voiceSession.contextSessionId(),
       }),
@@ -69,13 +70,19 @@ async function sendTranscript(
     const outcomes = await applyTranscriptResult(result, activePath);
     recordTranscriptApplyCycle(result, outcomes);
     const firstBad = outcomes.find((o) => !o.ok);
-    if (result.accepted && firstBad) {
+    if (!result.success) {
+      services.transcriptStore.recordCompletedTranscript(trimmedText, {
+        errorMessage: FAILED_TO_PROCESS_TRANSCRIPT,
+      });
+    } else if (firstBad) {
       const msg =
         firstBad.message && firstBad.message !== "not attempted"
           ? firstBad.message
           : "A directive failed to apply.";
-      void vscode.window.showWarningMessage(`Vocode: ${msg}`);
-    } else if (result.accepted && !firstBad) {
+      services.transcriptStore.recordCompletedTranscript(trimmedText, {
+        errorMessage: msg,
+      });
+    } else {
       services.transcriptStore.recordCompletedTranscript(trimmedText, {
         summary: result.summary?.trim() || undefined,
       });
@@ -83,7 +90,9 @@ async function sendTranscript(
   } catch (err) {
     const message =
       err instanceof Error ? err.message : "Failed to send transcript.";
-    void vscode.window.showWarningMessage(message);
+    services.transcriptStore.recordCompletedTranscript(trimmedText, {
+      errorMessage: message,
+    });
   } finally {
     if (services.voiceSession.isRunning()) {
       services.voiceStatus.setListening();

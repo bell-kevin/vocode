@@ -3,6 +3,7 @@ package agentcontext
 import (
 	"strings"
 
+	"vocoding.net/vocode/v2/apps/daemon/internal/workspace"
 	protocol "vocoding.net/vocode/v2/packages/protocol/go"
 )
 
@@ -27,9 +28,10 @@ type EditorSnapshot struct {
 
 // EditorSnapshotFromParams builds [EditorSnapshot] from RPC params and resolved cursor symbol.
 func EditorSnapshotFromParams(p protocol.VoiceTranscriptParams, cursor *CursorSymbol) EditorSnapshot {
+	active := strings.TrimSpace(p.ActiveFile)
 	s := EditorSnapshot{
-		WorkspaceRoot:  strings.TrimSpace(p.WorkspaceRoot),
-		ActiveFilePath: strings.TrimSpace(p.ActiveFile),
+		WorkspaceRoot:  workspace.EffectiveWorkspaceRoot(p.WorkspaceRoot, active),
+		ActiveFilePath: active,
 	}
 	if cursor != nil {
 		id := strings.TrimSpace(cursor.ID)

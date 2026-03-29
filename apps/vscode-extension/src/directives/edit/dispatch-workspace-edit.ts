@@ -98,18 +98,12 @@ export async function dispatchEditResultWorkspaceEdit(
 
     const applied = await vscode.workspace.applyEdit(wsEdit);
     if (!applied) {
-      void vscode.window.showWarningMessage(
-        "Vocode: workspace edit was not applied.",
-      );
       return { ok: false, appliedEdits, undoStackOrderPaths };
     }
 
     const savedDocument = await vscode.workspace.openTextDocument(actionPath);
     const saved = await savedDocument.save();
     if (!saved) {
-      void vscode.window.showWarningMessage(
-        `Vocode: could not save ${path.basename(actionPath)} after applying edit.`,
-      );
       return { ok: false, appliedEdits, undoStackOrderPaths };
     }
 

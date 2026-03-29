@@ -8,12 +8,10 @@ export async function dispatchCommand(
   params: CommandDirective | undefined,
 ): Promise<boolean> {
   if (!params) {
-    void vscode.window.showWarningMessage("Vocode: missing commandDirective.");
     return false;
   }
   const outcome = await runAllowedCommand(params);
   if (!outcome.ok) {
-    void vscode.window.showErrorMessage(`Vocode command: ${outcome.message}`);
     return false;
   }
   const line = outcome.stdout.trim();

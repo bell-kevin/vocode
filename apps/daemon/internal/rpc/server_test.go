@@ -20,7 +20,7 @@ func (s *voiceTranscriptServiceStub) AcceptTranscript(
 		return protocol.VoiceTranscriptResult{}, false
 	}
 
-	return protocol.VoiceTranscriptResult{Accepted: true}, true
+	return protocol.VoiceTranscriptResult{Success: true}, true
 }
 
 func runSingleRequest(
@@ -75,8 +75,8 @@ func TestServerVoiceTranscriptSuccess(t *testing.T) {
 		t.Fatalf("expected result object, got: %#v", response["result"])
 	}
 
-	if got := result["accepted"]; got != true {
-		t.Fatalf("expected accepted=true, got %#v", got)
+	if got := result["success"]; got != true {
+		t.Fatalf("expected success=true, got %#v", got)
 	}
 }
 

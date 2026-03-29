@@ -249,19 +249,11 @@ export class TranscriptPanelViewProvider
       const rms = typeof am.rms === "number" ? am.rms : 0;
       const speaking = am.speaking === true;
       const pct = Math.round(Math.min(1, Math.max(0, rms)) * 100);
-      if (!voiceListening) {
-        return (
-          '<div class="meter card">' +
-            '<div class="meta"><span class="badge">Mic</span><span>Idle</span></div>' +
-            '<div class="empty" style="padding:10px 8px;font-size:11px;">Start Voice for level, VAD, and waveform.</div>' +
-          "</div>"
-        );
-      }
       return (
         '<div class="meter card">' +
           '<div class="meta">' +
-            '<span class="badge">' + esc(speaking ? "Speaking" : "Quiet") + "</span>" +
-            "<span>Input level</span>" +
+            '<span class="badge">' + esc(!voiceListening ? "Idle" : speaking ? "Speaking" : "Quiet") + "</span>" +
+            "<span>" + esc(!voiceListening ? "Not listening" : "Input level") + "</span>" +
           "</div>" +
           '<div class="meter-bar"><div class="meter-fill" style="width:' + pct + '%"></div></div>' +
           '<canvas id="waveCanvas" class="wave-canvas" width="320" height="44" aria-label="Recent level"></canvas>' +
@@ -330,13 +322,9 @@ export class TranscriptPanelViewProvider
       const sectionTitleMargin = ' style="margin-top:16px;"';
 
       parts.push("<h1>Live</h1>");
-      if (!voiceListening) {
+      if (!voiceListening || !showLive) {
         parts.push(
-          '<div class="empty">Start Voice to stream speech-to-text here.</div>'
-        );
-      } else if (!showLive) {
-        parts.push(
-          '<div class="empty">No draft yet — speak to see streaming text.</div>'
+          '<div class="empty"></div>'
         );
       } else {
         parts.push('<div class="stack">');
@@ -356,7 +344,7 @@ export class TranscriptPanelViewProvider
       parts.push("<h1" + sectionTitleMargin + ">Applying</h1>");
       if (!pending.length) {
         parts.push(
-          '<div class="empty">Nothing running on the workspace from voice yet.</div>'
+          '<div class="empty"></div>'
         );
       } else {
         parts.push('<div class="stack">');
@@ -384,7 +372,7 @@ export class TranscriptPanelViewProvider
 
       parts.push("<h1" + sectionTitleMargin + ">Done</h1>");
       if (!recentHandled.length) {
-        parts.push('<div class="empty">Finished lines appear here (success or error).</div>');
+        parts.push('<div class="empty"></div>');
       } else {
         parts.push('<div class="stack">');
         for (const h of recentHandled) {
@@ -417,7 +405,7 @@ export class TranscriptPanelViewProvider
       );
       if (!withSummaries.length) {
         parts.push(
-          '<div class="empty">When the agent finishes with a short summary, it appears here with the matching transcript.</div>',
+          '<div class="empty"></div>',
         );
       } else {
         parts.push('<div class="stack">');
