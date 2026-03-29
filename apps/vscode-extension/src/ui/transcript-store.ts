@@ -8,24 +8,27 @@ const WAVEFORM_SAMPLES = 64;
 const DEFAULT_PARTIAL_CLEAR_DEBOUNCE_MS = 180;
 
 /** Committed voice text not yet finished processing through the daemon + apply pipeline. */
-export type PendingStatus = "queued" | "processing" | "error";
+export type PendingStatus = "queued" | "processing";
 
 export type PendingTranscript = {
   readonly id: number;
   readonly text: string;
   readonly receivedAt: Date;
   status: PendingStatus;
-  errorMessage?: string;
 };
 
 export type TranscriptPanelSnapshot = {
   /** Committed lines still in flight (queued, processing, or error). */
   readonly pending: readonly PendingTranscript[];
-  /** Recently completed lines (newest first). Optional `summary` is agent-done text for the Summary panel. */
+  /**
+   * Recently finished lines (newest first): success (optional `summary` for Summary panel)
+   * or failure (`errorMessage` when daemon/apply did not complete successfully).
+   */
   readonly recentHandled: readonly {
     readonly text: string;
     readonly receivedAt: Date;
     readonly summary?: string;
+    readonly errorMessage?: string;
   }[];
   /** Latest partial hypothesis after the most recent committed event. */
   readonly latestPartial: string | null;
@@ -52,6 +55,7 @@ export class TranscriptStore {
     text: string;
     receivedAt: Date;
     summary?: string;
+    errorMessage?: string;
   }[] = [];
 
   private latestPartial: string | null = null;
@@ -167,7 +171,6 @@ export class TranscriptStore {
     const item = this.pending.find((p) => p.id === id);
     if (item) {
       item.status = "processing";
-      item.errorMessage = undefined;
       this.emit();
     }
   }
@@ -214,13 +217,25 @@ export class TranscriptStore {
     this.emit();
   }
 
+  /**
+   * Finishes a pending line as failed: removes it from Applying and appends to Done with error detail.
+   */
   markError(id: number, errorMessage?: string): void {
-    const item = this.pending.find((p) => p.id === id);
-    if (item) {
-      item.status = "error";
-      item.errorMessage = errorMessage?.trim() || undefined;
-      this.emit();
+    const index = this.pending.findIndex((p) => p.id === id);
+    if (index === -1) {
+      return;
     }
+    const [removed] = this.pending.splice(index, 1);
+    const err = errorMessage?.trim() || undefined;
+    this.recentHandled.unshift({
+      text: removed.text,
+      receivedAt: removed.receivedAt,
+      ...(err !== undefined && err !== "" ? { errorMessage: err } : {}),
+    });
+    while (this.recentHandled.length > this.maxHandled) {
+      this.recentHandled.pop();
+    }
+    this.emit();
   }
 
   getSnapshot(): TranscriptPanelSnapshot {

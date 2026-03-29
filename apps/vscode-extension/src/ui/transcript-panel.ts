@@ -99,6 +99,10 @@ export class TranscriptPanelViewProvider
       box-shadow: 0 1px 2px rgba(0,0,0,0.06);
     }
     .card.done { opacity: 0.85; }
+    .card.done.failed {
+      opacity: 1;
+      border-left: 3px solid var(--vscode-errorForeground);
+    }
     .card.summary {
       border-left: 3px solid var(--vscode-notificationsInfoIcon-foreground, var(--vscode-textLink-foreground));
       background: var(--vscode-editor-inactiveSelectionBackground, var(--vscode-input-background));
@@ -119,7 +123,6 @@ export class TranscriptPanelViewProvider
     }
     .card.pending { border-left: 3px solid var(--vscode-progressBar-background); }
     .card.processing { border-left: 3px solid var(--vscode-textLink-foreground); }
-    .card.error { border-left: 3px solid var(--vscode-errorForeground); }
     .meta {
       font-size: 10px;
       color: var(--vscode-descriptionForeground);
@@ -225,7 +228,6 @@ export class TranscriptPanelViewProvider
       switch (status) {
         case "queued": return "Queued";
         case "processing": return "Applying…";
-        case "error": return "Couldn’t run";
         default: return status;
       }
     }
@@ -236,8 +238,6 @@ export class TranscriptPanelViewProvider
           return "Committed transcript — waiting to run in the workspace";
         case "processing":
           return "Running this committed line through the Vocode agent";
-        case "error":
-          return "Something went wrong applying this line";
         default:
           return "";
       }
@@ -376,9 +376,6 @@ export class TranscriptPanelViewProvider
                 "<span>" + esc(fmtTime(p.receivedAt)) + "</span>" +
               "</div>" +
               '<div class="text">' + esc(p.text) + "</div>" +
-              (p.status === "error" && typeof p.errorMessage === "string" && p.errorMessage.length > 0
-                ? '<div class="error-detail">Error: ' + esc(p.errorMessage) + "</div>"
-                : "") +
             "</div>"
           );
         }
@@ -387,15 +384,26 @@ export class TranscriptPanelViewProvider
 
       parts.push("<h1" + sectionTitleMargin + ">Done</h1>");
       if (!recentHandled.length) {
-        parts.push('<div class="empty">Completed requests will appear here.</div>');
+        parts.push('<div class="empty">Finished lines appear here (success or error).</div>');
       } else {
         parts.push('<div class="stack">');
         for (const h of recentHandled) {
+          const failed =
+            typeof h.errorMessage === "string" && h.errorMessage.length > 0;
+          const cardCls = failed ? "card done failed" : "card done";
           parts.push(
-            '<div class="card done">' +
-              '<div class="meta"><span>' + esc(fmtTime(h.receivedAt)) + "</span></div>" +
+            '<div class="' + esc(cardCls) + '">' +
+              '<div class="meta">' +
+              (failed
+                ? '<span class="badge" title="Daemon or workspace apply did not succeed">Couldn’t run</span>'
+                : "") +
+              "<span>" + esc(fmtTime(h.receivedAt)) + "</span>" +
+              "</div>" +
               '<div class="text">' + esc(h.text) + "</div>" +
-            "</div>"
+              (failed
+                ? '<div class="error-detail">Error: ' + esc(h.errorMessage) + "</div>"
+                : "") +
+            "</div>",
           );
         }
         parts.push("</div>");

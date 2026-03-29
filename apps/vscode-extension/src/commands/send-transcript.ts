@@ -68,7 +68,14 @@ async function sendTranscript(
     );
     const outcomes = await applyTranscriptResult(result, activePath);
     recordTranscriptApplyCycle(result, outcomes);
-    if (result.accepted) {
+    const firstBad = outcomes.find((o) => !o.ok);
+    if (result.accepted && firstBad) {
+      const msg =
+        firstBad.message && firstBad.message !== "not attempted"
+          ? firstBad.message
+          : "A directive failed to apply.";
+      void vscode.window.showWarningMessage(`Vocode: ${msg}`);
+    } else if (result.accepted && !firstBad) {
       services.transcriptStore.recordCompletedTranscript(trimmedText, {
         summary: result.summary?.trim() || undefined,
       });

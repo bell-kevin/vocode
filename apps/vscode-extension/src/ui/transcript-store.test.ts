@@ -58,37 +58,39 @@ test("recordCompletedTranscript appends done entry without pending", () => {
   assert.equal(h?.summary, "Done.");
 });
 
-test("markError leaves the line visible as error", () => {
+test("markError moves the line to Done without blocking Applying", () => {
   const store = new TranscriptStore();
   const id = store.enqueueCommitted("x") as number;
 
   store.markError(id);
-  assert.equal(store.getSnapshot().pending[0]?.status, "error");
-  assert.equal(store.getSnapshot().pending[0]?.errorMessage, undefined);
+  assert.equal(store.getSnapshot().pending.length, 0);
+  const h = store.getSnapshot().recentHandled[0];
+  assert.equal(h?.text, "x");
+  assert.equal(h?.errorMessage, undefined);
 });
 
-test("markError keeps a readable error message for the panel", () => {
+test("markError stores a readable error message on the Done entry", () => {
   const store = new TranscriptStore();
   const id = store.enqueueCommitted("x") as number;
 
   store.markError(id, "  failed to apply directive  ");
-  assert.equal(store.getSnapshot().pending[0]?.status, "error");
+  assert.equal(store.getSnapshot().pending.length, 0);
   assert.equal(
-    store.getSnapshot().pending[0]?.errorMessage,
+    store.getSnapshot().recentHandled[0]?.errorMessage,
     "failed to apply directive",
   );
 });
 
-test("markProcessing clears stale error message", () => {
+test("markProcessing is a no-op after markError removed the line", () => {
   const store = new TranscriptStore();
   const id = store.enqueueCommitted("x") as number;
 
   store.markError(id, "failed");
-  assert.equal(store.getSnapshot().pending[0]?.errorMessage, "failed");
+  assert.equal(store.getSnapshot().pending.length, 0);
 
   store.markProcessing(id);
-  assert.equal(store.getSnapshot().pending[0]?.status, "processing");
-  assert.equal(store.getSnapshot().pending[0]?.errorMessage, undefined);
+  assert.equal(store.getSnapshot().pending.length, 0);
+  assert.equal(store.getSnapshot().recentHandled[0]?.errorMessage, "failed");
 });
 
 test("setVoiceListening false removes live hypothesis", () => {

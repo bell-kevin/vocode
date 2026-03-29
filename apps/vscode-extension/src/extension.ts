@@ -129,12 +129,19 @@ function createServices(
           );
           const outcomes = await applyTranscriptResult(result, activeFile);
           recordTranscriptApplyCycle(result, outcomes);
-          transcriptStore.markHandled(pendingId, {
-            summary:
-              result.accepted && result.summary
-                ? result.summary.trim() || undefined
-                : undefined,
-          });
+          const firstBad = outcomes.find((o) => !o.ok);
+          if (!result.accepted || firstBad) {
+            const msg = !result.accepted
+              ? "Transcript was not accepted."
+              : firstBad?.message && firstBad.message !== "not attempted"
+                ? firstBad.message
+                : "A directive failed to apply.";
+            transcriptStore.markError(pendingId, msg);
+          } else {
+            transcriptStore.markHandled(pendingId, {
+              summary: result.summary?.trim() || undefined,
+            });
+          }
         } catch (err) {
           const message =
             err instanceof Error
