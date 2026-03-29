@@ -86,23 +86,6 @@ func buildEditExecutionContext(params protocol.VoiceTranscriptParams, ex *intent
 	}, ""
 }
 
-func appendTurnTrace(trace []string, turn int, msg string) []string {
-	return appendTrace(trace, fmt.Sprintf("t%d:%s", turn, msg))
-}
-
-func appendTrace(trace []string, msg string) []string {
-	const maxTraceEntries = 16
-	msg = strings.TrimSpace(msg)
-	if msg == "" {
-		return trace
-	}
-	trace = append(trace, msg)
-	if len(trace) > maxTraceEntries {
-		trace = trace[len(trace)-maxTraceEntries:]
-	}
-	return trace
-}
-
 func appendGatheredNote(g agentcontext.Gathered, note string) agentcontext.Gathered {
 	const maxNotes = 8
 	note = strings.TrimSpace(note)

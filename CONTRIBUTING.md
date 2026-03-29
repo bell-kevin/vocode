@@ -69,7 +69,7 @@ docs/                # architecture + specs
 
    **Daemon (Go):**
    - agent logic
-   - edit planning/applying
+   - edit intent handling / applying
    - symbol resolution (tree-sitter tags)
    - command execution
    - speech processing
@@ -253,7 +253,7 @@ These should NEVER be committed:
 
 ### Future flow
 
-Voice → Intent → Plan → Edits → Diff → Apply
+Voice → Agent intent → Edits → Diff → Apply
 
 ## 🧠 Philosophy
 
@@ -266,7 +266,7 @@ But internally, it must be deterministic, structured, and debuggable.
 All operations should:
 
 - produce predictable results
-- be inspectable (diffs, plans)
+- be inspectable (diffs, structured intents)
 - be reversible
 
 The user experiences magic.  

@@ -42,7 +42,7 @@ test("tracks pending through processing to handled", () => {
   assert.equal(store.getSnapshot().recentHandled[0]?.text, "run tests");
 });
 
-test("markHandled stores optional planner summary", () => {
+test("markHandled stores optional agent summary", () => {
   const store = new TranscriptStore();
   const id = store.enqueueCommitted("fix the bug") as number;
   store.markHandled(id, { summary: "  Updated handler and tests.  " });

@@ -17,8 +17,8 @@ Expected daemon flow:
 → `internal/app` (composition root)  
 → `internal/rpc` (transport/routing only)  
 → `internal/transcript` — `Executor` runs one `voice.transcript`: calls `agent.NextIntent`, applies caps, then `intents/dispatch.Handler.Handle` (control vs executable in one place)
-→ `internal/agent` — iterative planner adapter (`Agent.NextIntent` → `intents.Intent` per turn)
-→ `internal/intents` — planner union (`package intents`: `Intent` = `ControlIntent` | `ExecutableIntent`, `Intent.Validate`, JSON `kind` + payloads, types like `EditIntent`)
+→ `internal/agent` — iterative agent adapter (`Agent.NextIntent` → `intents.Intent` per turn)
+→ `internal/intents` — intent union (`package intents`: `Intent` = `ControlIntent` | `ExecutableIntent`, `Intent.Validate`, JSON `kind` + payloads, types like `EditIntent`)
 → `internal/intents/dispatch` — `Handler.Handle` switches on the union: `ControlIntent` (`done`, `request_context` via `requestcontext.Provider.Fulfill`) vs `ExecutableIntent` → protocol directives (`intents/dispatch/edit.Engine.DispatchEdit`, `command|navigation|undo`)
 → `internal/intents/dispatch/edit` — `Engine` (`BuildActions`, `DispatchEdit` → protocol edit results; not an RPC)
 
@@ -36,7 +36,7 @@ Owns:
 Does not own:
 
 - Semantic edit safety policy
-- Instruction planning or ambiguity-resolution policy
+- Instruction interpretation or ambiguity-resolution policy owned by the daemon agent
 - Daemon business rules duplicated in UI
 - Native microphone APIs and STT provider integration
 
@@ -66,7 +66,7 @@ Owns:
 
 Does not own:
 
-- Edit/command planning semantics
+- Edit/command intent semantics
 - Extension UI behavior
 - Protocol schema ownership
 
@@ -80,7 +80,7 @@ Owns:
 
 Does not own:
 
-- Planning/orchestration/business logic
+- Agent-loop/orchestration/business logic
 - Editor or transport implementations
 
 ## Edit directive shape (`EditDirective`)
@@ -100,7 +100,7 @@ Mixed-state payloads are invalid. Schema, generated types, validators, and runti
 If you are about to write logic, pick the owner first:
 
 - **UI behavior, command flow, editor operations** → extension.
-- **Meaning/safety decisions, planning, action construction** → daemon.
+- **Meaning/safety decisions, agent/orchestration logic, action construction** → daemon.
 - **Payload shape and validation contract** → protocol.
 
 One rule should have one owner. Duplicate ownership is a regression risk.
@@ -139,7 +139,7 @@ Rules:
 Rules:
 
 - Handlers must stay thin.
-- Transport layer must not perform planning.
+- Transport layer must not run the agent loop or interpret intents.
 - If a method crosses multiple daemon domains, route through app-level orchestration.
 
 ### How to add a new edit action type
@@ -161,20 +161,20 @@ Rules:
 - Daemon decides whether action is safe/valid to emit.
 - Extension only performs deterministic mechanical apply + sanity checks.
 
-### How to add a new edit-planner capability
+### How to add a new edit-intent capability
 
 1. Extend `internal/agent` edit intent handling (or model output validation) as needed.
 2. Return deterministic `EditIntent`; edit-building failures are handled inside the daemon and never reach the extension.
 3. Keep intent-level semantics in agent, not in `internal/intents/dispatch/edit`.
 4. Ensure `edit.Engine.DispatchEdit` maps intent + file snapshot to `EditDirective` variants.
-5. Add planner tests for:
+5. Add agent tests for:
    - supported instruction parsing
    - unsupported instruction failures
    - expected failure codes
 
 Rules:
 
-- Planner should fail closed when intent is unclear.
+- The agent should fail closed when intent is unclear.
 - Edits layer should not parse natural language.
 - Keep failure codes intentional and test them.
 
@@ -189,7 +189,7 @@ When touching architecture-sensitive code, include tests in the owning layer:
 
 ## Anti-patterns
 
-- Handler doing planning or target resolution
+- Handler performing agent-side reasoning or target resolution
 - `internal/intents/dispatch/edit` orchestrating `internal/agent`
 - Extension re-deciding daemon semantic policy
 - Ambiguous/overloaded result shapes

@@ -24,7 +24,7 @@ Vocode is composed of three main parts:
   - code edits (AST/diff-based)
   - symbol resolution (tree-sitter tags, grep-backed name search)
   - command execution
-  - transcript planning/orchestration
+  - transcript agent-loop orchestration
 
 3. Voice Sidecar (Go)
 
@@ -130,15 +130,15 @@ Tree-sitter provisioning:
 - if no bundled binary is present, install `tree-sitter-cli` in the repo or set `VOCODE_TREE_SITTER_BIN` explicitly
 - run `pnpm provision:tree-sitter` to populate the bundled location locally (extension `build` also runs this via `prebuild`)
 
-### Daemon planner protocol (iterative)
+### Daemon agent protocol (iterative)
 
-`voice.transcript` runs an iterative planning loop inside the daemon:
+`voice.transcript` runs an iterative agent loop inside the daemon:
 1. model returns one `intents.Intent` (control or executable; JSON has top-level `kind`)
 2. daemon validates and executes it (or fulfills `request_context`)
 3. daemon feeds accumulated context + completed actions back to the model
 4. repeats until `done` or guardrail limits are hit
 
-Current planner `kind` values (executable unless noted):
+Current intent `kind` values (executable unless noted):
 - `edit`, `command`, `navigate`, `undo`
 - `request_context` (control), `done` (control)
 
@@ -147,12 +147,12 @@ Current planner `kind` values (executable unless noted):
 - `directives[]` (ordered execution directives with `edit`, `command`, or `navigate`)
 - `accepted: false` when the daemon rejects/aborts the transcript before emitting directives
 
-### Planner troubleshooting
+### Agent loop troubleshooting
 
 When `accepted` is `false`, no directives are emitted and the extension should ignore the transcript (or show a generic error to the user).
 
-Useful knobs while debugging planner flow:
-- `VOCODE_DAEMON_VOICE_MAX_PLANNER_TURNS`
+Useful knobs while debugging the agent loop:
+- `VOCODE_DAEMON_VOICE_MAX_AGENT_TURNS`
 - `VOCODE_DAEMON_VOICE_MAX_INTENT_RETRIES`
 - `VOCODE_DAEMON_VOICE_MAX_CONTEXT_ROUNDS`
 - `VOCODE_DAEMON_VOICE_MAX_CONTEXT_BYTES`
@@ -249,12 +249,12 @@ We **never blindly rewrite files**.
 
 All edits are:
 
-- planned in the daemon
+- orchestrated in the daemon
 - anchored
 - validated
 - diffed before apply
 
-The current implementation intentionally supports a small deterministic slice instead of pretending the planner is finished.
+The current implementation intentionally supports a small deterministic slice instead of pretending the agent covers all edit styles.
 
 #### 2. Daemon-first architecture
 
@@ -275,7 +275,7 @@ The extension is just:
 #### 4. Streaming everything
 
 - voice → streaming STT
-- edits → incremental planning (currently rule-based for a small safe slice)
+- edits → incremental intent iteration (currently rule-based for a small safe slice)
 - UI → live feedback
 
 ---
@@ -322,7 +322,7 @@ Vocode: Apply Edit
 Vocode: Run Command
 ```
 
-Supported today: deterministic single-file edits for `insert statement "..." inside current function`, `replace block after "..." before "..." with "..."`, and `append import "..." if missing`. The daemon returns explicit `success`/`failure`/`noop` edit outcomes so the extension can display intent-preserving UX without re-planning.
+Supported today: deterministic single-file edits for `insert statement "..." inside current function`, `replace block after "..." before "..." with "..."`, and `append import "..." if missing`. The daemon returns explicit `success`/`failure`/`noop` edit outcomes so the extension can display intent-preserving UX without another agent turn.
 
 ---
 
@@ -331,7 +331,7 @@ Supported today: deterministic single-file edits for `insert statement "..." ins
 - [ ] JSON-RPC over stdio
 - [ ] daemon-client wiring
 - [ ] workspace sync
-- [ ] edit planner → applier
+- [ ] edit intents → applier
 - [ ] diff UI panel
 - [ ] streaming speech input
 

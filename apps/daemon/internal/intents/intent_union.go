@@ -6,7 +6,7 @@ import (
 	"strings"
 )
 
-// --- Control intents (planner loop only; no protocol directives) ---
+// --- Control intents (agent loop only; no protocol directives) ---
 
 type ControlIntentKind string
 
@@ -15,7 +15,7 @@ const (
 	ControlIntentKindRequestContext ControlIntentKind = "request_context"
 )
 
-// ControlIntent is a non-executable planner step: stop the loop or enrich planning context.
+// ControlIntent is a non-executable agent step: stop the loop or enrich gathered context.
 type ControlIntent struct {
 	Kind           ControlIntentKind     `json:"kind"`
 	RequestContext *RequestContextIntent `json:"requestContext,omitempty"`
@@ -50,7 +50,7 @@ type Intent struct {
 	Executable *ExecutableIntent `json:"-"`
 }
 
-// ControlDone returns an intent that stops the planner loop.
+// ControlDone returns an intent that stops the agent loop.
 func ControlDone() Intent {
 	return Intent{Control: &ControlIntent{Kind: ControlIntentKindDone}}
 }
@@ -60,7 +60,7 @@ func ControlDoneSummary(summary string) Intent {
 	return Intent{Control: &ControlIntent{Kind: ControlIntentKindDone, Done: &DoneIntent{Summary: summary}}}
 }
 
-// ControlRequestContext returns an intent that enriches planner context (symbols, excerpts, notes).
+// ControlRequestContext returns an intent that enriches gathered context (symbols, excerpts, notes).
 func ControlRequestContext(req *RequestContextIntent) Intent {
 	return Intent{Control: &ControlIntent{Kind: ControlIntentKindRequestContext, RequestContext: req}}
 }
@@ -75,7 +75,7 @@ func (i Intent) Validate() error {
 	return validateIntent(i)
 }
 
-// Summary returns a short trace label (e.g. "done", "request_context", "edit").
+// Summary returns a short intent label (e.g. "done", "request_context", "edit").
 func (i Intent) Summary() string {
 	if i.Control != nil {
 		return string(i.Control.Kind)

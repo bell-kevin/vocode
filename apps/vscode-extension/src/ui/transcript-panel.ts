@@ -399,7 +399,7 @@ export class TranscriptPanelViewProvider
       );
       if (!withSummaries.length) {
         parts.push(
-          '<div class="empty">When the planner finishes with a short summary, it appears here with the matching transcript.</div>',
+          '<div class="empty">When the agent finishes with a short summary, it appears here with the matching transcript.</div>',
         );
       } else {
         parts.push('<div class="stack">');
@@ -411,7 +411,7 @@ export class TranscriptPanelViewProvider
           parts.push(
             '<div class="card summary">' +
               '<div class="meta">' +
-              '<span class="badge" title="Planner done summary for this turn">Summary</span>' +
+              '<span class="badge" title="Agent done summary for this turn">Summary</span>' +
               "<span>" + esc(fmtTime(h.receivedAt)) + "</span>" +
               "</div>" +
               '<div class="text">' + esc(h.summary) + "</div>" +

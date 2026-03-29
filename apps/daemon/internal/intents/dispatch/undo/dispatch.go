@@ -7,7 +7,7 @@ import (
 	protocol "vocoding.net/vocode/v2/packages/protocol/go"
 )
 
-// DispatchUndo maps a planner undo intent to the wire payload for the extension (host applies).
+// DispatchUndo maps an undo intent to the wire payload for the extension (host applies).
 func Dispatch(u intents.UndoIntent) (protocol.UndoDirective, error) {
 	if err := intents.ValidateUndoIntent(u); err != nil {
 		return protocol.UndoDirective{}, fmt.Errorf("undo intent: %w", err)

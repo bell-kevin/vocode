@@ -17,7 +17,7 @@ type DirectiveApplyBatch struct {
 }
 
 // ConsumeHostApplyReport validates the host report against this batch and returns succeeded vs
-// failed intents for the next planning turn. Caller must clear [VoiceSession.PendingDirectiveApply]
+// failed intents for the next agent loop iteration. Caller must clear [VoiceSession.PendingDirectiveApply]
 // after a successful return.
 func (b *DirectiveApplyBatch) ConsumeHostApplyReport(
 	reportBatchID string,

@@ -1,10 +1,10 @@
 package agent
 
-// IntentPromptContract defines the required planner behavior for iterative
+// IntentPromptContract defines the required agent behavior for iterative
 // turns. Model clients should include this verbatim (or semantically equivalent)
 // in their system/developer instruction layer.
 const IntentPromptContract = `
-You are an iterative code-planning model. Return exactly one structured intent per turn.
+You are an iterative coding agent. Return exactly one structured intent per turn.
 
 Rules:
 - Prefer deterministic edits. For symbol edits, use symbol_id targets only.

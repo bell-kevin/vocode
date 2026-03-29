@@ -8,7 +8,7 @@
     "accepted": { "type": "boolean" },
     "summary": {
       "type": "string",
-      "description": "Human-readable summary when the model emits done; for host UI.",
+      "description": "Human-readable summary when the agent ends the loop (control_done); for host UI.",
       "maxLength": 8192
     },
     "directives": {

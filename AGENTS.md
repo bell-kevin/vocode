@@ -16,7 +16,7 @@ One “turn” starts when the extension calls the daemon RPC:
 
 ### What the daemon guarantees
 
-1. The daemon runs an iterative planner loop (`Agent.NextIntent` per turn; each step yields an `intents.Intent` validated with `Intent.Validate`).
+1. The daemon runs an iterative agent loop (`Agent.NextIntent` per turn; each step yields an `intents.Intent` validated with `Intent.Validate`).
 2. Each turn is handled by `intents/dispatch.Handler.Handle` (control intents vs executable intents in one switch).
 3. The daemon returns a `VoiceTranscriptResult` with ordered `directives` and, when `directives` is non-empty, an `applyBatchId` that correlates the next host apply report. The daemon holds at most one open `DirectiveApplyBatch` per `VoiceSession` (`SourceIntents` parallel to `directives`) until the host reports via `lastBatchApply` / `reportApplyBatchId`. Per-`contextSessionId` state lives in `VoiceSessionStore`, subject to idle reset (`VOCODE_DAEMON_SESSION_IDLE_RESET_MS`: unset → 30m default, `0` → off) and a rolling byte/excerpt cap (active-file excerpt is retained).
 4. Each directive is exactly one of:
@@ -30,7 +30,7 @@ One “turn” starts when the extension calls the daemon RPC:
 2. For `edit` results, it applies daemon-provided edit actions mechanically using `workspace.applyEdit`.
 3. For `command` results, it runs the command parameters using an allowlisted runner (no additional semantic policy).
 4. If any result fails, the extension stops processing remaining results.
-5. On the next `voice.transcript`, it sends the same `contextSessionId` while voice is active (so gathered context continues), plus `reportApplyBatchId` (prior `applyBatchId`) and `lastBatchApply` (one entry per directive: `ok` and optional `message`, including `not attempted` after the first failure) so the daemon can feed extension outcomes back into planning.
+5. On the next `voice.transcript`, it sends the same `contextSessionId` while voice is active (so gathered context continues), plus `reportApplyBatchId` (prior `applyBatchId`) and `lastBatchApply` (one entry per directive: `ok` and optional `message`, including `not attempted` after the first failure) so the daemon can feed extension outcomes back into the agent loop.
 
 ### Invariant: no mixed-state payloads
 
@@ -76,7 +76,7 @@ One “turn” starts when the extension calls the daemon RPC:
 ## Quick Ownership Guide
 
 - UI behavior, command flow, editor operations → extension.
-- Meaning/safety decisions, planning, action construction → daemon.
+- Meaning/safety decisions, agent/orchestration logic, action construction → daemon.
 - Payload shape and validation contract → protocol.
 
 One rule should have one owner. Duplicating ownership is a regression risk.
@@ -86,7 +86,7 @@ One rule should have one owner. Duplicating ownership is a regression risk.
 - Do not add daemon-side execution calls to run shell commands. The daemon should validate and return `commandDirective`; the extension executes.
 - Do not add new RPC endpoints like `edit.dispatch` or `command.run`. Keep the main entrypoint as `voice.transcript`.
 - Do not move semantic policy logic into the extension (keep it in daemon-owned layers).
-- Do not mix editor/transport policy decisions with planning/orchestration.
+- Do not mix editor/transport policy decisions with agent/orchestration concerns.
 - Do not move native microphone or STT transport logic into the extension host; keep it in `apps/voice`.
 
 ## Where to look (key files)
@@ -95,7 +95,7 @@ One rule should have one owner. Duplicating ownership is a regression risk.
 
 - Agent/runtime: `apps/daemon/internal/agent` (`ModelClient` / `Agent.NextIntent` take `agentcontext.TurnContext` from `model_client.go`). Model turn input types: `apps/daemon/internal/agentcontext` (`TurnContext`, `EditorSnapshot`, `Gathered`, `VoiceSessionStore`, `FailedIntent`, `ComposeTurnContext`). Tree-sitter tag parsing + cursor containment: `apps/daemon/internal/symbols/tags`
 - Intent types + validation: `apps/daemon/internal/intents`
-- Voice transcript (`apps/daemon/internal/transcript/`): root `service*.go` (RPC, run path, coalesce worker); subpackages `transcript/executor` (planner → `intents/dispatch`), `transcript/voicesession` (session + apply report), `transcript/config` (env); see `transcript/doc.go`
+- Voice transcript (`apps/daemon/internal/transcript/`): root `service*.go` (RPC, run path, coalesce worker); subpackages `transcript/executor` (agent loop → `intents/dispatch`), `transcript/voicesession` (session + apply report), `transcript/config` (env); see `transcript/doc.go`
 - Intent model + validation: `apps/daemon/internal/intents/` (`package intents` — `Intent` union: `ControlIntent` | `ExecutableIntent`, `Validate`, JSON round-trip on `kind` + payloads)
 - Intent dispatch (`apps/daemon/internal/intents/dispatch/`): `dispatch.go` defines `Handler` + `Handle` (switches control vs executable). `dispatch/requestcontext` implements `request_context` fulfillment. `dispatch/command|navigation|undo|edit/` mirror extension `src/directives/`. `command`, `navigation`, and `undo` expose `Dispatch` in each `dispatch.go`; `edit` uses `Engine` + `DispatchEdit` in `engine.go` / `edit/dispatch.go` (stateful builder)
 
@@ -170,7 +170,7 @@ Rules:
 
 Rules:
 - Handlers must stay thin.
-- Transport must not perform planning.
+- Transport must not run the agent loop or interpret intents.
 - If a request crosses multiple daemon domains, route through app-level orchestration.
 
 ### Add a new edit action type
@@ -189,15 +189,15 @@ Rules:
 - Daemon decides whether an action is safe/valid to emit.
 - Extension only applies actions deterministically (no semantic policy).
 
-### Add a new edit-planner capability
+### Add a new edit-intent capability
 
 1. Extend agent edit intent handling/validation in `apps/daemon/internal/agent`.
 2. Ensure the agent emits deterministic `EditIntent`; edit-building failures are handled inside the daemon.
 3. Ensure `edit.Engine.DispatchEdit` maps intent + file snapshot to the correct `EditDirective` variants.
-4. Add planner tests for supported/unsupported instruction expectations and failure codes.
+4. Add agent tests for supported/unsupported instruction expectations and failure codes.
 
 Rules:
-- Planner should fail closed when intent is unclear.
+- The agent should fail closed when intent is unclear.
 - Edits layer should not parse natural language.
 - Keep failure codes intentional and tested.
 
@@ -237,7 +237,7 @@ These are the scripts you should run for cleanliness and correctness:
 
 ## Anti-patterns (regression risks)
 
-- Handler doing planning or target resolution.
+- Handler performing agent-side reasoning or target resolution.
 - `internal/intents/dispatch/edit` orchestrating `internal/agent`.
 - Extension re-deciding semantic policy already owned by daemon.
 - Ambiguous/overloaded result shapes (breaks runtime validators and tests).

@@ -3,7 +3,7 @@
 `apps/voice` is a dedicated process for voice I/O concerns (microphone capture
 and speech-to-text orchestration), intentionally separate from:
 
-- `apps/daemon` (planning + semantic policy + action-plan dispatch)
+- `apps/daemon` (agent loop + semantic policy + intent dispatch)
 - `apps/vscode-extension` (UI + process orchestration + editor mechanics)
 
 ## Purpose
@@ -15,7 +15,7 @@ This sidecar is the place to implement:
 - STT integrations (cloud/local)
 - transcript event emission back to the extension
 
-It should not contain planning/action-plan logic.
+It should not contain agent-loop or intent-dispatch logic.
 
 ## Native Dependencies
 

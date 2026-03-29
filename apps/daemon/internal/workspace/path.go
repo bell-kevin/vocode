@@ -5,7 +5,7 @@ import (
 	"strings"
 )
 
-// ResolveTargetPath interprets a path from the model or planner relative to workspace root.
+// ResolveTargetPath interprets a path from the model or agent relative to workspace root.
 // Empty target means the active file. Relative targets require a non-empty workspace root.
 func ResolveTargetPath(workspaceRoot, activeFile, target string) string {
 	t := strings.TrimSpace(target)

@@ -7,7 +7,7 @@ import (
 	"vocoding.net/vocode/v2/apps/daemon/internal/agentcontext"
 )
 
-// ModelClient is the iterative planning contract. Each turn receives an [agentcontext.TurnContext].
+// ModelClient is the iterative agent-loop contract. Each turn receives an [agentcontext.TurnContext].
 type ModelClient interface {
 	NextIntent(ctx context.Context, in agentcontext.TurnContext) (intents.Intent, error)
 }

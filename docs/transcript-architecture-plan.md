@@ -26,7 +26,7 @@
 ### C — Docs + naming
 
 - `AGENTS.md` / `agentcontext` package docs: internal context session, no user session UX; batch apply rules.
-- Executor options: rename `MaxPlannerTurns` → `MaxAgentTurns` (field + env alias read).
+- Executor options: `MaxAgentTurns` (env `VOCODE_DAEMON_VOICE_MAX_AGENT_TURNS`).
 
 ## Extension
 

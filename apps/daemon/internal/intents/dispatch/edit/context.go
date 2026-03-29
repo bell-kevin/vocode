@@ -17,7 +17,7 @@ type EditExecutionContext struct {
 
 	// Files is an optional prefetched file-text map keyed by path.
 	// It can be populated by a context gatherer (ripgrep/tree-sitter pipeline)
-	// to avoid repeated disk reads and keep planning/execution deterministic.
+	// to avoid repeated disk reads and keep intent handling deterministic.
 	Files map[string]string
 }
 

@@ -15,8 +15,7 @@ import (
 )
 
 // TranscriptService adapts the voice.transcript RPC to the agent runtime and
-// action-plan execution (edits via structured results for the extension;
-// commands on the daemon).
+// transcript executor (structured directives for the extension to apply).
 type TranscriptService struct {
 	executor *executor.Executor
 

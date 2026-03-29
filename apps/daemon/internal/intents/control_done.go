@@ -3,7 +3,7 @@ package intents
 import "fmt"
 
 // DoneIntent is optional payload for the done control intent: a human-readable summary of
-// what the planner did, shown by the extension.
+// what the agent did, shown by the extension.
 type DoneIntent struct {
 	Summary string `json:"summary,omitempty"`
 }

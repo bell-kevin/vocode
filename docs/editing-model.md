@@ -9,7 +9,7 @@ users describe changes naturally; the system turns them into structured actions 
 
 ## Current Implemented Slice
 
-The daemon builds **`EditAction[]`** from a structured **`EditIntent`** plus the active file snapshot. Integration is covered by **Go tests** (`internal/intents/dispatch/edit`, `internal/intents`); there is no `edit.dispatch` RPC. The planner now emits iterative **`intents.Intent`** values (control vs executable; JSON wire uses top-level `kind`) and the daemon handles one per turn with per-turn feedback.
+The daemon builds **`EditAction[]`** from a structured **`EditIntent`** plus the active file snapshot. Integration is covered by **Go tests** (`internal/intents/dispatch/edit`, `internal/intents`); there is no `edit.dispatch` RPC. The **agent** emits iterative **`intents.Intent`** values (control vs executable; JSON wire uses top-level `kind`) and the daemon handles one iteration at a time with per-turn feedback.
 
 The **`internal/intents/dispatch/edit`** layer supports these intent kinds:
 
@@ -23,7 +23,7 @@ The **`internal/intents/dispatch/edit`** layer supports these intent kinds:
   - Supported for Go files and top-of-file JS/TS import sections.
   - If the import already exists, the daemon returns a structured no-change response.
 
-These rules intentionally fail closed when the daemon cannot map the plan to a unique edit.
+These rules intentionally fail closed when the daemon cannot map the instruction to a unique edit.
 
 **`EditDirective`** (protocol) remains the explicit outcome shape for tests and future callers:
 
@@ -45,14 +45,14 @@ These rules intentionally fail closed when the daemon cannot map the plan to a u
 
 ## High-Level Flow
 
-User intent -> plan -> structured edit actions -> target resolution -> validation -> diff generation -> apply.
+User intent → agent intent → structured edit actions → target resolution → validation → diff generation → apply.
 
 ## Layers
 
-### 1) Edit planning
+### 1) Edit intents (agent)
 
 - Interprets a user instruction into a narrow, deterministic edit intent.
-- The current planner lives behind the daemon's `internal/agent` boundary so richer planners can replace the rules later without changing the extension contract.
+- The current agent implementation lives behind the daemon's `internal/agent` boundary so richer models or rules can replace it later without changing the extension contract.
 
 ### 2) Edit actions
 
@@ -153,11 +153,11 @@ This allows gradual upgrades without changing the edit model.
 
 ## Why Not Line Numbers Alone?
 
-- Files change between planning and apply.
+- Files change between the agent turn and apply.
 - Line offsets drift.
 - Semantic intent is lost.
 
-Line/range edits may exist as low-level primitives but should not drive planning.
+Line/range edits may exist as low-level primitives but should not drive high-level intent selection.
 
 ## Validation
 
@@ -209,5 +209,5 @@ Safety level controls whether Vocode auto-applies, previews first, or asks for c
 ## Summary
 
 - Edit actions describe intent; resolvers determine location.
-- The current rule-based planner is a safe starting slice, not the end state.
+- The current rule-based agent slice is a safe starting point, not the end state.
 - This keeps the user experience magical while the system stays deterministic and evolvable.

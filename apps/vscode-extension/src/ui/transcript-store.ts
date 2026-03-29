@@ -20,7 +20,7 @@ export type PendingTranscript = {
 export type TranscriptPanelSnapshot = {
   /** Committed lines still in flight (queued, processing, or error). */
   readonly pending: readonly PendingTranscript[];
-  /** Recently completed lines (newest first). Optional `summary` is planner text for the Summary panel. */
+  /** Recently completed lines (newest first). Optional `summary` is agent-done text for the Summary panel. */
   readonly recentHandled: readonly {
     readonly text: string;
     readonly receivedAt: Date;

@@ -1,4 +1,4 @@
-// Package dispatch routes validated planner intents to outcomes (control vs executable).
+// Package dispatch routes validated agent intents to outcomes (control vs executable).
 //
 // Strategy-style layout: [Handler] holds long-lived services (edit engine, request-context provider).
 // [HandleInput] is the per-call runtime (transcript params, gathered context, intent, edit snapshot).
@@ -34,7 +34,7 @@ type ExecutableResult struct {
 	UndoDirective       *protocol.UndoDirective
 }
 
-// DoneResult is the control outcome when the planner stops (done intent). It carries no
+// DoneResult is the control outcome when the agent stops (done intent). It carries no
 // protocol directives; Summary is copied to the transcript result for the extension UI.
 type DoneResult struct {
 	Summary string
@@ -57,7 +57,7 @@ type HandleOutcome struct {
 	Executable *ExecutableResult
 }
 
-// HandleInput is per-call dispatch context: transcript params, gathered planner context, validated [intents.Intent],
+// HandleInput is per-call dispatch context: transcript params, gathered context, validated [intents.Intent],
 // and edit execution state from the transcript executor. Strategies read only the fields they need;
 // others are ignored (e.g. done uses neither Params nor EditCtx; request_context uses Params + Gathered).
 type HandleInput struct {
@@ -77,7 +77,7 @@ func (h *Handler) Handle(in HandleInput) (HandleOutcome, error) {
 	}
 	ex := in.Intent.Executable
 	if ex == nil {
-		return HandleOutcome{}, fmt.Errorf("planner intent: missing executable")
+		return HandleOutcome{}, fmt.Errorf("agent intent: missing executable")
 	}
 	return h.dispatchExecutable(ex, in)
 }
