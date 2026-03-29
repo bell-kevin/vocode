@@ -169,7 +169,7 @@
         "vocode.daemonSessionIdleResetMs": {
           "type": "number",
           "default": 1800000,
-          "description": "Drop daemon voice session state after this idle time (ms). 0 = off. Unset in .env defaults to 30m in daemon."
+          "description": "Drop daemon voice session state after this idle time (ms). 0 = off. Daemon default is 30m when unset at process level."
         }
       }
     }

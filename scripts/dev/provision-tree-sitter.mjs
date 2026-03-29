@@ -12,12 +12,6 @@ const binaryName =
 const targetDir = path.join(root, "tools", "tree-sitter", platformTarget);
 const targetPath = path.join(targetDir, binaryName);
 
-function resolveFromEnv() {
-  const p = (process.env.VOCODE_TREE_SITTER_BIN ?? "").trim();
-  if (!p) return "";
-  return existsSync(p) ? p : "";
-}
-
 function resolveFromNpmPackage() {
   const out = [];
   try {
@@ -75,8 +69,6 @@ function verifyBinary(binaryPath) {
 }
 
 const candidates = [];
-const fromEnv = resolveFromEnv();
-if (fromEnv) candidates.push(fromEnv);
 candidates.push(...resolveFromNpmPackage());
 
 if (candidates.length === 0) {
@@ -89,7 +81,7 @@ if (candidates.length === 0) {
 
 if (candidates.length === 0) {
   console.warn(
-    "[vocode] tree-sitter not provisioned: install `tree-sitter-cli` (pnpm) or set VOCODE_TREE_SITTER_BIN",
+    "[vocode] tree-sitter not provisioned: install `tree-sitter-cli` (pnpm)",
   );
   process.exit(0);
 }

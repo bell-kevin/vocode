@@ -106,7 +106,8 @@ One rule should have one owner. Duplicating ownership is a regression risk.
 - Voice main sidebar (webview UI state): `apps/vscode-extension/src/ui/main-panel-store.ts` + `ui/main-panel.ts`
 - Directive host layer (`apps/vscode-extension/src/directives/`): `command`, `edits`, `navigation`, `undo` (each has `dispatch.ts` exporting `dispatchCommand` / `dispatchEdit` / `dispatchNavigation` / `dispatchUndo`), plus root `dispatch.ts` (`dispatchTranscript`)
 - Daemon client: `apps/vscode-extension/src/daemon/client.ts`
-- Voice sidecar spawn/client: `apps/vscode-extension/src/voice` (`client`, `spawn`, `paths`, `workspace-env`)
+- Voice sidecar spawn/client: `apps/vscode-extension/src/voice` (`client`, `spawn`, `paths`)
+- Spawned daemon/voice env: `apps/vscode-extension/src/config/spawn-env.ts` — `package.json` configuration defaults + effective VS Code `vocode.*` settings + ElevenLabs key from SecretStorage (no workspace `.env`). For `go run` / shell workflows, export vars yourself; default numbers/strings match `package.json` where applicable.
 
 ### Voice sidecar
 

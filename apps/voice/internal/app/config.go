@@ -1,3 +1,11 @@
+// Package app reads sidecar tuning from the **process environment** only.
+//
+// This is not a second “source of truth” next to VS Code: the extension (or your
+// shell, for go run / tests) is responsible for setting these variables when the
+// process starts. We do not load a .env file here — env is the normal parent→child
+// contract for spawned binaries. Defaults in envInt/envFloat apply when a var is
+// unset (e.g. unit tests); the VS Code extension maps package.json + user
+// settings into the same names before spawn.
 package app
 
 import (

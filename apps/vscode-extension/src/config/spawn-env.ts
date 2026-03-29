@@ -1,28 +1,7 @@
 import * as vscode from "vscode";
 
-import { applyWorkspaceDotEnv } from "../voice/workspace-env";
-
 /** VS Code SecretStorage key (never log). */
 export const ELEVENLABS_API_KEY_SECRET = "vocode.elevenLabsApiKey";
-
-function isExplicitlySet(
-  ins:
-    | {
-        readonly globalValue?: unknown;
-        readonly workspaceValue?: unknown;
-        readonly workspaceFolderValue?: unknown;
-      }
-    | undefined,
-): boolean {
-  if (!ins) {
-    return false;
-  }
-  return (
-    ins.globalValue !== undefined ||
-    ins.workspaceValue !== undefined ||
-    ins.workspaceFolderValue !== undefined
-  );
-}
 
 type ConfigBinding =
   | { configKey: string; envVar: string; kind: "string" }
@@ -145,15 +124,16 @@ export const PANEL_CONFIG_KEYS = [
 
 export type PanelConfigKey = (typeof PANEL_CONFIG_KEYS)[number];
 
+/**
+ * Writes effective VS Code `vocode.*` values into `env` for child processes.
+ * Uses `getConfiguration().get()` so **defaults come from package.json** and
+ * **user/workspace overrides** apply automatically.
+ */
 function applyBinding(
   config: vscode.WorkspaceConfiguration,
   env: NodeJS.ProcessEnv,
   b: ConfigBinding,
 ): void {
-  const ins = config.inspect(b.configKey);
-  if (!isExplicitlySet(ins)) {
-    return;
-  }
   if (b.kind === "string") {
     const v = config.get<string>(b.configKey);
     if (typeof v === "string") {
@@ -175,9 +155,13 @@ function applyBinding(
 }
 
 /**
- * Merges workspace `.env` (callers should run `applyWorkspaceDotEnv` first), then
- * VS Code settings (only keys the user explicitly set), then the ElevenLabs API
- * key from SecretStorage when present.
+ * Two layers only for the extension:
+ * 1. **Defaults** — `package.json` `contributes.configuration` defaults (via `get()`).
+ * 2. **User** — VS Code user/workspace settings + panel edits, and the ElevenLabs API
+ *    key from **SecretStorage** (not settings.json).
+ *
+ * Workspace `.env` is **not** read when spawning daemon/voice from the extension.
+ * For terminal / `go run`, export variables in the shell (no repo `.env` template).
  */
 export async function applyVocodeSpawnEnvironment(
   context: vscode.ExtensionContext,
@@ -186,6 +170,8 @@ export async function applyVocodeSpawnEnvironment(
   const apiKey = await context.secrets.get(ELEVENLABS_API_KEY_SECRET);
   if (apiKey !== undefined && apiKey.trim() !== "") {
     env.ELEVENLABS_API_KEY = apiKey.trim();
+  } else {
+    delete env.ELEVENLABS_API_KEY;
   }
 
   const config = vscode.workspace.getConfiguration("vocode");
@@ -193,30 +179,17 @@ export async function applyVocodeSpawnEnvironment(
     applyBinding(config, env, b);
   }
 
-  const vadDbg = config.inspect("voiceVadDebug");
-  if (isExplicitlySet(vadDbg)) {
-    if (config.get<boolean>("voiceVadDebug") === true) {
-      env.VOCODE_VOICE_VAD_DEBUG = "1";
-    } else {
-      delete env.VOCODE_VOICE_VAD_DEBUG;
-    }
+  if (config.get<boolean>("voiceVadDebug") === true) {
+    env.VOCODE_VOICE_VAD_DEBUG = "1";
+  } else {
+    delete env.VOCODE_VOICE_VAD_DEBUG;
   }
 }
 
+/** True when the user has stored an API key in SecretStorage (extension path). */
 export async function elevenLabsApiKeyIsConfigured(
   context: vscode.ExtensionContext,
 ): Promise<boolean> {
   const secret = await context.secrets.get(ELEVENLABS_API_KEY_SECRET);
-  if (secret !== undefined && secret.trim() !== "") {
-    return true;
-  }
-  const w = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
-  if (w) {
-    const env = { ...process.env };
-    applyWorkspaceDotEnv(env, w);
-    if (env.ELEVENLABS_API_KEY?.trim()) {
-      return true;
-    }
-  }
-  return !!process.env.ELEVENLABS_API_KEY?.trim();
+  return secret !== undefined && secret.trim() !== "";
 }

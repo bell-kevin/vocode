@@ -27,7 +27,7 @@ To enable real mic capture:
 
 ## STT model + tuning
 
-In **VS Code**, prefer **Vocode → Settings** (sidebar panel) or **Settings → Vocode** for API keys (secret storage), model id, language, VAD/stream tuning, and daemon queue limits—those override workspace `.env` for spawned processes.
+In **VS Code**, configuration is **defaults in the extension’s `package.json`** plus **your overrides** in Settings / the sidebar panel and the **ElevenLabs API key in secret storage**; spawned daemon and voice **do not read** workspace `.env`. From a **terminal**, export the same env var names yourself (defaults align with `package.json` where applicable).
 
 STT uses ElevenLabs realtime websocket transcription with local VAD, `audio_meter` events for the VS Code panel, and optional `[vocode-vad]` traces on stderr.
 
@@ -59,7 +59,7 @@ Streaming VAD/segmentation knobs:
 
 - **Never log debug output to stdout** in the sidecar — stdout is JSON lines for the extension. Use **stderr** only.
 - **Runtime traces:** set `VOCODE_VOICE_VAD_DEBUG=1` (or `true`) and restart the sidecar. You’ll see lines like `[vocode-vad] speech_start …`, `commit utterance_end (silence) …`, `commit utterance_max …`, and `commit flush …` on **stderr**. The VS Code extension forwards sidecar stderr to the host log as `[vocode-voiced stderr] …` (e.g. **Developer: Toggle Developer Tools** → Console). You can also run `vocode-voiced` from a terminal with the same env to read stderr directly.
-- **Extension:** the repo root `.env` is **not** loaded into the extension host automatically. The extension **merges workspace `.env` into the spawned sidecar’s environment**, so `VOCODE_VOICE_VAD_DEBUG` there applies after reload. Alternatively enable **Settings → Vocode: Voice Vad Debug** (`vocode.voiceVadDebug`) to force `VOCODE_VOICE_VAD_DEBUG=1` without editing `.env`. On activation, the extension logs `[vocode] voice sidecar spawn env: VOCODE_VOICE_VAD_DEBUG=…` to the console so you can confirm what the child process received.
+- **Extension:** enable **Settings → Vocode: Voice Vad Debug** (`vocode.voiceVadDebug`) or the sidebar panel toggle so the spawned sidecar gets `VOCODE_VOICE_VAD_DEBUG=1`. The extension does **not** read workspace `.env`. On activation, it logs `[vocode] voice sidecar spawn env: VOCODE_VOICE_VAD_DEBUG=…` to the console so you can confirm what the child received.
 - **Unit tests:** `go test ./internal/app/... -run VAD -v` exercises commit behavior with synthetic PCM frames (`vad_test.go`). Adjust `t.Setenv` in a scratch test to reproduce your thresholds.
 - **Tuning:** if commits never fire, try **lowering** `VOCODE_VOICE_VAD_END_MS` (faster “end of sentence”) or **raising** `VOCODE_VOICE_VAD_THRESHOLD_MULTIPLIER` if noise keeps you “in speech”. If speech is clipped at the start, raise `VOCODE_VOICE_VAD_PREROLL_MS` or `VOCODE_VOICE_VAD_START_MS`.
 

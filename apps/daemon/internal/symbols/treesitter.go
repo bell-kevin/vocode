@@ -18,7 +18,7 @@ type TreeSitterResolver struct {
 }
 
 func NewTreeSitterResolver() *TreeSitterResolver {
-	// Strict provisioning: only explicit binary path is accepted.
+	// Path is set by the VS Code extension from the provisioned tools/tree-sitter layout.
 	if p := strings.TrimSpace(os.Getenv("VOCODE_TREE_SITTER_BIN")); p != "" {
 		return &TreeSitterResolver{binaryPath: p}
 	}
@@ -27,7 +27,7 @@ func NewTreeSitterResolver() *TreeSitterResolver {
 
 func (r *TreeSitterResolver) ResolveSymbol(workspaceRoot, symbolName, symbolKind, hintPath string) ([]SymbolRef, error) {
 	if strings.TrimSpace(r.binaryPath) == "" {
-		return nil, errors.New("tree-sitter CLI not configured (run `pnpm provision:tree-sitter` or set VOCODE_TREE_SITTER_BIN)")
+		return nil, errors.New("tree-sitter CLI not configured (run `pnpm provision:tree-sitter` from the repo; extension spawns daemon with the provisioned binary path)")
 	}
 
 	root := strings.TrimSpace(workspaceRoot)

@@ -10,8 +10,7 @@
         "--extensionDevelopmentPath=${workspaceFolder}/apps/vscode-extension"
       ],
       "outFiles": ["${workspaceFolder}/apps/vscode-extension/dist/**/*.js"],
-      "preLaunchTask": "build:dev-host",
-      "envFile": "${workspaceFolder}/.env"
+      "preLaunchTask": "build:dev-host"
     }
   ]
 }

@@ -68,8 +68,9 @@ config/
 
 ## 🚀 Getting Started
 
-0. Set up env
-- Copy `.env.example` to `.env` and fill in the values
+0. **VS Code workflow:** open **Vocode → Settings** (sidebar) and save your **ElevenLabs API key** (secret storage). Other knobs live under **Settings → Vocode**; defaults are defined in `apps/vscode-extension/package.json`. There is **no** committed `.env` — the extension does not load one for spawned daemon/voice.
+
+   **Shell / `go run`:** export the same variable names yourself (see `apps/voice/internal/app/config.go` and daemon transcript env usage); match defaults from `package.json` where you need parity.
 
 1. Install dependencies
 
@@ -109,11 +110,9 @@ pnpm codegen
 
 The voice sidecar uses ElevenLabs streaming STT with local VAD gating.
 
-Recommended baseline:
-- `ELEVENLABS_STT_MODEL_ID=scribe_v2`
-- leave VAD/chunk env vars at defaults from `.env.example`
+Recommended baseline (VS Code): use extension defaults, or set `vocode.elevenLabsSttModelId` / other `vocode.*` keys in Settings.
 
-Tuning guide:
+Tuning guide (env var names when running from a terminal, or for reading daemon code):
 - higher `VOCODE_VOICE_VAD_END_MS` -> fewer premature utterance commits
 - higher `VOCODE_VOICE_VAD_PREROLL_MS` -> less start-of-speech clipping
 - lower `VOCODE_VOICE_STREAM_MIN_CHUNK_MS` -> lower latency while speaking
@@ -126,9 +125,8 @@ Daemon transcript queueing:
 
 Tree-sitter provisioning:
 - daemon symbol resolution requires the `tree-sitter` CLI
-- the extension auto-wires `VOCODE_TREE_SITTER_BIN` when a bundled binary exists at `tools/tree-sitter/<platform-arch>/tree-sitter(.exe)` and no override is already set
-- if no bundled binary is present, install `tree-sitter-cli` in the repo or set `VOCODE_TREE_SITTER_BIN` explicitly
-- run `pnpm provision:tree-sitter` to populate the bundled location locally (extension `build` also runs this via `prebuild`)
+- the extension always sets `VOCODE_TREE_SITTER_BIN` for the spawned daemon to the provisioned binary at `tools/tree-sitter/<platform-arch>/tree-sitter(.exe)` (dev repo or bundled under the extension)
+- run `pnpm provision:tree-sitter` to populate that path locally (extension `build` also runs this via `prebuild`)
 
 ### Daemon agent protocol (iterative)
 

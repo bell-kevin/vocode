@@ -113,9 +113,15 @@ export function SettingsPanel(props: { config: PanelConfig | null }) {
         </div>
       ) : null}
       <p className="settings-intro">
-        Values you set here override workspace <code>.env</code> for spawned
-        daemon and voice processes. Restart voice (Stop → Start) and reload the
-        window if the daemon is already running.
+        <strong>Defaults</strong> ship in the extension (
+        <code>package.json</code>
+        ). <strong>Your changes</strong> are VS Code settings (this panel or
+        Settings → Vocode) plus the API key in secret storage. To{" "}
+        <strong>reset a value to default</strong>, open Settings → search{" "}
+        <code>vocode</code> → use the gear icon on that row → Reset setting (or
+        remove the key from your <code>settings.json</code>). After changing
+        values, restart voice (Stop → Start) and reload the window so the daemon
+        restarts.
       </p>
 
       {config ? (

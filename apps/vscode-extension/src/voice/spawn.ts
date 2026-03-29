@@ -5,7 +5,6 @@ import * as vscode from "vscode";
 
 import { applyVocodeSpawnEnvironment } from "../config/spawn-env";
 import { resolveVoiceSidecarPath } from "./paths";
-import { applyWorkspaceDotEnv } from "./workspace-env";
 
 export interface SpawnedVoiceSidecar {
   process: ChildProcessWithoutNullStreams;
@@ -20,8 +19,6 @@ export async function spawnVoiceSidecar(
   const msysRoot = process.env.MSYS2_ROOT ?? "C:\\tools\\msys64";
   const mingw64Bin = path.join(msysRoot, "mingw64", "bin");
   const env = { ...process.env };
-  const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
-  applyWorkspaceDotEnv(env, workspaceRoot);
   await applyVocodeSpawnEnvironment(context, env);
 
   const logProtocolStdout =
