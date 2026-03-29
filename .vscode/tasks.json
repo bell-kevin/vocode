@@ -2,6 +2,12 @@
   "version": "2.0.0",
   "tasks": [
     {
+      "label": "codegen",
+      "type": "shell",
+      "command": "pnpm codegen",
+      "problemMatcher": []
+    },
+    {
       "label": "build:daemon",
       "type": "shell",
       "command": "pnpm --filter @vocode/daemon build",
@@ -25,8 +31,13 @@
       "dependsOrder": "parallel"
     },
     {
-      "label": "build:dev-host",
+      "label": "build:native-and-extension",
       "dependsOn": ["build:native", "build:vscode-extension"],
+      "dependsOrder": "parallel"
+    },
+    {
+      "label": "build:dev-host",
+      "dependsOn": ["codegen", "build:native-and-extension"],
       "dependsOrder": "sequence"
     }
   ]

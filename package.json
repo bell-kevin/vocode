@@ -4,6 +4,7 @@
   "packageManager": "pnpm@10.22.0",
   "description": "Root vocode monorepo",
   "scripts": {
+    "prebuild": "pnpm codegen",
     "build": "turbo run build",
     "postinstall": "pnpm provision:tree-sitter",
     "provision:tree-sitter": "node scripts/dev/provision-tree-sitter.mjs",
