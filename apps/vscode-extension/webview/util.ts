@@ -41,7 +41,9 @@ export function normalizePanelState(raw: unknown): PanelState {
   const o = raw as Record<string, unknown>;
   const am = (o.audioMeter as Record<string, unknown>) || {};
   return {
-    pending: Array.isArray(o.pending) ? (o.pending as PanelState["pending"]) : [],
+    pending: Array.isArray(o.pending)
+      ? (o.pending as PanelState["pending"])
+      : [],
     recentHandled: Array.isArray(o.recentHandled)
       ? (o.recentHandled as PanelState["recentHandled"])
       : [],

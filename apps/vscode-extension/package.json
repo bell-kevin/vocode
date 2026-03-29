@@ -65,6 +65,111 @@
           "type": "boolean",
           "default": false,
           "description": "Log every JSON line from the voice sidecar to Developer Tools (very noisy). Leave off to see stderr debug lines ([vocode-vad], [vocode-stt]) clearly."
+        },
+        "vocode.elevenLabsSttLanguage": {
+          "type": "string",
+          "default": "en",
+          "description": "ElevenLabs realtime language_code (ISO 639-1). Use \"auto\" for server auto-detect."
+        },
+        "vocode.elevenLabsSttModelId": {
+          "type": "string",
+          "default": "scribe_v2_realtime",
+          "description": "ElevenLabs realtime STT model id (ELEVENLABS_STT_MODEL_ID)."
+        },
+        "vocode.voiceSttCommitResponseTimeoutMs": {
+          "type": "number",
+          "default": 5000,
+          "description": "After commit:true, flush deferred PCM if committed_transcript never arrives (ms). 0 = wait indefinitely."
+        },
+        "vocode.voiceVadThresholdMultiplier": {
+          "type": "number",
+          "default": 1.65,
+          "description": "VAD threshold multiplier (VOCODE_VOICE_VAD_THRESHOLD_MULTIPLIER)."
+        },
+        "vocode.voiceVadMinEnergyFloor": {
+          "type": "number",
+          "default": 100,
+          "description": "PCM16 RMS floor for speech vs noise per 20ms frame (VOCODE_VOICE_VAD_MIN_ENERGY_FLOOR)."
+        },
+        "vocode.voiceVadStartMs": {
+          "type": "number",
+          "default": 60,
+          "description": "VAD speech start debounce (ms)."
+        },
+        "vocode.voiceVadEndMs": {
+          "type": "number",
+          "default": 750,
+          "description": "VAD trailing silence before end-of-utterance (ms)."
+        },
+        "vocode.voiceVadPrerollMs": {
+          "type": "number",
+          "default": 320,
+          "description": "Audio kept before declared speech start (ms)."
+        },
+        "vocode.voiceStreamMinChunkMs": {
+          "type": "number",
+          "default": 200,
+          "description": "Minimum streaming chunk interval (ms)."
+        },
+        "vocode.voiceStreamMaxChunkMs": {
+          "type": "number",
+          "default": 500,
+          "description": "Maximum streaming chunk interval (ms)."
+        },
+        "vocode.voiceStreamMaxUtteranceMs": {
+          "type": "number",
+          "default": 0,
+          "description": "Force commit every N ms during one utterance; 0 = off (silence/EOF only)."
+        },
+        "vocode.daemonVoiceTranscriptQueueSize": {
+          "type": "number",
+          "default": 10,
+          "description": "Daemon voice transcript FIFO queue size."
+        },
+        "vocode.daemonVoiceTranscriptCoalesceMs": {
+          "type": "number",
+          "default": 750,
+          "description": "Daemon transcript coalesce window (ms)."
+        },
+        "vocode.daemonVoiceTranscriptMaxMergeJobs": {
+          "type": "number",
+          "default": 5,
+          "description": "Max merged transcript jobs per coalesce."
+        },
+        "vocode.daemonVoiceTranscriptMaxMergeChars": {
+          "type": "number",
+          "default": 6000,
+          "description": "Max chars when merging transcript lines."
+        },
+        "vocode.daemonVoiceMaxAgentTurns": {
+          "type": "number",
+          "default": 8,
+          "description": "Max agent planner turns per voice.transcript RPC."
+        },
+        "vocode.daemonVoiceMaxIntentRetries": {
+          "type": "number",
+          "default": 2,
+          "description": "Max intent retries per turn."
+        },
+        "vocode.daemonVoiceMaxContextRounds": {
+          "type": "number",
+          "default": 2,
+          "description": "Max request_context rounds per transcript."
+        },
+        "vocode.daemonVoiceMaxContextBytes": {
+          "type": "number",
+          "default": 12000,
+          "description": "Max context payload bytes per round."
+        },
+        "vocode.daemonVoiceMaxConsecutiveContextRequests": {
+          "type": "number",
+          "default": 3,
+          "description": "Max consecutive context requests without executable progress."
+        },
+        "vocode.daemonSessionIdleResetMs": {
+          "type": "number",
+          "default": 1800000,
+          "description": "Drop daemon voice session state after this idle time (ms). 0 = off. Unset in .env defaults to 30m in daemon."
         }
       }
     }

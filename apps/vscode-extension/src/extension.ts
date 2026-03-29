@@ -14,22 +14,22 @@ import {
 } from "./transcript/carry";
 import { FAILED_TO_PROCESS_TRANSCRIPT } from "./transcript/messages";
 import { transcriptWorkspaceRoot } from "./transcript/workspace-root";
-import { VoiceStatusIndicator } from "./ui/status-bar";
 import { MainPanelViewProvider, mainPanelViewType } from "./ui/main-panel";
 import { MainPanelStore } from "./ui/main-panel-store";
+import { VoiceStatusIndicator } from "./ui/status-bar";
 import { VoiceSidecarClient } from "./voice/client";
 import { spawnVoiceSidecar } from "./voice/spawn";
 
-function createServices(
+async function createServices(
   context: vscode.ExtensionContext,
   voiceStatus: VoiceStatusIndicator,
   mainPanelStore: MainPanelStore,
-): ExtensionServices {
+): Promise<ExtensionServices> {
   try {
-    const daemon = spawnDaemon(context);
+    const daemon = await spawnDaemon(context);
     console.log(`Vocode daemon started from ${daemon.binaryPath}`);
 
-    const voice = spawnVoiceSidecar(context);
+    const voice = await spawnVoiceSidecar(context);
     console.log(`Vocode voice sidecar started from ${voice.binaryPath}`);
 
     const voiceSession = new VoiceSessionController();
@@ -178,7 +178,7 @@ function createServices(
   }
 }
 
-export function activate(context: vscode.ExtensionContext) {
+export async function activate(context: vscode.ExtensionContext) {
   console.log("Vocode extension activated");
 
   const voiceStatus = new VoiceStatusIndicator();
@@ -186,6 +186,7 @@ export function activate(context: vscode.ExtensionContext) {
   const mainPanel = new MainPanelViewProvider(
     context.extensionUri,
     mainPanelStore,
+    context,
   );
 
   context.subscriptions.push(
@@ -193,7 +194,7 @@ export function activate(context: vscode.ExtensionContext) {
     mainPanel,
   );
 
-  const services = createServices(context, voiceStatus, mainPanelStore);
+  const services = await createServices(context, voiceStatus, mainPanelStore);
 
   context.subscriptions.push(voiceStatus, ...registerAllCommands(services), {
     dispose: () => {

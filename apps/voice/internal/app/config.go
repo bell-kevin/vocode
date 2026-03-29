@@ -6,23 +6,6 @@ import (
 	"strings"
 )
 
-func sttEnabled() bool {
-	// Default enabled to preserve existing behavior.
-	v := strings.TrimSpace(os.Getenv("VOCODE_VOICE_STT_ENABLED"))
-	if v == "" {
-		return true
-	}
-	switch strings.ToLower(v) {
-	case "1", "true", "yes", "y", "on", "enabled":
-		return true
-	case "0", "false", "no", "n", "off", "disabled":
-		return false
-	default:
-		// Fail open to avoid confusing "no transcripts" because of a typo.
-		return true
-	}
-}
-
 func sttModelID() string {
 	v := strings.TrimSpace(os.Getenv("ELEVENLABS_STT_MODEL_ID"))
 	if v == "" {

@@ -1,8 +1,8 @@
 import { randomUUID } from "node:crypto";
 
 import type { DaemonClient } from "../daemon/client";
-import type { VoiceStatusIndicator } from "../ui/status-bar";
 import type { MainPanelStore } from "../ui/main-panel-store";
+import type { VoiceStatusIndicator } from "../ui/status-bar";
 import type { VoiceSidecarClient } from "../voice/client";
 
 export class VoiceSessionController {

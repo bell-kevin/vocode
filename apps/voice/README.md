@@ -25,13 +25,9 @@ To enable real mic capture:
 - Ensure `CGO_ENABLED=1`
 - Install PortAudio *and* `pkg-config` support for `portaudio-2.0`
 
-## STT toggle
-
-To disable ElevenLabs calls (and manually send transcripts via the VS Code command
-palette), set:
-- `VOCODE_VOICE_STT_ENABLED=false`
-
 ## STT model + tuning
+
+In **VS Code**, prefer **Vocode → Settings** (sidebar panel) or **Settings → Vocode** for API keys (secret storage), model id, language, VAD/stream tuning, and daemon queue limits—those override workspace `.env` for spawned processes.
 
 STT uses ElevenLabs realtime websocket transcription with local VAD, `audio_meter` events for the VS Code panel, and optional `[vocode-vad]` traces on stderr.
 

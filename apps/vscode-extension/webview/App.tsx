@@ -1,8 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { AudioMeter } from "./AudioMeter";
 import { MainPanel } from "./MainPanel";
-import type { PanelConfig } from "./SettingsPanel";
+import { vocodePanelConfigFromMessage } from "./panel-config-from-message";
+import type { VocodePanelConfig } from "./panel-config-types";
 import { SettingsPanel } from "./SettingsPanel";
 import type { PanelState } from "./types";
 import { emptyState, normalizePanelState } from "./util";
@@ -48,28 +49,37 @@ function ChevronLeftIcon() {
 export function App() {
   const [panel, setPanel] = useState<PanelState>(emptyState);
   const [panelView, setPanelView] = useState<"main" | "settings">("main");
-  const [panelConfig, setPanelConfig] = useState<PanelConfig | null>(null);
+  const [panelConfig, setPanelConfig] = useState<VocodePanelConfig | null>(
+    null,
+  );
+  const initialRouteApplied = useRef(false);
 
   useEffect(() => {
     const handler = (event: MessageEvent) => {
-      const msg = event.data as {
-        type?: string;
-        state?: unknown;
-        voiceVadDebug?: boolean;
-        voiceSidecarLogProtocol?: boolean;
-      };
-      if (msg?.type === "update" && msg.state !== undefined) {
+      const msg = event.data as Record<string, unknown> | null;
+      if (!msg || typeof msg !== "object") {
+        return;
+      }
+      if (msg.type === "update" && msg.state !== undefined) {
         setPanel(normalizePanelState(msg.state));
       }
-      if (msg?.type === "panelConfig") {
-        setPanelConfig({
-          voiceVadDebug: msg.voiceVadDebug === true,
-          voiceSidecarLogProtocol: msg.voiceSidecarLogProtocol === true,
-        });
+      if (msg.type === "initialRoute" && !initialRouteApplied.current) {
+        initialRouteApplied.current = true;
+        const v = msg.panelView;
+        if (v === "settings" || v === "main") {
+          setPanelView(v);
+        }
+      }
+      if (msg.type === "panelConfig") {
+        setPanelConfig(vocodePanelConfigFromMessage(msg));
       }
     };
     window.addEventListener("message", handler);
     return () => window.removeEventListener("message", handler);
+  }, []);
+
+  useEffect(() => {
+    getVsCodeApi()?.postMessage({ type: "webviewReady" });
   }, []);
 
   useEffect(() => {

@@ -3,6 +3,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import * as vscode from "vscode";
 
+import { applyVocodeSpawnEnvironment } from "../config/spawn-env";
 import { resolveVoiceSidecarPath } from "./paths";
 import { applyWorkspaceDotEnv } from "./workspace-env";
 
@@ -11,29 +12,23 @@ export interface SpawnedVoiceSidecar {
   binaryPath: string;
 }
 
-export function spawnVoiceSidecar(
+export async function spawnVoiceSidecar(
   context: vscode.ExtensionContext,
-): SpawnedVoiceSidecar {
+): Promise<SpawnedVoiceSidecar> {
   const binaryPath = resolveVoiceSidecarPath(context);
 
-  // PortAudio is dynamically linked. When using MSYS2/MinGW, the PortAudio
-  // runtime DLLs are typically in `<msys2Root>/mingw64/bin`, which needs to be
-  // on PATH for Windows loader resolution.
   const msysRoot = process.env.MSYS2_ROOT ?? "C:\\tools\\msys64";
   const mingw64Bin = path.join(msysRoot, "mingw64", "bin");
   const env = { ...process.env };
   const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
   applyWorkspaceDotEnv(env, workspaceRoot);
+  await applyVocodeSpawnEnvironment(context, env);
 
-  const vocodeConfig = vscode.workspace.getConfiguration("vocode");
-  const vadDebug = vocodeConfig.get<boolean>("voiceVadDebug");
-  if (vadDebug === true) {
-    env.VOCODE_VOICE_VAD_DEBUG = "1";
-  }
   const logProtocolStdout =
-    vocodeConfig.get<boolean>("voiceSidecarLogProtocol") === true;
+    vscode.workspace
+      .getConfiguration("vocode")
+      .get<boolean>("voiceSidecarLogProtocol") === true;
 
-  // Helps verify merged .env + settings (Developer Tools → Console when running the extension).
   console.log(
     "[vocode] voice sidecar spawn env:",
     "VOCODE_VOICE_VAD_DEBUG=",

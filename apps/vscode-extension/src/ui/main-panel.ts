@@ -1,24 +1,17 @@
 import * as vscode from "vscode";
 
+import {
+  applyVocodePanelConfigPatch,
+  buildVocodePanelConfigMessage,
+} from "../config/panel-settings";
+import {
+  ELEVENLABS_API_KEY_SECRET,
+  elevenLabsApiKeyIsConfigured,
+} from "../config/spawn-env";
 import type { MainPanelStore } from "./main-panel-store";
 
 /** VS Code contributed view id (package.json); stable for user layouts and commands. */
 const mainPanelViewId = "vocode.transcriptPanel";
-
-type PanelConfigMessage = {
-  type: "panelConfig";
-  voiceVadDebug: boolean;
-  voiceSidecarLogProtocol: boolean;
-};
-
-function readPanelConfigMessage(): PanelConfigMessage {
-  const c = vscode.workspace.getConfiguration("vocode");
-  return {
-    type: "panelConfig",
-    voiceVadDebug: c.get<boolean>("voiceVadDebug") === true,
-    voiceSidecarLogProtocol: c.get<boolean>("voiceSidecarLogProtocol") === true,
-  };
-}
 
 /**
  * Webview provider for the extension’s main sidebar panel (voice transcript UI).
@@ -33,6 +26,7 @@ export class MainPanelViewProvider
   constructor(
     private readonly extensionUri: vscode.Uri,
     private readonly store: MainPanelStore,
+    private readonly extensionContext: vscode.ExtensionContext,
   ) {
     this.unsubscribe = this.store.onDidChange(() => {
       this.postState();
@@ -71,8 +65,50 @@ export class MainPanelViewProvider
           return;
         }
         const m = msg as Record<string, unknown>;
+        if (m.type === "webviewReady") {
+          void (async () => {
+            const ok = await elevenLabsApiKeyIsConfigured(
+              this.extensionContext,
+            );
+            void wv.postMessage({
+              type: "initialRoute",
+              panelView: ok ? "main" : "settings",
+            });
+            void wv.postMessage(
+              await buildVocodePanelConfigMessage(this.extensionContext),
+            );
+          })();
+          return;
+        }
         if (m.type === "requestPanelConfig") {
-          void wv.postMessage(readPanelConfigMessage());
+          void (async () => {
+            void wv.postMessage(
+              await buildVocodePanelConfigMessage(this.extensionContext),
+            );
+          })();
+          return;
+        }
+        if (m.type === "setElevenLabsApiKey") {
+          const v = m.value;
+          const s = typeof v === "string" ? v.trim() : "";
+          void (async () => {
+            try {
+              if (s === "") {
+                await this.extensionContext.secrets.delete(
+                  ELEVENLABS_API_KEY_SECRET,
+                );
+              } else {
+                await this.extensionContext.secrets.store(
+                  ELEVENLABS_API_KEY_SECRET,
+                  s,
+                );
+              }
+            } finally {
+              void wv.postMessage(
+                await buildVocodePanelConfigMessage(this.extensionContext),
+              );
+            }
+          })();
           return;
         }
         if (m.type === "setPanelConfig") {
@@ -80,31 +116,15 @@ export class MainPanelViewProvider
           if (!patch || typeof patch !== "object") {
             return;
           }
-          const p = patch as Record<string, unknown>;
-          const target = vscode.workspace.workspaceFolders?.length
-            ? vscode.ConfigurationTarget.Workspace
-            : vscode.ConfigurationTarget.Global;
-          const config = vscode.workspace.getConfiguration("vocode");
           void (async () => {
             try {
-              if (
-                "voiceVadDebug" in p &&
-                typeof p.voiceVadDebug === "boolean"
-              ) {
-                await config.update("voiceVadDebug", p.voiceVadDebug, target);
-              }
-              if (
-                "voiceSidecarLogProtocol" in p &&
-                typeof p.voiceSidecarLogProtocol === "boolean"
-              ) {
-                await config.update(
-                  "voiceSidecarLogProtocol",
-                  p.voiceSidecarLogProtocol,
-                  target,
-                );
-              }
+              await applyVocodePanelConfigPatch(
+                patch as Record<string, unknown>,
+              );
             } finally {
-              void wv.postMessage(readPanelConfigMessage());
+              void wv.postMessage(
+                await buildVocodePanelConfigMessage(this.extensionContext),
+              );
             }
           })();
           return;
@@ -121,7 +141,23 @@ export class MainPanelViewProvider
     disposables.push(
       vscode.workspace.onDidChangeConfiguration((e) => {
         if (e.affectsConfiguration("vocode")) {
-          void wv.postMessage(readPanelConfigMessage());
+          void (async () => {
+            void wv.postMessage(
+              await buildVocodePanelConfigMessage(this.extensionContext),
+            );
+          })();
+        }
+      }),
+    );
+
+    disposables.push(
+      this.extensionContext.secrets.onDidChange((e) => {
+        if (e.key === ELEVENLABS_API_KEY_SECRET) {
+          void (async () => {
+            void wv.postMessage(
+              await buildVocodePanelConfigMessage(this.extensionContext),
+            );
+          })();
         }
       }),
     );

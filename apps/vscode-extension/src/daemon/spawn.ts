@@ -1,7 +1,9 @@
 import { type ChildProcessWithoutNullStreams, spawn } from "node:child_process";
 import * as path from "node:path";
-import type * as vscode from "vscode";
+import * as vscode from "vscode";
 
+import { applyVocodeSpawnEnvironment } from "../config/spawn-env";
+import { applyWorkspaceDotEnv } from "../voice/workspace-env";
 import { resolveDaemonPath, resolveTreeSitterPath } from "./paths";
 
 export interface SpawnedDaemon {
@@ -9,10 +11,15 @@ export interface SpawnedDaemon {
   binaryPath: string;
 }
 
-export function spawnDaemon(context: vscode.ExtensionContext): SpawnedDaemon {
+export async function spawnDaemon(
+  context: vscode.ExtensionContext,
+): Promise<SpawnedDaemon> {
   const binaryPath = resolveDaemonPath(context);
   const treeSitterPath = resolveTreeSitterPath(context);
   const env = { ...process.env };
+  const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+  applyWorkspaceDotEnv(env, workspaceRoot);
+  await applyVocodeSpawnEnvironment(context, env);
   if (!env.VOCODE_TREE_SITTER_BIN && treeSitterPath) {
     env.VOCODE_TREE_SITTER_BIN = treeSitterPath;
   }

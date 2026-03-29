@@ -18,12 +18,6 @@ func (a *App) handleStart() error {
 		return nil
 	}
 
-	if !sttEnabled() {
-		// STT disabled: allow devs to manually send transcripts from the extension.
-		// We still report a listening state so the UX is consistent.
-		return a.write(Event{Type: "state", State: "listening"})
-	}
-
 	apiKey := strings.TrimSpace(os.Getenv("ELEVENLABS_API_KEY"))
 	if apiKey == "" {
 		return a.write(Event{Type: "error", Message: "ELEVENLABS_API_KEY is not set"})
