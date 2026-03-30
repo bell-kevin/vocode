@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vocoding.net/schemas/host-apply.params.schema.json",
+  "title": "HostApplyParams",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "applyBatchId": {
+      "type": "string",
+      "description": "Must match the daemon's applyBatchId for this directive batch."
+    },
+    "activeFile": {
+      "type": "string",
+      "description": "Absolute path of the active editor file the host should apply directives to."
+    },
+    "directives": {
+      "type": "array",
+      "items": {
+        "$ref": "./voice-transcript.directive.schema.json"
+      }
+    }
+  },
+  "required": ["applyBatchId", "activeFile", "directives"]
+}
+

@@ -14,6 +14,12 @@ import { MainPanelStore } from "./ui/main-panel-store";
 import { VoiceStatusIndicator } from "./ui/status-bar";
 import { VoiceSidecarClient } from "./voice/client";
 import { spawnVoiceSidecar } from "./voice/spawn";
+import { applyTranscriptResult } from "./transcript/apply-result";
+import type {
+  HostApplyParams,
+  HostApplyResult,
+  VoiceTranscriptResult,
+} from "@vocode/protocol";
 
 function safeKillProcess(proc: ChildProcessWithoutNullStreams | null): void {
   if (!proc || proc.killed) {
@@ -41,6 +47,42 @@ async function wireVocodeBackend(
 
     services.client = new DaemonClient(daemon.process);
     services.voiceSidecar = new VoiceSidecarClient(voice.process);
+
+    services.client.registerRequestHandler(
+      "host.applyDirectives",
+      async (unknownParams): Promise<HostApplyResult> => {
+        const params = unknownParams as HostApplyParams;
+        if (
+          !params ||
+          typeof params.applyBatchId !== "string" ||
+          typeof params.activeFile !== "string" ||
+          !Array.isArray(params.directives)
+        ) {
+          throw new Error(
+            "host.applyDirectives: invalid params (expected applyBatchId, activeFile, directives)",
+          );
+        }
+
+        const voiceResult: VoiceTranscriptResult = {
+          success: true,
+          directives: params.directives,
+        };
+        const outcomes = await applyTranscriptResult(
+          voiceResult,
+          params.activeFile,
+        );
+
+        return {
+          items: outcomes.map((o) => ({
+            status: o.status,
+            ...(o.message !== undefined && o.message !== ""
+              ? { message: o.message }
+              : {}),
+          })),
+        };
+      },
+    );
+
     daemonProcRef.current = daemon.process;
     voiceProcRef.current = voice.process;
 

@@ -8,7 +8,7 @@ import (
 	protocol "vocoding.net/vocode/v2/packages/protocol/go"
 )
 
-func (e *Executor) applyDirective(out dispatch.Directive, next intents.Intent, st *agentLoopState) (loopAdvance, protocol.VoiceTranscriptResult, bool) {
+func (e *Executor) applyDirective(out dispatch.Directive, next intents.Intent, st *agentLoopState, caps ExecutionCaps) (loopAdvance, protocol.VoiceTranscriptResult, bool) {
 	if out.IsEmpty() {
 		return advanceContinue, protocol.VoiceTranscriptResult{Success: false}, true
 	}
@@ -16,7 +16,7 @@ func (e *Executor) applyDirective(out dispatch.Directive, next intents.Intent, s
 		return advanceContinue, protocol.VoiceTranscriptResult{Success: false}, true
 	}
 
-	st.maxRetries = e.maxIntentRetries
+	st.maxRetries = caps.MaxIntentRetries
 	if st.maxRetries < 0 {
 		st.maxRetries = 0
 	}

@@ -1,8 +1,8 @@
 import * as vscode from "vscode";
 
 import type { DaemonClient } from "../daemon/client";
+import type { VoiceTranscriptParams } from "@vocode/protocol";
 import { FAILED_TO_PROCESS_TRANSCRIPT } from "../transcript/messages";
-import { runRepairChainQueued } from "../transcript/repair-chain";
 import { transcriptWorkspaceRoot } from "../transcript/workspace-root";
 import type { ExtensionServices } from "./services";
 import type { CommandDefinition } from "./types";
@@ -54,61 +54,59 @@ async function sendTranscript(
   try {
     services.voiceStatus.setProcessing();
 
-    // One manually sent transcript runs a full daemon "repair chain":
-    // keep calling `client.transcript(...)` until the daemon returns
-    // `success: true` with zero directives (or an unrecoverable error).
-    const MAX_AUTO_REPAIR_RPCS = Math.max(
-      1,
-      vscode.workspace
-        .getConfiguration("vocode")
-        .get<number>("maxTranscriptRepairRpcs", 8),
-    );
-
     const pos = editor.selection.active;
+
+    const vocodeCfg = vscode.workspace.getConfiguration("vocode");
+    const daemonConfig: NonNullable<
+      VoiceTranscriptParams["daemonConfig"]
+    > = {
+      maxPlannerTurns: vocodeCfg.get<number>("maxPlannerTurns", 8),
+      maxIntentsPerBatch: vocodeCfg.get<number>("maxIntentsPerBatch", 16),
+      maxIntentDispatchRetries: vocodeCfg.get<number>(
+        "maxIntentDispatchRetries",
+        2,
+      ),
+      maxContextRounds: vocodeCfg.get<number>("maxContextRounds", 2),
+      maxContextBytes: vocodeCfg.get<number>("maxContextBytes", 12000),
+      maxConsecutiveContextRequests: vocodeCfg.get<number>(
+        "maxConsecutiveContextRequests",
+        3,
+      ),
+      maxTranscriptRepairRpcs: vocodeCfg.get<number>(
+        "maxTranscriptRepairRpcs",
+        8,
+      ),
+      sessionIdleResetMs: vocodeCfg.get<number>("sessionIdleResetMs", 1800000),
+      // Daemon defaults; these caps are not user-configurable today.
+      maxGatheredBytes: 120_000,
+      maxGatheredExcerpts: 12,
+    };
+
     const baseParams = {
       text: trimmedText,
       activeFile: activePath,
       workspaceRoot: transcriptWorkspaceRoot(activePath),
       cursorPosition: { line: pos.line, character: pos.character },
       contextSessionId: services.voiceSession.contextSessionId(),
+      daemonConfig,
     };
-    const { lastResult, lastOutcomes, reachedLimit } =
-      await runRepairChainQueued({
-        client,
-        baseParams,
-        activeFile: activePath,
-        maxRepairRpcs: MAX_AUTO_REPAIR_RPCS,
-      });
 
-    const firstFailed = lastOutcomes.find((o) => o.status === "failed");
-
-    if (!lastResult.success) {
+    const result = await client.transcript(baseParams);
+    if (!result.success) {
       services.mainPanelStore.recordCompletedTranscript(trimmedText, {
         errorMessage: FAILED_TO_PROCESS_TRANSCRIPT,
       });
       return;
     }
-
-    if (reachedLimit) {
+    if ((result.directives?.length ?? 0) > 0) {
       services.mainPanelStore.recordCompletedTranscript(trimmedText, {
-        errorMessage: "Auto-repair limit reached.",
-      });
-      return;
-    }
-
-    if (firstFailed) {
-      const msg =
-        firstFailed.message && firstFailed.message !== "not attempted"
-          ? firstFailed.message
-          : "A directive failed to apply.";
-      services.mainPanelStore.recordCompletedTranscript(trimmedText, {
-        errorMessage: msg,
+        errorMessage: "Daemon returned directives unexpectedly.",
       });
       return;
     }
 
     services.mainPanelStore.recordCompletedTranscript(trimmedText, {
-      summary: lastResult.summary?.trim() || undefined,
+      summary: result.summary?.trim() || undefined,
     });
   } catch (err) {
     const message =

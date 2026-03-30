@@ -4,7 +4,7 @@ This document is the **exact checklist** for implementing: (1) **multiple intent
 
 It complements [`transcript-architecture-plan.md`](./transcript-architecture-plan.md) (wire, session, gathered).
 
-**Implemented in tree:** Phase 1–5 core, executor **batch advance** fix (`advanceBatchIntentDone` so multi-item `TurnIntents` runs all items), executor **tests**, **Anthropic** Messages client, **OpenAI** client (strict **`json_schema`** turn envelope), `VOCODE_DAEMON_VOICE_LOG_TRANSCRIPT` + daemon logger line, VS Code `vocode.daemonVoiceLogTranscript` / Anthropic model+base URL settings, plus an extension-side **automatic repair loop** that repeatedly calls `voice.transcript` (queued; cap: `vocode.maxTranscriptRepairRpcs`) and feeds `lastBatchApply` until directives are empty. Caps: `VOCODE_DAEMON_VOICE_MAX_INTENTS_PER_BATCH` (unset → 16; **0 → no cap**). **Remaining:** optional `VoiceTranscriptResult` field for irrelevant vs summary, full extension UI E2E, prompt tuning from real transcripts.
+**Implemented in tree:** Phase 1–5 core, executor **batch advance** fix (`advanceBatchIntentDone` so multi-item `TurnIntents` runs all items), executor **tests**, **Anthropic** Messages client, **OpenAI** client (strict **`json_schema`** turn envelope), `VOCODE_DAEMON_VOICE_LOG_TRANSCRIPT` + daemon logger line, VS Code `vocode.daemonVoiceLogTranscript` / Anthropic model+base URL settings, plus a daemon-owned **apply/repair loop** that applies directive batches via `host.applyDirectives` until directives are empty (cap: `vocode.maxTranscriptRepairRpcs`). Caps: `VOCODE_DAEMON_VOICE_MAX_INTENTS_PER_BATCH` (unset → 16; **0 → no cap**). **Remaining:** optional `VoiceTranscriptResult` field for irrelevant vs summary, full extension UI E2E, prompt tuning from real transcripts.
 
 ---
 
@@ -86,10 +86,10 @@ It complements [`transcript-architecture-plan.md`](./transcript-architecture-pla
 
 ## Phase 6 — Extension & protocol integration checks
 
-- [x] Apply-report carry shape: extension **`apply-report-carry`** tests — 7 directives, fail at index 3, tail **skipped**; next merged params carry `reportApplyBatchId` + `lastBatchApply` statuses (integration-style unit test).
+- [x] Duplex apply shape: extension handles `host.applyDirectives` and returns per-directive `{status, message}` items (used for daemon repair).
 - [x] **`VoiceTranscriptResult` validator:** protocol test for **seven-directive** batch + shared `applyBatchId`.
 - [x] Directive dispatch failures propagate richer `lastBatchApply[i].message` (edit/command/navigation/undo) instead of a generic string.
-- [x] Extension-side automatic repair chain is **queued** and capped (`vocode.maxTranscriptRepairRpcs`) until directives are empty.
+- [x] Daemon-owned automatic repair loop runs internal apply/repair iterations until directives are empty (cap: `VOCODE_DAEMON_VOICE_MAX_REPAIR_RPCS`).
 - [ ] Optional UI: **irrelevant** — *current thinking (not final):* grayed out in a **collapsed** section, using `VoiceTranscriptResult.summary` for the reason; **later:** optional **force-apply** / re-run path if something was misclassified. **Done:** show summary (same `summary` field); layout TBD.
 
 ---

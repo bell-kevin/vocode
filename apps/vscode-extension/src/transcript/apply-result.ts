@@ -5,8 +5,12 @@ import {
   beginTranscriptUndoSession,
   finalizeTranscriptUndoSessionIfEditsApplied,
 } from "../directives/undo/transcript-undo-ledger";
-import type { DirectiveApplyOutcome } from "./apply-report-carry";
 import type { TranscriptApplyContext } from "./context";
+
+export type DirectiveApplyOutcome = {
+  status: "ok" | "failed" | "skipped";
+  message?: string;
+};
 
 /**
  * Applies a daemon `VoiceTranscriptResult` to the workspace (edits, commands, navigation, undo).

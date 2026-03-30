@@ -122,6 +122,11 @@ const CONFIG_TO_ENV: readonly ConfigBinding[] = [
     kind: "number",
   },
   {
+    configKey: "maxTranscriptRepairRpcs",
+    envVar: "VOCODE_DAEMON_VOICE_MAX_REPAIR_RPCS",
+    kind: "number",
+  },
+  {
     configKey: "maxIntentsPerBatch",
     envVar: "VOCODE_DAEMON_VOICE_MAX_INTENTS_PER_BATCH",
     kind: "number",
@@ -212,7 +217,22 @@ export async function applyVocodeSpawnEnvironment(
   }
 
   const config = vscode.workspace.getConfiguration("vocode");
+  const capConfigKeysToSkipEnv = new Set<PanelConfigKey>([
+    "maxPlannerTurns",
+    "maxIntentsPerBatch",
+    "maxIntentDispatchRetries",
+    "maxContextRounds",
+    "maxContextBytes",
+    "maxConsecutiveContextRequests",
+    "maxTranscriptRepairRpcs",
+    "sessionIdleResetMs",
+  ]);
   for (const b of CONFIG_TO_ENV) {
+    // Daemon consumes these caps from `voice.transcript` params (`daemonConfig`),
+    // so we don't need env updates (no restart required).
+    if (capConfigKeysToSkipEnv.has(b.configKey as PanelConfigKey)) {
+      continue;
+    }
     applyBinding(config, env, b);
   }
 

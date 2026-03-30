@@ -50,6 +50,8 @@ func New(opts Options) (*App, error) {
 		Router: router,
 	})
 
+	voiceService.SetHostApplyClient(server)
+
 	return &App{
 		logger: opts.Logger,
 		server: server,

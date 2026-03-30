@@ -187,7 +187,7 @@
         "vocode.maxTranscriptRepairRpcs": {
           "type": "number",
           "default": 8,
-          "description": "Max automatic repair `voice.transcript` RPC calls per committed transcript after directive failures."
+          "description": "Max internal daemon apply/repair iterations per committed transcript after directive failures."
         },
         "vocode.maxIntentsPerBatch": {
           "type": "number",

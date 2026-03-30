@@ -40,13 +40,25 @@ func StoreEphemeralVoiceSession(dst *agentcontext.VoiceSession, vs agentcontext.
 	*dst = agentcontext.CloneVoiceSession(vs)
 }
 
-// ConsumeIncomingApplyReport strips apply-report fields from params and updates vs.
-func ConsumeIncomingApplyReport(params *protocol.VoiceTranscriptParams, vs *agentcontext.VoiceSession) ([]intents.Intent, []agentcontext.FailedIntent, []intents.Intent, error) {
+// ConsumeIncomingApplyReport consumes the host's apply report
+// without mutating params (unlike ConsumeIncomingApplyReport).
+func ConsumeIncomingApplyReport(
+	params *protocol.VoiceTranscriptParams,
+	vs *agentcontext.VoiceSession,
+) ([]intents.Intent, []agentcontext.FailedIntent, []intents.Intent, error) {
 	items := params.LastBatchApply
 	reportID := strings.TrimSpace(params.ReportApplyBatchId)
-	params.LastBatchApply = nil
-	params.ReportApplyBatchId = ""
+	return ConsumeHostApplyReport(reportID, items, vs)
+}
 
+// ConsumeHostApplyReport consumes the host's apply outcomes for the currently
+// pending directive batch, updates intent apply history, and clears the pending
+// batch on success.
+func ConsumeHostApplyReport(
+	reportID string,
+	items []protocol.VoiceTranscriptDirectiveApplyItem,
+	vs *agentcontext.VoiceSession,
+) ([]intents.Intent, []agentcontext.FailedIntent, []intents.Intent, error) {
 	if len(items) == 0 {
 		vs.PendingDirectiveApply = nil
 		return nil, nil, nil, nil

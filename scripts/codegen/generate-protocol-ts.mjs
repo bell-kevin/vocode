@@ -51,6 +51,14 @@ const entries = [
     name: "VoiceTranscriptResult",
   },
   {
+    file: "host-apply.params.schema.json",
+    name: "HostApplyParams",
+  },
+  {
+    file: "host-apply.result.schema.json",
+    name: "HostApplyResult",
+  },
+  {
     file: "command-directive.schema.json",
     name: "CommandDirective",
   },

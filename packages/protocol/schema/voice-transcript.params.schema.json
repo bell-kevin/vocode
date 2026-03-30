@@ -44,6 +44,22 @@
       "items": {
         "$ref": "./voice-transcript.directive-apply-item.schema.json"
       }
+    },
+    "daemonConfig": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "maxPlannerTurns": { "type": "integer", "description": "Overrides VOCODE_DAEMON_VOICE_MAX_AGENT_TURNS (<=0 uses daemon default)." },
+        "maxIntentsPerBatch": { "type": "integer", "description": "Overrides VOCODE_DAEMON_VOICE_MAX_INTENTS_PER_BATCH (>0 enables cap; <=0 disables)." },
+        "maxIntentDispatchRetries": { "type": "integer", "description": "Overrides VOCODE_DAEMON_VOICE_MAX_INTENT_RETRIES (<0 uses 0)." },
+        "maxContextRounds": { "type": "integer", "description": "Overrides VOCODE_DAEMON_VOICE_MAX_CONTEXT_ROUNDS (>0 enables cap; <=0 disables)." },
+        "maxContextBytes": { "type": "integer", "description": "Overrides VOCODE_DAEMON_VOICE_MAX_CONTEXT_BYTES (>0 enables cap; <=0 disables)." },
+        "maxConsecutiveContextRequests": { "type": "integer", "description": "Overrides VOCODE_DAEMON_VOICE_MAX_CONSECUTIVE_CONTEXT_REQUESTS (>0 enables cap; <=0 disables)." },
+        "maxTranscriptRepairRpcs": { "type": "integer", "description": "Overrides VOCODE_DAEMON_VOICE_MAX_REPAIR_RPCS (>=1 iterations)." },
+        "sessionIdleResetMs": { "type": "integer", "description": "Overrides VOCODE_DAEMON_SESSION_IDLE_RESET_MS (0 disables idle eviction)." },
+        "maxGatheredBytes": { "type": "integer", "description": "Overrides VOCODE_DAEMON_GATHERED_MAX_BYTES." },
+        "maxGatheredExcerpts": { "type": "integer", "description": "Overrides VOCODE_DAEMON_GATHERED_MAX_EXCERPTS." }
+      }
     }
   },
   "required": ["text"]

@@ -34,11 +34,21 @@ type TranscriptService struct {
 	maxMergeJobs   int
 	maxMergeChars  int
 	startOnce      sync.Once
+
+	hostApplyClient hostApplyClient
 }
 
 type transcriptJob struct {
 	params protocol.VoiceTranscriptParams
 	resp   chan transcriptAcceptResp
+}
+
+type hostApplyClient interface {
+	ApplyDirectives(protocol.HostApplyParams) (protocol.HostApplyResult, error)
+}
+
+func (s *TranscriptService) SetHostApplyClient(client hostApplyClient) {
+	s.hostApplyClient = client
 }
 
 type transcriptAcceptResp struct {

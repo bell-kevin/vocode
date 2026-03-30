@@ -28,6 +28,60 @@ type Executor struct {
 	maxIntentsPerBatch       int
 }
 
+type ExecutionCaps struct {
+	MaxAgentTurns            int
+	MaxIntentRetries         int
+	MaxContextRounds         int
+	MaxContextBytes          int
+	MaxConsecutiveContextReq int
+	MaxIntentsPerBatch       int
+}
+
+func (e *Executor) effectiveCaps(params protocol.VoiceTranscriptParams) ExecutionCaps {
+	caps := ExecutionCaps{
+		MaxAgentTurns:            e.maxAgentTurns,
+		MaxIntentRetries:         e.maxIntentRetries,
+		MaxContextRounds:         e.maxContextRounds,
+		MaxContextBytes:          e.maxContextBytes,
+		MaxConsecutiveContextReq: e.maxConsecutiveContextReq,
+		MaxIntentsPerBatch:       e.maxIntentsPerBatch,
+	}
+
+	dc := params.DaemonConfig
+	if dc == nil {
+		// Back-compat: keep env-derived defaults.
+		return caps
+	}
+
+	if dc.MaxPlannerTurns != nil {
+		caps.MaxAgentTurns = int(*dc.MaxPlannerTurns)
+	}
+	if dc.MaxIntentDispatchRetries != nil {
+		caps.MaxIntentRetries = int(*dc.MaxIntentDispatchRetries)
+	}
+	if dc.MaxContextRounds != nil {
+		caps.MaxContextRounds = int(*dc.MaxContextRounds)
+	}
+	if dc.MaxContextBytes != nil {
+		caps.MaxContextBytes = int(*dc.MaxContextBytes)
+	}
+	if dc.MaxConsecutiveContextRequests != nil {
+		caps.MaxConsecutiveContextReq = int(*dc.MaxConsecutiveContextRequests)
+	}
+	if dc.MaxIntentsPerBatch != nil {
+		caps.MaxIntentsPerBatch = int(*dc.MaxIntentsPerBatch)
+	}
+
+	// Normalize to preserve existing executor semantics.
+	if caps.MaxAgentTurns <= 0 {
+		caps.MaxAgentTurns = 8
+	}
+	if caps.MaxIntentRetries < 0 {
+		caps.MaxIntentRetries = 0
+	}
+	return caps
+}
+
 // Options configures caps and optional symbol resolution for [Executor].
 type Options struct {
 	MaxAgentTurns            int
@@ -70,14 +124,9 @@ func (e *Executor) Execute(
 	if text == "" {
 		return protocol.VoiceTranscriptResult{}, gatheredIn, nil, false
 	}
-	maxLoopIters := e.maxAgentTurns
-	if maxLoopIters <= 0 {
-		maxLoopIters = 8
-	}
-	maxRetries := e.maxIntentRetries
-	if maxRetries < 0 {
-		maxRetries = 0
-	}
+	caps := e.effectiveCaps(params)
+	maxLoopIters := caps.MaxAgentTurns
+	maxRetries := caps.MaxIntentRetries
 	hostCursor := resolveHostCursorSymbol(e.symbols, params)
 	st := &agentLoopState{
 		gathered:   agentcontext.SeedGatheredActiveFile(gatheredIn, params.ActiveFile),
@@ -89,7 +138,16 @@ func (e *Executor) Execute(
 	brokeOK := false
 	for range maxLoopIters {
 		adv, failRes, abort := e.runOneAgentLoopIteration(
-			params, text, hostCursor, intentApplyHistory, extSucceeded, extFailed, extSkipped, st)
+			params,
+			text,
+			hostCursor,
+			intentApplyHistory,
+			extSucceeded,
+			extFailed,
+			extSkipped,
+			st,
+			caps,
+		)
 		if abort {
 			return failRes, st.gathered, nil, true
 		}

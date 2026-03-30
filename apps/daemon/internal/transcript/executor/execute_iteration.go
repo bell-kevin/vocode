@@ -22,6 +22,7 @@ func (e *Executor) runOneAgentLoopIteration(
 	extFailed []agentcontext.FailedIntent,
 	extSkipped []intents.Intent,
 	st *agentLoopState,
+	caps ExecutionCaps,
 ) (loopAdvance, protocol.VoiceTranscriptResult, bool) {
 	succeededThisRPC := make([]intents.Intent, 0, len(extSucceeded)+len(st.completed))
 	succeededThisRPC = append(succeededThisRPC, extSucceeded...)
@@ -53,28 +54,28 @@ func (e *Executor) runOneAgentLoopIteration(
 	case agent.TurnGatherContext:
 		st.contextRounds++
 		st.consecutiveContextReq++
-		if e.maxContextRounds > 0 && st.contextRounds > e.maxContextRounds {
+		if caps.MaxContextRounds > 0 && st.contextRounds > caps.MaxContextRounds {
 			return advanceContinue, protocol.VoiceTranscriptResult{Success: false}, true
 		}
-		if e.maxConsecutiveContextReq > 0 && st.consecutiveContextReq > e.maxConsecutiveContextReq {
+		if caps.MaxConsecutiveContextReq > 0 && st.consecutiveContextReq > caps.MaxConsecutiveContextReq {
 			return advanceContinue, protocol.VoiceTranscriptResult{Success: false}, true
 		}
 		updated, err := gather.FulfillSpec(e.gather, params, st.gathered, turn.GatherContext)
 		if err != nil {
 			return advanceContinue, protocol.VoiceTranscriptResult{Success: false}, true
 		}
-		if e.maxContextBytes > 0 && agentcontext.EstimatedGatheredBytes(updated) > e.maxContextBytes {
+		if caps.MaxContextBytes > 0 && agentcontext.EstimatedGatheredBytes(updated) > caps.MaxContextBytes {
 			return advanceContinue, protocol.VoiceTranscriptResult{Success: false}, true
 		}
 		st.gathered = updated
 		return advanceContinue, protocol.VoiceTranscriptResult{}, false
 
 	case agent.TurnIntents:
-		if e.maxIntentsPerBatch > 0 && len(turn.Intents) > e.maxIntentsPerBatch {
+		if caps.MaxIntentsPerBatch > 0 && len(turn.Intents) > caps.MaxIntentsPerBatch {
 			return advanceContinue, protocol.VoiceTranscriptResult{Success: false}, true
 		}
 		for i := range turn.Intents {
-			adv, res, abort := e.dispatchOneIntent(params, hostCursor, st, turn.Intents[i])
+			adv, res, abort := e.dispatchOneIntent(params, hostCursor, st, turn.Intents[i], caps)
 			if abort {
 				return adv, res, true
 			}
@@ -101,6 +102,7 @@ func (e *Executor) dispatchOneIntent(
 	hostCursor *agentcontext.CursorSymbol,
 	st *agentLoopState,
 	next intents.Intent,
+	caps ExecutionCaps,
 ) (loopAdvance, protocol.VoiceTranscriptResult, bool) {
 	editCtx, preExecErr := buildEditExecutionContext(params, &next)
 	if preExecErr != "" {
@@ -136,5 +138,5 @@ func (e *Executor) dispatchOneIntent(
 		return advanceContinue, protocol.VoiceTranscriptResult{Success: false}, true
 	}
 
-	return e.applyDirective(out, next, st)
+	return e.applyDirective(out, next, st, caps)
 }

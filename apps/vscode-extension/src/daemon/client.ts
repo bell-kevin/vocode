@@ -16,6 +16,13 @@ export class DaemonClient {
     this.transport = new RpcTransport(process);
   }
 
+  public registerRequestHandler(
+    method: string,
+    handler: (params: unknown) => Promise<unknown> | unknown,
+  ): void {
+    this.transport.registerRequestHandler(method, handler);
+  }
+
   public async sendRequest<T>(
     method: string,
     params: unknown,
