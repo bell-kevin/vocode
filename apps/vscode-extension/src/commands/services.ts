@@ -47,4 +47,8 @@ export interface ExtensionServices {
   mainPanelStore: MainPanelStore;
   /** Stops and respawns daemon + voice sidecar with current spawn environment. */
   restartVocode?: () => Promise<void>;
+  /** Replaces only the voice sidecar process (e.g. ELEVENLABS_API_KEY change). */
+  restartVoiceSidecar?: () => Promise<void>;
+  /** Dispose current transcript pipeline bindings. */
+  disposeTranscriptPipeline?: () => void;
 }

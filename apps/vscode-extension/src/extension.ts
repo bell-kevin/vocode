@@ -15,6 +15,7 @@ import { VoiceStatusIndicator } from "./ui/status-bar";
 import { VoiceSidecarClient } from "./voice/client";
 import { spawnVoiceSidecar } from "./voice/spawn";
 import { applyTranscriptResult } from "./transcript/apply-result";
+import { ELEVENLABS_API_KEY_SECRET } from "./config/spawn-env";
 import type {
   HostApplyParams,
   HostApplyResult,
@@ -86,7 +87,8 @@ async function wireVocodeBackend(
     daemonProcRef.current = daemon.process;
     voiceProcRef.current = voice.process;
 
-    attachTranscriptPipeline(services);
+    services.disposeTranscriptPipeline?.();
+    services.disposeTranscriptPipeline = attachTranscriptPipeline(services).dispose;
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "Unknown daemon startup error";
@@ -154,6 +156,8 @@ export async function activate(context: vscode.ExtensionContext) {
       voiceProcRef.current = null;
       services.client = null;
       services.voiceSidecar = null;
+      services.disposeTranscriptPipeline?.();
+      services.disposeTranscriptPipeline = undefined;
 
       await wireVocodeBackend(context, services, daemonProcRef, voiceProcRef);
 
@@ -167,7 +171,50 @@ export async function activate(context: vscode.ExtensionContext) {
     }
   };
 
+  let voiceRestartInFlight = false;
+  services.restartVoiceSidecar = async () => {
+    if (voiceRestartInFlight) {
+      return;
+    }
+    voiceRestartInFlight = true;
+    try {
+      // If voice is active, stop listening before swapping the process.
+      voiceSession.stop();
+      services.voiceSidecar?.stop();
+      mainPanelStore.setVoiceListening(false);
+      voiceStatus.setIdle();
+
+      services.voiceSidecar?.dispose();
+      safeKillProcess(voiceProcRef.current);
+      voiceProcRef.current = null;
+      services.voiceSidecar = null;
+
+      const voice = await spawnVoiceSidecar(context);
+      console.log(`Vocode voice sidecar restarted from ${voice.binaryPath}`);
+
+      voiceProcRef.current = voice.process;
+      services.voiceSidecar = new VoiceSidecarClient(voice.process);
+
+      services.disposeTranscriptPipeline?.();
+      services.disposeTranscriptPipeline = attachTranscriptPipeline(services).dispose;
+    } finally {
+      voiceRestartInFlight = false;
+    }
+  };
+
   await wireVocodeBackend(context, services, daemonProcRef, voiceProcRef);
+
+  // Secrets apply immediately: restart the backend when the ElevenLabs key changes
+  // so the running sidecar/daemon always see the latest configuration.
+  context.subscriptions.push(
+    context.secrets.onDidChange((e) => {
+      if (e.key !== ELEVENLABS_API_KEY_SECRET) {
+        return;
+      }
+      // Only the voice sidecar consumes ELEVENLABS_API_KEY.
+      void services.restartVoiceSidecar?.();
+    }),
+  );
 
   context.subscriptions.push(voiceStatus, ...registerAllCommands(services), {
     dispose: () => {

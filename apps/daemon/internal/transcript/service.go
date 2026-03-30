@@ -63,16 +63,16 @@ func NewService(
 	symbolResolver symbols.Resolver,
 	logger *log.Logger,
 ) *TranscriptService {
-	queueSize := config.Int("VOCODE_DAEMON_VOICE_TRANSCRIPT_QUEUE_SIZE", 10)
-	coalesceMs := config.Int("VOCODE_DAEMON_VOICE_TRANSCRIPT_COALESCE_MS", 750)
-	maxMergeJobs := config.Int("VOCODE_DAEMON_VOICE_TRANSCRIPT_MAX_MERGE_JOBS", 5)
-	maxMergeChars := config.Int("VOCODE_DAEMON_VOICE_TRANSCRIPT_MAX_MERGE_CHARS", 6000)
-	maxAgentTurns := config.Int("VOCODE_DAEMON_VOICE_MAX_AGENT_TURNS", 8)
-	maxIntentRetries := config.Int("VOCODE_DAEMON_VOICE_MAX_INTENT_RETRIES", 2)
-	maxContextRounds := config.Int("VOCODE_DAEMON_VOICE_MAX_CONTEXT_ROUNDS", 2)
-	maxContextBytes := config.Int("VOCODE_DAEMON_VOICE_MAX_CONTEXT_BYTES", 12000)
-	maxConsecutiveContextReq := config.Int("VOCODE_DAEMON_VOICE_MAX_CONSECUTIVE_CONTEXT_REQUESTS", 3)
-	maxIntentsPerBatch := config.Int("VOCODE_DAEMON_VOICE_MAX_INTENTS_PER_BATCH", 16)
+	queueSize := config.DefaultTranscriptQueueSize
+	coalesceMs := config.DefaultTranscriptCoalesceMs
+	maxMergeJobs := config.DefaultTranscriptMaxMergeJobs
+	maxMergeChars := config.DefaultTranscriptMaxMergeChars
+	maxAgentTurns := config.DefaultMaxAgentTurns
+	maxIntentRetries := config.DefaultMaxIntentRetries
+	maxContextRounds := config.DefaultMaxContextRounds
+	maxContextBytes := config.DefaultMaxContextBytes
+	maxConsecutiveContextReq := config.DefaultMaxConsecutiveContextReq
+	maxIntentsPerBatch := config.DefaultMaxIntentsPerBatch
 
 	exec := executor.New(agentRuntime, intentHandler, gatherProvider, executor.Options{
 		MaxAgentTurns:            maxAgentTurns,

@@ -19,12 +19,18 @@ func TestPCM16RMS(t *testing.T) {
 }
 
 func TestLocalVAD_SpeechThenSilenceProducesCommit(t *testing.T) {
-	t.Setenv("VOCODE_VOICE_VAD_START_MS", "40")
-	t.Setenv("VOCODE_VOICE_VAD_END_MS", "60")
-	t.Setenv("VOCODE_VOICE_VAD_PREROLL_MS", "20")
-	t.Setenv("VOCODE_VOICE_VAD_THRESHOLD_MULTIPLIER", "1.2")
-
-	v := newLocalVAD(16000, 640, 1280, 2000)
+	v := newLocalVAD(
+		16000,
+		640,
+		1280,
+		2000,
+		1.2,
+		100,
+		40,
+		60,
+		20,
+		false,
+	)
 	speech := makeFrame(640, 1600)
 	silence := makeFrame(640, 0)
 
@@ -49,7 +55,18 @@ func TestLocalVAD_SpeechThenSilenceProducesCommit(t *testing.T) {
 }
 
 func TestLocalVAD_Flush_EmptySendBufWhileInSpeech_EmitsCommitOnly(t *testing.T) {
-	v := newLocalVAD(16000, 6400, 16000, 4000)
+	v := newLocalVAD(
+		16000,
+		6400,
+		16000,
+		4000,
+		1.65,
+		100,
+		60,
+		750,
+		320,
+		false,
+	)
 	v.inSpeech = true
 	v.sendBuf = nil
 	out := v.flush()
@@ -65,12 +82,18 @@ func TestLocalVAD_Flush_EmptySendBufWhileInSpeech_EmitsCommitOnly(t *testing.T) 
 }
 
 func TestLocalVAD_UtteranceMaxDisabled_NoPeriodicCommit(t *testing.T) {
-	t.Setenv("VOCODE_VOICE_VAD_START_MS", "20")
-	t.Setenv("VOCODE_VOICE_VAD_END_MS", "750")
-	t.Setenv("VOCODE_VOICE_VAD_PREROLL_MS", "0")
-	t.Setenv("VOCODE_VOICE_VAD_THRESHOLD_MULTIPLIER", "1.1")
-
-	v := newLocalVAD(16000, 640, 1280, 0)
+	v := newLocalVAD(
+		16000,
+		640,
+		1280,
+		0,
+		1.1,
+		100,
+		20,
+		750,
+		0,
+		false,
+	)
 	speech := makeFrame(640, 2000)
 	commits := 0
 	for i := 0; i < 100; i++ {
@@ -86,12 +109,18 @@ func TestLocalVAD_UtteranceMaxDisabled_NoPeriodicCommit(t *testing.T) {
 }
 
 func TestLocalVAD_ForceCommitOnLongUtterance(t *testing.T) {
-	t.Setenv("VOCODE_VOICE_VAD_START_MS", "20")
-	t.Setenv("VOCODE_VOICE_VAD_END_MS", "750")
-	t.Setenv("VOCODE_VOICE_VAD_PREROLL_MS", "0")
-	t.Setenv("VOCODE_VOICE_VAD_THRESHOLD_MULTIPLIER", "1.1")
-
-	v := newLocalVAD(16000, 640, 1280, 100)
+	v := newLocalVAD(
+		16000,
+		640,
+		1280,
+		100,
+		1.1,
+		100,
+		20,
+		750,
+		0,
+		false,
+	)
 	speech := makeFrame(640, 2000)
 	commits := 0
 	for i := 0; i < 20; i++ {

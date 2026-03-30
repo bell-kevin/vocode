@@ -39,9 +39,22 @@ type localVAD struct {
 	lastFrameSpeechClass bool
 	// meterSmoothed is a fast-attack / slow-decay envelope of RMS for a steadier level meter.
 	meterSmoothed float64
+
+	debugEnabled bool
 }
 
-func newLocalVAD(sampleRate int, minChunkBytes int, maxChunkBytes int, maxUtteranceMS int) *localVAD {
+func newLocalVAD(
+	sampleRate int,
+	minChunkBytes int,
+	maxChunkBytes int,
+	maxUtteranceMS int,
+	threshold float64,
+	minEnergyFloor float64,
+	vadStartMS int,
+	vadEndMS int,
+	vadPrerollMS int,
+	debugEnabled bool,
+) *localVAD {
 	const frameMS = 20
 	frameBytes := sampleRate * 2 * frameMS / 1000
 	if frameBytes <= 0 {
@@ -54,9 +67,9 @@ func newLocalVAD(sampleRate int, minChunkBytes int, maxChunkBytes int, maxUttera
 		maxChunkBytes = minChunkBytes
 	}
 
-	startFrames := maxInt(1, vadStartMS()/frameMS)
-	endFrames := maxInt(1, vadEndMS()/frameMS)
-	prerollCap := maxInt(0, vadPrerollMS()/frameMS)
+	startFrames := maxInt(1, vadStartMS/frameMS)
+	endFrames := maxInt(1, vadEndMS/frameMS)
+	prerollCap := maxInt(0, vadPrerollMS/frameMS)
 	utteranceMaxEnabled := maxUtteranceMS > 0
 	maxUtterFrames := 0
 	if utteranceMaxEnabled {
@@ -71,11 +84,12 @@ func newLocalVAD(sampleRate int, minChunkBytes int, maxChunkBytes int, maxUttera
 		endFrames:           endFrames,
 		utteranceMaxEnabled: utteranceMaxEnabled,
 		maxUtterFrames:      maxUtterFrames,
-		threshold:           vadThresholdMultiplier(),
-		minEnergyFloor:      vadMinEnergyFloor(),
-		noiseFloor:          vadMinEnergyFloor(),
+		threshold:           threshold,
+		minEnergyFloor:      minEnergyFloor,
+		noiseFloor:          minEnergyFloor,
 		prerollCap:          prerollCap,
 		prerollFrames:       make([][]byte, 0, prerollCap),
+		debugEnabled:        debugEnabled,
 	}
 }
 
@@ -84,7 +98,7 @@ func stderrSync() {
 }
 
 func (v *localVAD) dbg(format string, args ...any) {
-	if !vadDebugEnabled() {
+	if !v.debugEnabled {
 		return
 	}
 	fmt.Fprintf(os.Stderr, "[vocode-vad] "+format+"\n", args...)

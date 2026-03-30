@@ -137,7 +137,7 @@ export class MainPanelViewProvider
           return;
         }
         if (m.type === "restartVocodeBackend") {
-          void vscode.commands.executeCommand("vocode.restartBackend");
+          // No longer used (settings apply automatically).
         }
       }),
     );

@@ -71,7 +71,7 @@ export function SettingsPanel(props: { config: PanelConfig | null }) {
       ) : null}
 
       <p className="settings-intro-short">
-        Vocode settings. Use the button below to reload and apply.
+        Vocode configuration. Changes apply automatically.
       </p>
 
       {config ? (
@@ -144,8 +144,8 @@ export function SettingsPanel(props: { config: PanelConfig | null }) {
             />
             <OptionalZeroSliderRow
               label="Commit response timeout"
-              hint="When off, wait indefinitely for a committed transcript after commit:true."
-              toggleLabel="Limit how long to wait for committed transcript"
+              hint="When off, wait indefinitely for a response from the speech-to-text server"
+              toggleLabel="Limit how long to wait for speech-to-text server response"
               value={config.voiceSttCommitResponseTimeoutMs}
               spec={SLIDER_SPECS.voiceSttCommitResponseTimeoutMs}
               disabled={disabled}
@@ -283,18 +283,14 @@ export function SettingsPanel(props: { config: PanelConfig | null }) {
                 value={config.maxIntentDispatchRetries}
                 spec={SLIDER_SPECS.maxIntentDispatchRetries}
                 disabled={disabled}
-                onCommit={(n) =>
-                  patchConfig({ maxIntentDispatchRetries: n })
-                }
+                onCommit={(n) => patchConfig({ maxIntentDispatchRetries: n })}
               />
               <SliderRow
                 label="Max context rounds"
                 value={config.maxContextRounds}
                 spec={SLIDER_SPECS.maxContextRounds}
                 disabled={disabled}
-                onCommit={(n) =>
-                  patchConfig({ maxContextRounds: n })
-                }
+                onCommit={(n) => patchConfig({ maxContextRounds: n })}
               />
               <SliderRow
                 label="Max context bytes"
@@ -316,8 +312,8 @@ export function SettingsPanel(props: { config: PanelConfig | null }) {
               />
               <OptionalZeroSliderRow
                 label="Session idle reset"
-                hint="When off, the daemon does not auto-drop voice session state from this setting (see package default)."
-                toggleLabel="Drop voice session after idle"
+                hint="When off, voice sessions are not dropped after idle"
+                toggleLabel="Drop voice session after idle timeout"
                 value={config.sessionIdleResetMs}
                 spec={SLIDER_SPECS.sessionIdleResetMs}
                 disabled={disabled}
@@ -354,19 +350,6 @@ export function SettingsPanel(props: { config: PanelConfig | null }) {
             />
           </div>
         </section>
-      ) : null}
-
-      {config ? (
-        <div className="settings-apply-row">
-          <button
-            type="button"
-            className="settings-btn settings-btn-primary"
-            disabled={disabled}
-            onClick={() => api?.postMessage({ type: "restartVocodeBackend" })}
-          >
-            Apply changes and restart
-          </button>
-        </div>
       ) : null}
 
       <button

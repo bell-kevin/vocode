@@ -27,12 +27,14 @@ func normalizeMeterRMS(rms float64) float64 {
 	return x
 }
 
-func (a *App) transcribeLoop(ctx context.Context, apiKey string, modelID string, rec *mic.Recorder) {
+func (a *App) transcribeLoop(ctx context.Context, apiKey string, rec *mic.Recorder) {
 	defer func() {
 		_ = rec.Stop()
 	}()
 
-	client, err := stt.NewElevenLabsStreamingClient(ctx, apiKey, modelID, 16000, sttLanguageCode())
+	cfg := a.getSidecarConfig()
+
+	client, err := stt.NewElevenLabsStreamingClient(ctx, apiKey, cfg.SttModelId, 16000, cfg.SttLanguageCode)
 	if err != nil {
 		_ = a.write(Event{Type: "error", Message: fmt.Sprintf("failed to start elevenlabs streaming stt: %v", err)})
 		return
@@ -42,11 +44,11 @@ func (a *App) transcribeLoop(ctx context.Context, apiKey string, modelID string,
 	}()
 
 	bytesPerSecond := int64(16000 * 1 * 2) // 16kHz * mono * int16
-	minChunkBytes := bytesPerSecond * int64(streamMinChunkMS()) / 1000
+	minChunkBytes := bytesPerSecond * int64(cfg.StreamMinChunkMs) / 1000
 	if minChunkBytes <= 0 {
 		minChunkBytes = 6400
 	}
-	maxChunkBytes := bytesPerSecond * int64(streamMaxChunkMS()) / 1000
+	maxChunkBytes := bytesPerSecond * int64(cfg.StreamMaxChunkMs) / 1000
 	if maxChunkBytes < minChunkBytes {
 		maxChunkBytes = minChunkBytes
 	}
@@ -54,18 +56,30 @@ func (a *App) transcribeLoop(ctx context.Context, apiKey string, modelID string,
 	buf := make([]byte, 32*1024)
 	var chunk []byte
 	contextWindow := newUtteranceWindow(4, 1200)
-	vad := newLocalVAD(16000, int(minChunkBytes), int(maxChunkBytes), streamMaxUtteranceMS())
+	vad := newLocalVAD(
+		16000,
+		int(minChunkBytes),
+		int(maxChunkBytes),
+		cfg.StreamMaxUtteranceMs,
+		cfg.VadThresholdMultiplier,
+		cfg.VadMinEnergyFloor,
+		cfg.VadStartMs,
+		cfg.VadEndMs,
+		cfg.VadPrerollMs,
+		cfg.VadDebugEnabled,
+	)
 	var lastAudioMeterEmit time.Time
+	lastCfg := cfg
 
 	// After commit:true, defer further non-commit PCM until committed_transcript (IsFinal) is
 	// drained, so the server can emit committed_transcript before new audio opens the next segment.
 	// commitResponseTimeoutMS is only a safety ceiling if IsFinal never arrives (0 = no ceiling).
-	commitResponseTimeoutMS := sttCommitResponseTimeoutMS()
+	commitResponseTimeoutMS := cfg.SttCommitResponseTimeoutMs
 	var sttDeferred []vadChunk
 	var awaitingOutboundCommitted bool
 	var outboundCommitDeadline time.Time
 
-	if vadDebugEnabled() {
+	if cfg.VadDebugEnabled {
 		fmt.Fprintf(os.Stderr, "[vocode-vad] verbose VAD logging on (VOCODE_VOICE_VAD_DEBUG=1)\n")
 		stderrSync()
 	}
@@ -84,6 +98,82 @@ func (a *App) transcribeLoop(ctx context.Context, apiKey string, modelID string,
 		case <-ctx.Done():
 			return
 		default:
+		}
+
+		// Apply any pending live config updates before draining STT events.
+		reload := false
+		drainUpdates:
+		for {
+			select {
+			case <-a.cfgUpdateCh:
+				reload = true
+			default:
+				break drainUpdates
+			}
+		}
+		if reload {
+			newCfg := a.getSidecarConfig()
+			prevCfg := lastCfg
+
+			// Always refresh the commit timeout: it only matters for future commit holds.
+			commitResponseTimeoutMS = newCfg.SttCommitResponseTimeoutMs
+
+			sttChanged := newCfg.SttModelId != prevCfg.SttModelId || newCfg.SttLanguageCode != prevCfg.SttLanguageCode
+			vadChanged :=
+				newCfg.VadDebugEnabled != prevCfg.VadDebugEnabled ||
+					newCfg.VadThresholdMultiplier != prevCfg.VadThresholdMultiplier ||
+					newCfg.VadMinEnergyFloor != prevCfg.VadMinEnergyFloor ||
+					newCfg.VadStartMs != prevCfg.VadStartMs ||
+					newCfg.VadEndMs != prevCfg.VadEndMs ||
+					newCfg.VadPrerollMs != prevCfg.VadPrerollMs ||
+					newCfg.StreamMinChunkMs != prevCfg.StreamMinChunkMs ||
+					newCfg.StreamMaxChunkMs != prevCfg.StreamMaxChunkMs ||
+					newCfg.StreamMaxUtteranceMs != prevCfg.StreamMaxUtteranceMs
+
+			if sttChanged {
+				// Close the websocket so we don't keep draining a client that no longer matches tuning.
+				_ = client.Close()
+				client, err = stt.NewElevenLabsStreamingClient(ctx, apiKey, newCfg.SttModelId, 16000, newCfg.SttLanguageCode)
+				if err != nil {
+					_ = a.write(Event{Type: "error", Message: fmt.Sprintf("failed to reconnect elevenlabs streaming stt: %v", err)})
+					return
+				}
+				// Reset hold state so segmentation & commit behavior is consistent with the new stream.
+				sttDeferred = nil
+				awaitingOutboundCommitted = false
+				outboundCommitDeadline = time.Time{}
+				contextWindow = newUtteranceWindow(4, 1200)
+			}
+
+			if vadChanged {
+				minChunkBytes = bytesPerSecond * int64(newCfg.StreamMinChunkMs) / 1000
+				if minChunkBytes <= 0 {
+					minChunkBytes = 6400
+				}
+				maxChunkBytes = bytesPerSecond * int64(newCfg.StreamMaxChunkMs) / 1000
+				if maxChunkBytes < minChunkBytes {
+					maxChunkBytes = minChunkBytes
+				}
+				vad = newLocalVAD(
+					16000,
+					int(minChunkBytes),
+					int(maxChunkBytes),
+					newCfg.StreamMaxUtteranceMs,
+					newCfg.VadThresholdMultiplier,
+					newCfg.VadMinEnergyFloor,
+					newCfg.VadStartMs,
+					newCfg.VadEndMs,
+					newCfg.VadPrerollMs,
+					newCfg.VadDebugEnabled,
+				)
+
+				if newCfg.VadDebugEnabled && !prevCfg.VadDebugEnabled {
+					fmt.Fprintf(os.Stderr, "[vocode-vad] verbose VAD logging enabled (live config)\n")
+					stderrSync()
+				}
+			}
+
+			lastCfg = newCfg
 		}
 
 		// Drain STT events before blocking on the mic. Otherwise a closed WebSocket can sit in

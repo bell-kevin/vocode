@@ -22,10 +22,6 @@
         "title": "Vocode: Ping Daemon"
       },
       {
-        "command": "vocode.restartBackend",
-        "title": "Vocode: Restart"
-      },
-      {
         "command": "vocode.initWorkspaceVocode",
         "title": "Vocode: Initialize Workspace"
       },

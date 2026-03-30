@@ -17,7 +17,7 @@ func (s *TranscriptService) runExecute(params protocol.VoiceTranscriptParams) (p
 	key := strings.TrimSpace(params.ContextSessionId)
 	dc := params.DaemonConfig
 
-	idleReset := config.SessionIdleReset()
+	idleReset := config.DefaultSessionIdleReset()
 	if dc != nil && dc.SessionIdleResetMs != nil {
 		ms := *dc.SessionIdleResetMs
 		if ms == 0 {
@@ -25,7 +25,7 @@ func (s *TranscriptService) runExecute(params protocol.VoiceTranscriptParams) (p
 		} else if ms > 0 {
 			idleReset = time.Duration(ms) * time.Millisecond
 		} else {
-			idleReset = config.SessionIdleReset()
+			idleReset = config.DefaultSessionIdleReset()
 		}
 	}
 	var vs agentcontext.VoiceSession
@@ -41,8 +41,8 @@ func (s *TranscriptService) runExecute(params protocol.VoiceTranscriptParams) (p
 	}
 
 	activeFile := strings.TrimSpace(params.ActiveFile)
-	maxGatheredBytes := config.Int("VOCODE_DAEMON_GATHERED_MAX_BYTES", 120_000)
-	maxGatheredExcerpts := config.Int("VOCODE_DAEMON_GATHERED_MAX_EXCERPTS", 12)
+	maxGatheredBytes := config.DefaultGatheredMaxBytes
+	maxGatheredExcerpts := config.DefaultGatheredMaxExcerpts
 	if dc != nil {
 		if dc.MaxGatheredBytes != nil {
 			maxGatheredBytes = int(*dc.MaxGatheredBytes)
@@ -54,7 +54,7 @@ func (s *TranscriptService) runExecute(params protocol.VoiceTranscriptParams) (p
 
 	// In duplex mode, the daemon applies directives immediately and feeds the
 	// host's per-directive outcomes back into the next planning iteration.
-	maxRepairSteps := config.Int("VOCODE_DAEMON_VOICE_MAX_REPAIR_RPCS", 8)
+	maxRepairSteps := config.DefaultMaxRepairSteps
 	if dc != nil && dc.MaxTranscriptRepairRpcs != nil {
 		maxRepairSteps = int(*dc.MaxTranscriptRepairRpcs)
 	}
@@ -99,12 +99,7 @@ func (s *TranscriptService) runExecute(params protocol.VoiceTranscriptParams) (p
 			} else {
 				voicesession.SaveKeyed(s.sessions, key, vs)
 			}
-			if config.Int("VOCODE_DAEMON_VOICE_LOG_TRANSCRIPT", 0) != 0 && s.logger != nil {
-				s.logger.Printf(
-					"vocode transcript: applyReport ok=%d failed=%d skipped=%d directives=%d success=%v contextSession=%v historyEntries=%d",
-					appliedOkTotal, appliedFailTotal, appliedSkippedTotal, len(res.Directives), res.Success, key != "", len(vs.IntentApplyHistory),
-				)
-			}
+			// Transcript logging is now a daemon logger concern rather than env-driven tuning.
 			return res, ok
 		}
 

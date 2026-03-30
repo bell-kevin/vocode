@@ -5,20 +5,73 @@ import type { VoiceTranscriptParams } from "@vocode/protocol";
 import type { ExtensionServices } from "../commands/services";
 import { FAILED_TO_PROCESS_TRANSCRIPT } from "../transcript/messages";
 import { transcriptWorkspaceRoot } from "../transcript/workspace-root";
+import type { VoiceSidecarConfigPatch } from "../voice/client";
 
 /**
  * Binds voice sidecar events and transcript → daemon → apply flow to the given
  * client/sidecar pair. Call again only after replacing `services.client` and
  * `services.voiceSidecar` (e.g. backend restart).
  */
-export function attachTranscriptPipeline(services: ExtensionServices): void {
+export function attachTranscriptPipeline(services: ExtensionServices): vscode.Disposable {
   const { client, voiceSidecar, voiceSession, voiceStatus, mainPanelStore } =
     services;
   if (!client || !voiceSidecar) {
-    return;
+    return { dispose: () => {} };
   }
 
   let inFlightTranscripts = 0;
+
+  const buildVoiceSidecarConfigPatch = (): VoiceSidecarConfigPatch => {
+    const vocodeCfg = vscode.workspace.getConfiguration("vocode");
+    return {
+      // Secret stored in SecretStorage; we do not read it here.
+      sttModelId: vocodeCfg.get<string>("elevenLabsSttModelId", "scribe_v2_realtime"),
+      sttLanguage: vocodeCfg.get<string>("elevenLabsSttLanguage", "en"),
+      vadDebug: vocodeCfg.get<boolean>("voiceVadDebug", false) === true,
+      vadThresholdMultiplier: vocodeCfg.get<number>(
+        "voiceVadThresholdMultiplier",
+        1.65,
+      ),
+      vadMinEnergyFloor: vocodeCfg.get<number>("voiceVadMinEnergyFloor", 100),
+      vadStartMs: vocodeCfg.get<number>("voiceVadStartMs", 60),
+      vadEndMs: vocodeCfg.get<number>("voiceVadEndMs", 750),
+      vadPrerollMs: vocodeCfg.get<number>("voiceVadPrerollMs", 320),
+      sttCommitResponseTimeoutMs: vocodeCfg.get<number>(
+        "voiceSttCommitResponseTimeoutMs",
+        5000,
+      ),
+      streamMinChunkMs: vocodeCfg.get<number>("voiceStreamMinChunkMs", 200),
+      streamMaxChunkMs: vocodeCfg.get<number>("voiceStreamMaxChunkMs", 500),
+      streamMaxUtteranceMs: vocodeCfg.get<number>("voiceStreamMaxUtteranceMs", 0),
+    };
+  };
+
+  // Push initial sidecar tuning, then keep it in sync without restarting `vocode-voiced`.
+  let lastSentSerialized: string | undefined;
+  const sendConfig = (): void => {
+    const patch = buildVoiceSidecarConfigPatch();
+    const serialized = JSON.stringify(patch);
+    if (serialized === lastSentSerialized) {
+      return;
+    }
+    lastSentSerialized = serialized;
+    voiceSidecar.setConfig(patch);
+  };
+
+  sendConfig();
+
+  let configTimeout: NodeJS.Timeout | undefined;
+  const configListener = vscode.workspace.onDidChangeConfiguration((e) => {
+    if (!e.affectsConfiguration("vocode")) {
+      return;
+    }
+    if (configTimeout) {
+      clearTimeout(configTimeout);
+    }
+    configTimeout = setTimeout(() => {
+      sendConfig();
+    }, 200);
+  });
 
   voiceSidecar.onAudioMeter((evt) => {
     mainPanelStore.setAudioMeter(evt.speaking, evt.rms);
@@ -41,6 +94,9 @@ export function attachTranscriptPipeline(services: ExtensionServices): void {
   voiceSidecar.onState((evt) => {
     if (evt.state !== "stopped" && evt.state !== "shutdown") {
       return;
+    }
+    if (evt.state === "shutdown") {
+      configListener.dispose();
     }
     if (!voiceSession.isRunning()) {
       return;
@@ -156,4 +212,17 @@ export function attachTranscriptPipeline(services: ExtensionServices): void {
       }
     })();
   });
+
+  return {
+    dispose: () => {
+      configListener.dispose();
+      if (configTimeout) {
+        clearTimeout(configTimeout);
+      }
+      voiceSidecar.onAudioMeter(() => {});
+      voiceSidecar.onError(() => {});
+      voiceSidecar.onState(() => {});
+      voiceSidecar.onTranscript(() => {});
+    },
+  };
 }

@@ -1,44 +1,31 @@
-// Package config reads environment variables for the voice transcript daemon path.
 package config
 
-import (
-	"os"
-	"strconv"
-	"strings"
-	"time"
-)
+import "time"
 
-// Int parses an int from the environment, or returns def when missing or invalid.
-func Int(key string, def int) int {
-	v := strings.TrimSpace(os.Getenv(key))
-	if v == "" {
-		return def
-	}
-	i, err := strconv.Atoi(v)
-	if err != nil {
-		return def
-	}
-	return i
-}
+// This package previously read daemon transcript tuning from environment variables.
+// Tuning is now provided via `voice.transcript` params (`daemonConfig`) so it can
+// change without restarting the daemon process.
 
 const defaultSessionIdleReset = 30 * time.Minute
 
-// SessionIdleReset returns idle TTL for dropping stored voice session rows (see agentcontext.VoiceSessionStore).
-// Unset or invalid → 30m default. Explicit "0" → disabled (no idle eviction).
-func SessionIdleReset() time.Duration {
-	v := strings.TrimSpace(os.Getenv("VOCODE_DAEMON_SESSION_IDLE_RESET_MS"))
-	if v == "" {
-		return defaultSessionIdleReset
-	}
-	i, err := strconv.Atoi(v)
-	if err != nil {
-		return defaultSessionIdleReset
-	}
-	if i == 0 {
-		return 0
-	}
-	if i < 0 {
-		return defaultSessionIdleReset
-	}
-	return time.Duration(i) * time.Millisecond
+func DefaultSessionIdleReset() time.Duration {
+	return defaultSessionIdleReset
 }
+
+const (
+	DefaultGatheredMaxBytes    = 120_000
+	DefaultGatheredMaxExcerpts = 12
+	DefaultMaxRepairSteps      = 8
+
+	DefaultTranscriptQueueSize   = 10
+	DefaultTranscriptCoalesceMs  = 750
+	DefaultTranscriptMaxMergeJobs  = 5
+	DefaultTranscriptMaxMergeChars = 6000
+
+	DefaultMaxAgentTurns              = 8
+	DefaultMaxIntentRetries           = 2
+	DefaultMaxContextRounds           = 2
+	DefaultMaxContextBytes            = 12000
+	DefaultMaxConsecutiveContextReq   = 3
+	DefaultMaxIntentsPerBatch         = 16
+)
