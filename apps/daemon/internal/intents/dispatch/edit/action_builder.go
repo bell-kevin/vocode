@@ -421,8 +421,9 @@ func (b *ActionBuilder) resolveFunctionSource(
 		if err != nil {
 			return "", "", &EditBuildFailure{Code: "unsupported_instruction", Message: fmt.Sprintf("Invalid symbol id: %v", err)}
 		}
+		// Symbol IDs may omit path to mean "in the current active file" (single-file mode).
 		if strings.TrimSpace(ref.Path) == "" {
-			return "", "", &EditBuildFailure{Code: "unsupported_instruction", Message: "Invalid symbol id: missing symbol path."}
+			return resolveEditSource(ctx, "")
 		}
 		return resolveEditSource(ctx, ref.Path)
 	}
