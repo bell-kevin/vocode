@@ -8,7 +8,7 @@ function Root() {
         <main className="min-h-[calc(100vh - 70px)]">
             <Outlet/>
         </main>
-        <footer className="bg-black text-white p-[2rem] pb-[3rem] h-50px">
+        <footer className="bg-black text-white p-[2rem] pb-[3rem] h-[50px]">
             © 2026 Vocode. All Rights Reserved.
         </footer>
     </>
