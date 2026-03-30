@@ -6,10 +6,7 @@ import (
 	protocol "vocoding.net/vocode/v2/packages/protocol/go"
 )
 
-func finalizeExecute(st *agentLoopState, maxLoopIters int) (protocol.VoiceTranscriptResult, agentcontext.Gathered, *agentcontext.DirectiveApplyBatch, bool) {
-	if len(st.completed) >= maxLoopIters {
-		return protocol.VoiceTranscriptResult{Success: false}, st.gathered, nil, true
-	}
+func finalizeExecute(st *agentLoopState) (protocol.VoiceTranscriptResult, agentcontext.Gathered, *agentcontext.DirectiveApplyBatch, bool) {
 	result := protocol.VoiceTranscriptResult{
 		Success:    true,
 		Directives: st.directives,

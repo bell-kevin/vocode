@@ -229,7 +229,7 @@ func (i Intent) MarshalJSON() ([]byte, error) {
 		case ControlIntentKindDone:
 			if c.Done != nil {
 				return json.Marshal(struct {
-					Kind string `json:"kind"`
+					Kind string      `json:"kind"`
 					Done *DoneIntent `json:"done"`
 				}{Kind: string(c.Kind), Done: c.Done})
 			}

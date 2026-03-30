@@ -92,6 +92,11 @@ const CONFIG_TO_ENV: readonly ConfigBinding[] = [
     kind: "number",
   },
   {
+    configKey: "daemonVoiceMaxIntentsPerBatch",
+    envVar: "VOCODE_DAEMON_VOICE_MAX_INTENTS_PER_BATCH",
+    kind: "number",
+  },
+  {
     configKey: "daemonVoiceMaxIntentRetries",
     envVar: "VOCODE_DAEMON_VOICE_MAX_INTENT_RETRIES",
     kind: "number",

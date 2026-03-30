@@ -4,16 +4,16 @@ import (
 	"strings"
 	"sync"
 	"time"
-
-	"vocoding.net/vocode/v2/apps/daemon/internal/intents"
 )
 
 // VoiceSession is all daemon state keyed by params.contextSessionId for one voice
 // transcript stream: accumulated gathered context plus at most one open directive-apply batch
-// awaiting host report (see [DirectiveApplyBatch]).
+// awaiting host report (see [DirectiveApplyBatch]), and cumulative host apply outcomes for the model.
 type VoiceSession struct {
 	Gathered              Gathered
 	PendingDirectiveApply *DirectiveApplyBatch
+	IntentApplyHistory    []IntentApplyRecord
+	NextApplyBatchOrdinal int
 }
 
 // VoiceSessionStore retains [VoiceSession] between voice.transcript RPCs.
@@ -82,11 +82,5 @@ func (s *VoiceSessionStore) Put(key string, session VoiceSession) {
 }
 
 func cloneVoiceSession(v VoiceSession) VoiceSession {
-	out := VoiceSession{Gathered: v.Gathered}
-	if v.PendingDirectiveApply != nil {
-		p := *v.PendingDirectiveApply
-		p.SourceIntents = append([]intents.Intent(nil), v.PendingDirectiveApply.SourceIntents...)
-		out.PendingDirectiveApply = &p
-	}
-	return out
+	return CloneVoiceSession(v)
 }

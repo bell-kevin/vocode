@@ -30,7 +30,7 @@ One “turn” starts when the extension calls the daemon RPC:
 2. For `edit` results, it applies daemon-provided edit actions mechanically using `workspace.applyEdit`.
 3. For `command` results, it runs the command parameters using an allowlisted runner (no additional semantic policy).
 4. If any result fails, the extension stops processing remaining results.
-5. On the next `voice.transcript`, it sends the same `contextSessionId` while voice is active (so gathered context continues), plus `reportApplyBatchId` (prior `applyBatchId`) and `lastBatchApply` (one entry per directive: `ok` and optional `message`, including `not attempted` after the first failure) so the daemon can feed extension outcomes back into the agent loop.
+5. On the next `voice.transcript`, it sends the same `contextSessionId` while voice is active (so gathered context continues), plus `reportApplyBatchId` (prior `applyBatchId`) and `lastBatchApply` (one entry per directive: `status` `ok` | `failed` | `skipped`, optional `message`; tail entries use `skipped` after the first failure) so the daemon can feed extension outcomes back into the agent loop.
 
 ### Invariant: no mixed-state payloads
 
@@ -93,7 +93,7 @@ One rule should have one owner. Duplicating ownership is a regression risk.
 
 ### Daemon
 
-- Agent/runtime: `apps/daemon/internal/agent` (`ModelClient` / `Agent.NextIntent` take `agentcontext.TurnContext` from `model_client.go`). Model turn input types: `apps/daemon/internal/agentcontext` (`TurnContext`, `EditorSnapshot`, `Gathered`, `VoiceSessionStore`, `FailedIntent`, `ComposeTurnContext`). Tree-sitter tag parsing + cursor containment: `apps/daemon/internal/symbols/tags`
+- Agent/runtime: `apps/daemon/internal/agent` (`ModelClient` / `Agent.NextTurn` take `agentcontext.TurnContext` from `model_client.go`). Model turn input types: `apps/daemon/internal/agentcontext` (`TurnContext`, `EditorSnapshot`, `Gathered`, `VoiceSessionStore`, `FailedIntent`, `ComposeTurnContext`). Tree-sitter tag parsing + cursor containment: `apps/daemon/internal/symbols/tags`
 - Intent types + validation: `apps/daemon/internal/intents`
 - Voice transcript (`apps/daemon/internal/transcript/`): root `service*.go` (RPC, run path, coalesce worker); subpackages `transcript/executor` (agent loop → `intents/dispatch`), `transcript/voicesession` (session + apply report), `transcript/config` (env); see `transcript/doc.go`
 - Intent model + validation: `apps/daemon/internal/intents/` (`package intents` — `Intent` union: `ControlIntent` | `ExecutableIntent`, `Validate`, JSON round-trip on `kind` + payloads)

@@ -5,7 +5,7 @@ import type {
 } from "@vocode/protocol";
 
 export type DirectiveApplyOutcome = {
-  ok: boolean;
+  status: "ok" | "failed" | "skipped";
   message?: string;
 };
 
@@ -43,7 +43,7 @@ export function recordTranscriptApplyCycle(
   ) {
     pendingReportApplyBatchId = batchId;
     pendingLastBatchApply = outcomes.map((o) => ({
-      ok: o.ok,
+      status: o.status,
       ...(o.message !== undefined && o.message !== ""
         ? { message: o.message }
         : {}),

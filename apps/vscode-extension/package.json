@@ -154,6 +154,11 @@
           "default": 8,
           "description": "Max agent planner turns per voice.transcript RPC."
         },
+        "vocode.daemonVoiceMaxIntentsPerBatch": {
+          "type": "number",
+          "default": 16,
+          "description": "Max executable intents per model batch; 0 = no cap (daemon env VOCODE_DAEMON_VOICE_MAX_INTENTS_PER_BATCH)."
+        },
         "vocode.daemonVoiceMaxIntentRetries": {
           "type": "number",
           "default": 2,

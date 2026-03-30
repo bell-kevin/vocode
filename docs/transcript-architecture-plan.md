@@ -12,7 +12,7 @@
 ### A — Wire + pending apply batch (daemon authority)
 
 - Result: `applyBatchId` when `success` and `directives.length > 0`; remove `directiveIntentSteps`.
-- Params: `lastBatchApply` (`ok` + optional `message`), `reportApplyBatchId` when reporting.
+- Params: `lastBatchApply` (`status`: `ok` | `failed` | `skipped`, optional `message`), `reportApplyBatchId` when reporting.
 - `TranscriptService` (`transcript` package) holds `VoiceSessionStore`, `executeMu`, and `transcript/executor.Executor`; `Executor` returns a new `DirectiveApplyBatch` when the result includes directives. Session load/save + apply report stripping live in `transcript/voicesession`; env in `transcript/config`.
 - `Executor` collects parallel `[]intents.Intent` for each emitted directive; returns pending payload; rename helper to **source-intent** wording internally.
 - If a prior batch was pending and the next RPC has **no** report, **drop** pending (forward progress; extension should normally report).

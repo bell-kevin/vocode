@@ -3,7 +3,9 @@ package executor
 import (
 	"context"
 	"fmt"
+	"strings"
 
+	"vocoding.net/vocode/v2/apps/daemon/internal/agent"
 	"vocoding.net/vocode/v2/apps/daemon/internal/agentcontext"
 	"vocoding.net/vocode/v2/apps/daemon/internal/intents"
 	"vocoding.net/vocode/v2/apps/daemon/internal/intents/dispatch"
@@ -15,8 +17,10 @@ func (e *Executor) runOneAgentLoopIteration(
 	params protocol.VoiceTranscriptParams,
 	text string,
 	hostCursor *agentcontext.CursorSymbol,
+	intentApplyHistory []agentcontext.IntentApplyRecord,
 	extSucceeded []intents.Intent,
 	extFailed []agentcontext.FailedIntent,
+	extSkipped []intents.Intent,
 	st *agentLoopState,
 ) (loopAdvance, protocol.VoiceTranscriptResult, bool) {
 	succeededThisRPC := make([]intents.Intent, 0, len(extSucceeded)+len(st.completed))
@@ -26,11 +30,57 @@ func (e *Executor) runOneAgentLoopIteration(
 	failedThisRPC = append(failedThisRPC, extFailed...)
 	failedThisRPC = append(failedThisRPC, st.failedIntents...)
 
-	turnCtx := agentcontext.ComposeTurnContext(params, text, succeededThisRPC, failedThisRPC, st.gathered, hostCursor)
-	next, err := e.agent.NextIntent(context.Background(), turnCtx)
+	turnCtx := agentcontext.ComposeTurnContext(
+		params, text, succeededThisRPC, failedThisRPC, extSkipped, intentApplyHistory, st.gathered, hostCursor)
+
+	turn, err := e.agent.NextTurn(context.Background(), turnCtx)
 	if err != nil {
 		return advanceContinue, protocol.VoiceTranscriptResult{Success: false}, true
 	}
+	if err := turn.Validate(); err != nil {
+		return advanceContinue, protocol.VoiceTranscriptResult{Success: false}, true
+	}
+
+	switch turn.Kind {
+	case agent.TurnIrrelevant:
+		st.transcriptSummary = strings.TrimSpace(turn.IrrelevantReason)
+		return advanceBreakLoop, protocol.VoiceTranscriptResult{}, false
+
+	case agent.TurnDone:
+		st.transcriptSummary = strings.TrimSpace(turn.DoneSummary)
+		return advanceBreakLoop, protocol.VoiceTranscriptResult{}, false
+
+	case agent.TurnRequestContext:
+		next := intents.ControlRequestContext(turn.RequestContext)
+		return e.dispatchOneIntent(params, text, hostCursor, st, next)
+
+	case agent.TurnIntents:
+		if e.maxIntentsPerBatch > 0 && len(turn.Intents) > e.maxIntentsPerBatch {
+			return advanceContinue, protocol.VoiceTranscriptResult{Success: false}, true
+		}
+		for _, intent := range turn.Intents {
+			adv, res, abort := e.dispatchOneIntent(params, text, hostCursor, st, intent)
+			if abort {
+				return adv, res, true
+			}
+			if adv == advanceContinue {
+				return advanceContinue, protocol.VoiceTranscriptResult{}, false
+			}
+		}
+		return advanceBreakLoop, protocol.VoiceTranscriptResult{}, false
+
+	default:
+		return advanceContinue, protocol.VoiceTranscriptResult{Success: false}, true
+	}
+}
+
+func (e *Executor) dispatchOneIntent(
+	params protocol.VoiceTranscriptParams,
+	text string,
+	hostCursor *agentcontext.CursorSymbol,
+	st *agentLoopState,
+	next intents.Intent,
+) (loopAdvance, protocol.VoiceTranscriptResult, bool) {
 	if err := next.Validate(); err != nil {
 		return advanceContinue, protocol.VoiceTranscriptResult{Success: false}, true
 	}

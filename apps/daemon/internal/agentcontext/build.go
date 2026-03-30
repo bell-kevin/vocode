@@ -30,21 +30,25 @@ func ReadActiveFileExcerpt(absPath string) string {
 	return string(runes[:maxActiveFileExcerptRunes])
 }
 
-// ComposeTurnContext builds a [TurnContext] for one [agent.Agent.NextIntent] call.
+// ComposeTurnContext builds a [TurnContext] for one [agent.Agent.NextTurn] call.
 func ComposeTurnContext(
 	params protocol.VoiceTranscriptParams,
 	transcript string,
 	succeeded []intents.Intent,
 	failed []FailedIntent,
+	skipped []intents.Intent,
+	intentApplyHistory []IntentApplyRecord,
 	gathered Gathered,
 	cursor *CursorSymbol,
 ) TurnContext {
 	return TurnContext{
-		TranscriptText:   transcript,
-		SucceededIntents: append([]intents.Intent(nil), succeeded...),
-		FailedIntents:    append([]FailedIntent(nil), failed...),
-		Editor:           EditorSnapshotFromParams(params, cursor),
-		Gathered:         gathered,
+		TranscriptText:     transcript,
+		SucceededIntents:   append([]intents.Intent(nil), succeeded...),
+		FailedIntents:      append([]FailedIntent(nil), failed...),
+		SkippedIntents:     append([]intents.Intent(nil), skipped...),
+		IntentApplyHistory: append([]IntentApplyRecord(nil), intentApplyHistory...),
+		Editor:             EditorSnapshotFromParams(params, cursor),
+		Gathered:           gathered,
 	}
 }
 

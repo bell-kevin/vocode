@@ -69,15 +69,15 @@ async function sendTranscript(
     );
     const outcomes = await applyTranscriptResult(result, activePath);
     recordTranscriptApplyCycle(result, outcomes);
-    const firstBad = outcomes.find((o) => !o.ok);
+    const firstFailed = outcomes.find((o) => o.status === "failed");
     if (!result.success) {
       services.mainPanelStore.recordCompletedTranscript(trimmedText, {
         errorMessage: FAILED_TO_PROCESS_TRANSCRIPT,
       });
-    } else if (firstBad) {
+    } else if (firstFailed) {
       const msg =
-        firstBad.message && firstBad.message !== "not attempted"
-          ? firstBad.message
+        firstFailed.message && firstFailed.message !== "not attempted"
+          ? firstFailed.message
           : "A directive failed to apply.";
       services.mainPanelStore.recordCompletedTranscript(trimmedText, {
         errorMessage: msg,

@@ -8,8 +8,8 @@ package dispatch
 import (
 	"fmt"
 
-	"vocoding.net/vocode/v2/apps/daemon/internal/intents"
 	"vocoding.net/vocode/v2/apps/daemon/internal/agentcontext"
+	"vocoding.net/vocode/v2/apps/daemon/internal/intents"
 	"vocoding.net/vocode/v2/apps/daemon/internal/intents/dispatch/edit"
 	"vocoding.net/vocode/v2/apps/daemon/internal/intents/dispatch/requestcontext"
 	protocol "vocoding.net/vocode/v2/packages/protocol/go"

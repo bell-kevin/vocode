@@ -15,9 +15,14 @@ func (s *TranscriptService) runExecute(params protocol.VoiceTranscriptParams) (p
 
 	key := strings.TrimSpace(params.ContextSessionId)
 	idleReset := config.SessionIdleReset()
-	vs := voicesession.Load(s.sessions, key, idleReset, s.ephemeralPendingDirectiveApply)
+	var vs agentcontext.VoiceSession
+	if strings.TrimSpace(key) == "" {
+		vs = voicesession.Load(s.sessions, key, idleReset, &s.ephemeralVoiceSession)
+	} else {
+		vs = voicesession.Load(s.sessions, key, idleReset, nil)
+	}
 
-	extSucc, extFail, err := voicesession.ConsumeIncomingApplyReport(&params, &vs)
+	extSucc, extFail, extSkipped, err := voicesession.ConsumeIncomingApplyReport(&params, &vs)
 	if err != nil {
 		return protocol.VoiceTranscriptResult{Success: false}, true
 	}
@@ -27,7 +32,7 @@ func (s *TranscriptService) runExecute(params protocol.VoiceTranscriptParams) (p
 	maxGatheredExcerpts := config.Int("VOCODE_DAEMON_GATHERED_MAX_EXCERPTS", 12)
 	vs.Gathered = agentcontext.ApplyGatheredRollingCap(vs.Gathered, activeFile, maxGatheredBytes, maxGatheredExcerpts)
 
-	res, g1, pending, ok := s.executor.Execute(params, vs.Gathered, extSucc, extFail)
+	res, g1, pending, ok := s.executor.Execute(params, vs.Gathered, vs.IntentApplyHistory, extSucc, extFail, extSkipped)
 	vs.Gathered = g1
 	if strings.TrimSpace(key) != "" {
 		vs.Gathered = agentcontext.ApplyGatheredRollingCap(vs.Gathered, activeFile, maxGatheredBytes, maxGatheredExcerpts)
@@ -40,7 +45,7 @@ func (s *TranscriptService) runExecute(params protocol.VoiceTranscriptParams) (p
 	}
 
 	if strings.TrimSpace(key) == "" {
-		voicesession.StoreEphemeralPending(&s.ephemeralPendingDirectiveApply, vs)
+		voicesession.StoreEphemeralVoiceSession(&s.ephemeralVoiceSession, vs)
 	} else {
 		voicesession.SaveKeyed(s.sessions, key, vs)
 	}

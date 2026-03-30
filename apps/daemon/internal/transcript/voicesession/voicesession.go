@@ -13,17 +13,15 @@ import (
 	protocol "vocoding.net/vocode/v2/packages/protocol/go"
 )
 
-// Load returns session state for this RPC. When contextKey is empty, only the ephemeral
-// pending directive batch is restored (gathered always starts empty for that mode).
-func Load(store *agentcontext.VoiceSessionStore, contextKey string, idleReset time.Duration, ephemeralPending *agentcontext.DirectiveApplyBatch) agentcontext.VoiceSession {
+// Load returns session state for this RPC. When contextKey is empty, restores the full
+// ephemeral [agentcontext.VoiceSession] (gathered, apply history, pending batch) from *ephemeral.
+func Load(store *agentcontext.VoiceSessionStore, contextKey string, idleReset time.Duration, ephemeral *agentcontext.VoiceSession) agentcontext.VoiceSession {
 	key := strings.TrimSpace(contextKey)
 	if key == "" {
-		if ephemeralPending == nil {
+		if ephemeral == nil {
 			return agentcontext.VoiceSession{}
 		}
-		p := *ephemeralPending
-		p.SourceIntents = append([]intents.Intent(nil), ephemeralPending.SourceIntents...)
-		return agentcontext.VoiceSession{PendingDirectiveApply: &p}
+		return agentcontext.CloneVoiceSession(*ephemeral)
 	}
 	return store.Get(key, idleReset)
 }
@@ -37,19 +35,13 @@ func SaveKeyed(store *agentcontext.VoiceSessionStore, contextKey string, vs agen
 	store.Put(key, vs)
 }
 
-// StoreEphemeralPending copies vs.PendingDirectiveApply into *dst (nil when none).
-func StoreEphemeralPending(dst **agentcontext.DirectiveApplyBatch, vs agentcontext.VoiceSession) {
-	if vs.PendingDirectiveApply == nil {
-		*dst = nil
-		return
-	}
-	p := *vs.PendingDirectiveApply
-	p.SourceIntents = append([]intents.Intent(nil), vs.PendingDirectiveApply.SourceIntents...)
-	*dst = &p
+// StoreEphemeralVoiceSession copies vs into *dst for the next RPC when contextSessionId is empty.
+func StoreEphemeralVoiceSession(dst *agentcontext.VoiceSession, vs agentcontext.VoiceSession) {
+	*dst = agentcontext.CloneVoiceSession(vs)
 }
 
 // ConsumeIncomingApplyReport strips apply-report fields from params and updates vs.
-func ConsumeIncomingApplyReport(params *protocol.VoiceTranscriptParams, vs *agentcontext.VoiceSession) ([]intents.Intent, []agentcontext.FailedIntent, error) {
+func ConsumeIncomingApplyReport(params *protocol.VoiceTranscriptParams, vs *agentcontext.VoiceSession) ([]intents.Intent, []agentcontext.FailedIntent, []intents.Intent, error) {
 	items := params.LastBatchApply
 	reportID := strings.TrimSpace(params.ReportApplyBatchId)
 	params.LastBatchApply = nil
@@ -57,15 +49,22 @@ func ConsumeIncomingApplyReport(params *protocol.VoiceTranscriptParams, vs *agen
 
 	if len(items) == 0 {
 		vs.PendingDirectiveApply = nil
-		return nil, nil, nil
+		return nil, nil, nil, nil
 	}
 	if vs.PendingDirectiveApply == nil {
-		return nil, nil, fmt.Errorf("lastBatchApply without pending directive apply batch")
+		return nil, nil, nil, fmt.Errorf("lastBatchApply without pending directive apply batch")
 	}
-	extSucc, extFail, err := vs.PendingDirectiveApply.ConsumeHostApplyReport(reportID, items)
+	batch := vs.PendingDirectiveApply
+	extSucc, extFail, extSkipped, err := batch.ConsumeHostApplyReport(reportID, items)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
+	hist, err := agentcontext.AppendIntentApplyHistory(vs.IntentApplyHistory, vs.NextApplyBatchOrdinal, batch.SourceIntents, items)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	vs.IntentApplyHistory = hist
+	vs.NextApplyBatchOrdinal++
 	vs.PendingDirectiveApply = nil
-	return extSucc, extFail, nil
+	return extSucc, extFail, extSkipped, nil
 }

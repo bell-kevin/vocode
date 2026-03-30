@@ -4,15 +4,16 @@
   "title": "VoiceTranscriptDirectiveApplyItem",
   "type": "object",
   "additionalProperties": false,
-  "required": ["ok"],
+  "required": ["status"],
   "properties": {
-    "ok": {
-      "type": "boolean",
-      "description": "Whether the extension applied this directive. Later indices should be false with message not attempted when a prior directive failed."
+    "status": {
+      "type": "string",
+      "enum": ["ok", "failed", "skipped"],
+      "description": "ok = applied; failed = host attempted this directive and failed; skipped = not attempted because a prior directive in the batch failed."
     },
     "message": {
       "type": "string",
-      "description": "Host detail when ok is false (apply error or not attempted)."
+      "description": "Host detail for failed (error) or optional note for skipped."
     }
   }
 }

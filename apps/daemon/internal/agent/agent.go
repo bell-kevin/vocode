@@ -3,7 +3,6 @@ package agent
 import (
 	"context"
 
-	"vocoding.net/vocode/v2/apps/daemon/internal/intents"
 	"vocoding.net/vocode/v2/apps/daemon/internal/agentcontext"
 )
 
@@ -16,7 +15,7 @@ func New(model ModelClient) *Agent {
 	return &Agent{model: model}
 }
 
-// NextIntent proxies one iterative agent-loop turn.
-func (a *Agent) NextIntent(ctx context.Context, in agentcontext.TurnContext) (intents.Intent, error) {
-	return a.model.NextIntent(ctx, in)
+// NextTurn proxies one model completion for the transcript executor.
+func (a *Agent) NextTurn(ctx context.Context, in agentcontext.TurnContext) (TurnResult, error) {
+	return a.model.NextTurn(ctx, in)
 }

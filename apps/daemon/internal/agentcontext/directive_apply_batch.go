@@ -16,39 +16,45 @@ type DirectiveApplyBatch struct {
 	SourceIntents []intents.Intent
 }
 
-// ConsumeHostApplyReport validates the host report against this batch and returns succeeded vs
-// failed intents for the next agent loop iteration. Caller must clear [VoiceSession.PendingDirectiveApply]
-// after a successful return.
+// ConsumeHostApplyReport validates the host report against this batch and returns succeeded,
+// failed (attempted), and skipped (not attempted) intents for the next agent loop iteration.
+// Caller must clear [VoiceSession.PendingDirectiveApply] after a successful return.
 func (b *DirectiveApplyBatch) ConsumeHostApplyReport(
 	reportBatchID string,
 	items []protocol.VoiceTranscriptDirectiveApplyItem,
-) ([]intents.Intent, []FailedIntent, error) {
+) ([]intents.Intent, []FailedIntent, []intents.Intent, error) {
 	if b == nil {
-		return nil, nil, fmt.Errorf("directive apply batch: nil batch")
+		return nil, nil, nil, fmt.Errorf("directive apply batch: nil batch")
 	}
 	if strings.TrimSpace(reportBatchID) != b.ID {
-		return nil, nil, fmt.Errorf("directive apply batch: reportApplyBatchId mismatch")
+		return nil, nil, nil, fmt.Errorf("directive apply batch: reportApplyBatchId mismatch")
 	}
 	if len(items) != len(b.SourceIntents) {
-		return nil, nil, fmt.Errorf("directive apply batch: lastBatchApply length mismatch")
+		return nil, nil, nil, fmt.Errorf("directive apply batch: lastBatchApply length mismatch")
 	}
 	var extSucc []intents.Intent
 	var extFail []FailedIntent
+	var extSkipped []intents.Intent
 	for i, it := range items {
 		intent := b.SourceIntents[i]
-		if it.Ok {
+		switch strings.TrimSpace(it.Status) {
+		case ApplyItemStatusOK:
 			extSucc = append(extSucc, intent)
-			continue
+		case ApplyItemStatusSkipped:
+			extSkipped = append(extSkipped, intent)
+		case ApplyItemStatusFailed:
+			msg := strings.TrimSpace(it.Message)
+			if msg == "" {
+				msg = "extension failed to apply directive"
+			}
+			extFail = append(extFail, FailedIntent{
+				Intent: intent,
+				Phase:  PhaseExtension,
+				Reason: msg,
+			})
+		default:
+			return nil, nil, nil, fmt.Errorf("directive apply batch: unknown status %q", it.Status)
 		}
-		msg := strings.TrimSpace(it.Message)
-		if msg == "" {
-			msg = "extension failed to apply directive"
-		}
-		extFail = append(extFail, FailedIntent{
-			Intent: intent,
-			Phase:  PhaseExtension,
-			Reason: msg,
-		})
 	}
-	return extSucc, extFail, nil
+	return extSucc, extFail, extSkipped, nil
 }

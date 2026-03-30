@@ -3,11 +3,11 @@ package agent
 import (
 	"context"
 
-	"vocoding.net/vocode/v2/apps/daemon/internal/intents"
 	"vocoding.net/vocode/v2/apps/daemon/internal/agentcontext"
 )
 
-// ModelClient is the iterative agent-loop contract. Each turn receives an [agentcontext.TurnContext].
+// ModelClient is the transcript agent contract: each call receives [agentcontext.TurnContext] and returns
+// one [TurnResult] (irrelevant, done, request_context, or a batch of intents).
 type ModelClient interface {
-	NextIntent(ctx context.Context, in agentcontext.TurnContext) (intents.Intent, error)
+	NextTurn(ctx context.Context, in agentcontext.TurnContext) (TurnResult, error)
 }

@@ -105,12 +105,12 @@ export function attachTranscriptPipeline(services: ExtensionServices): void {
         );
         const outcomes = await applyTranscriptResult(result, activeFile);
         recordTranscriptApplyCycle(result, outcomes);
-        const firstBad = outcomes.find((o) => !o.ok);
-        if (!result.success || firstBad) {
+        const firstFailed = outcomes.find((o) => o.status === "failed");
+        if (!result.success || firstFailed) {
           const msg = !result.success
             ? FAILED_TO_PROCESS_TRANSCRIPT
-            : firstBad?.message && firstBad.message !== "not attempted"
-              ? firstBad.message
+            : firstFailed?.message && firstFailed.message !== "not attempted"
+              ? firstFailed.message
               : "A directive failed to apply.";
           mainPanelStore.markError(pendingId, msg);
         } else {

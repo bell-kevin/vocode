@@ -34,15 +34,15 @@ export async function applyTranscriptResult(
       const directive = dirs[i];
       if (!(await dispatchTranscript(directive, ctx))) {
         outcomes.push({
-          ok: false,
+          status: "failed",
           message: "Directive failed to apply.",
         });
         for (let j = i + 1; j < dirs.length; j++) {
-          outcomes.push({ ok: false, message: "not attempted" });
+          outcomes.push({ status: "skipped", message: "not attempted" });
         }
         return outcomes;
       }
-      outcomes.push({ ok: true });
+      outcomes.push({ status: "ok" });
     }
   } finally {
     finalizeTranscriptUndoSessionIfEditsApplied();

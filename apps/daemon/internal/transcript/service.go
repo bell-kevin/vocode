@@ -20,9 +20,8 @@ type TranscriptService struct {
 	executor *executor.Executor
 
 	sessions *agentcontext.VoiceSessionStore
-	// When contextSessionId is empty, gathered is not persisted between RPCs; an open
-	// directive-apply batch is still tracked so the host can report outcomes on the next call.
-	ephemeralPendingDirectiveApply *agentcontext.DirectiveApplyBatch
+	// When contextSessionId is empty, full session (gathered, apply history, pending batch) is kept here.
+	ephemeralVoiceSession agentcontext.VoiceSession
 
 	executeMu sync.Mutex
 
@@ -58,6 +57,7 @@ func NewService(
 	maxContextRounds := config.Int("VOCODE_DAEMON_VOICE_MAX_CONTEXT_ROUNDS", 2)
 	maxContextBytes := config.Int("VOCODE_DAEMON_VOICE_MAX_CONTEXT_BYTES", 12000)
 	maxConsecutiveContextReq := config.Int("VOCODE_DAEMON_VOICE_MAX_CONSECUTIVE_CONTEXT_REQUESTS", 3)
+	maxIntentsPerBatch := config.Int("VOCODE_DAEMON_VOICE_MAX_INTENTS_PER_BATCH", 16)
 
 	exec := executor.New(agentRuntime, intentHandler, executor.Options{
 		MaxAgentTurns:            maxAgentTurns,
@@ -65,6 +65,7 @@ func NewService(
 		MaxContextRounds:         maxContextRounds,
 		MaxContextBytes:          maxContextBytes,
 		MaxConsecutiveContextReq: maxConsecutiveContextReq,
+		MaxIntentsPerBatch:       maxIntentsPerBatch,
 		Symbols:                  symbolResolver,
 	})
 
