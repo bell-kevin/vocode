@@ -16,8 +16,13 @@
     },
     "transcriptOutcome": {
       "type": "string",
-      "enum": ["irrelevant", "completed", "clarify", "search"],
+      "enum": ["irrelevant", "completed", "clarify", "search", "answer"],
       "description": "Host UI hint: irrelevant transcripts vs normal completion. Omitted means completed (back-compat)."
+    },
+    "answerText": {
+      "type": "string",
+      "description": "When transcriptOutcome=answer, the daemon returns a plain-text answer for the UI (no directives).",
+      "maxLength": 8192
     },
     "searchResults": {
       "type": "array",

@@ -29,6 +29,18 @@ func chatResponseFormatScopeIntent() *responseFormat {
 	}
 }
 
+// chatResponseFormatTranscriptClassifier picks OpenAI Chat Completions response_format for first-pass routing.
+func chatResponseFormatTranscriptClassifier() *responseFormat {
+	return &responseFormat{
+		Type: "json_schema",
+		JSONSchema: &namedJSONSchema{
+			Name:   "vocode_transcript_classifier",
+			Strict: false,
+			Schema: transcriptClassifierJSONSchema(),
+		},
+	}
+}
+
 type responseFormat struct {
 	Type       string           `json:"type"`
 	JSONSchema *namedJSONSchema `json:"json_schema,omitempty"`
@@ -64,6 +76,22 @@ func scopeIntentJSONSchema() map[string]any {
 			"clarifyQuestion":  map[string]any{"type": "string"},
 		},
 		"required":             []string{"scopeKind"},
+		"additionalProperties": false,
+	}
+}
+
+func transcriptClassifierJSONSchema() map[string]any {
+	return map[string]any{
+		"type": "object",
+		"properties": map[string]any{
+			"kind": map[string]any{
+				"type": "string",
+				"enum": []string{"instruction", "search", "question", "irrelevant"},
+			},
+			"searchQuery": map[string]any{"type": "string"},
+			"answerText":  map[string]any{"type": "string"},
+		},
+		"required":             []string{"kind"},
 		"additionalProperties": false,
 	}
 }

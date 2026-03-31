@@ -173,9 +173,36 @@ func (r VoiceTranscriptCompletion) Validate() error {
 	if len([]rune(r.Summary)) > 8192 {
 		return errors.New("voice transcript result: summary exceeds max length")
 	}
+
 	out := strings.TrimSpace(r.TranscriptOutcome)
-	if out != "" && out != "irrelevant" && out != "completed" {
+	if out != "" && out != "irrelevant" && out != "completed" && out != "clarify" && out != "search" && out != "answer" {
 		return fmt.Errorf("voice transcript result: invalid transcriptOutcome %q", r.TranscriptOutcome)
+	}
+	if out == "answer" {
+		if strings.TrimSpace(r.AnswerText) == "" {
+			return errors.New("voice transcript result: answer requires answerText")
+		}
+		if len([]rune(r.AnswerText)) > 8192 {
+			return errors.New("voice transcript result: answerText exceeds max length")
+		}
+	}
+	if out == "search" {
+		if r.SearchResults != nil && len(r.SearchResults) > 0 {
+			for _, h := range r.SearchResults {
+				if strings.TrimSpace(h.Path) == "" {
+					return errors.New("voice transcript result: searchResults[].path is required")
+				}
+				if h.Line < 0 || h.Character < 0 {
+					return errors.New("voice transcript result: searchResults[] requires non-negative line/character")
+				}
+				if strings.Contains(h.Preview, "\u0000") {
+					return errors.New("voice transcript result: searchResults[].preview contains NUL")
+				}
+			}
+		}
+		if r.ActiveSearchIndex != nil && *r.ActiveSearchIndex < 0 {
+			return errors.New("voice transcript result: activeSearchIndex must be non-negative")
+		}
 	}
 	return nil
 }

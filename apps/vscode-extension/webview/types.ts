@@ -14,6 +14,15 @@ export type PanelState = {
     }[];
     activeIndex: number;
   };
+  answerState?: {
+    question: string;
+    answerText: string;
+  };
+  qaHistory?: readonly {
+    question: string;
+    answerText: string;
+    receivedAt: string;
+  }[];
   recentHandled: readonly HandledRow[];
   latestPartial: string | null;
   voiceListening: boolean;
@@ -48,6 +57,8 @@ export type HandledRow = {
   text: string;
   receivedAt: string;
   summary?: string;
+  transcriptOutcome?: "irrelevant" | "completed" | "clarify" | "search" | "answer";
+  answerText?: string;
   errorMessage?: string;
   /** Irrelevant / non-actionable transcript (daemon transcriptOutcome irrelevant). */
   skipped?: true;

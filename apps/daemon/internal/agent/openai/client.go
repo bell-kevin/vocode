@@ -49,6 +49,85 @@ func NewFromEnv() (*Client, error) {
 	}, nil
 }
 
+func (c *Client) ClassifyTranscript(ctx context.Context, in agentcontext.TranscriptClassifierContext) (agent.TranscriptClassifierResult, error) {
+	if strings.TrimSpace(c.APIKey) == "" {
+		return agent.TranscriptClassifierResult{}, fmt.Errorf("openai: missing API key")
+	}
+	userBytes, err := prompt.TranscriptClassifierUserJSON(in)
+	if err != nil {
+		return agent.TranscriptClassifierResult{}, fmt.Errorf("openai: prompt: %w", err)
+	}
+	temp := 0.0
+	body := chatCompletionsRequest{
+		Model:       c.Model,
+		Temperature: &temp,
+		Messages: []chatMessage{
+			{Role: "system", Content: prompt.TranscriptClassifierSystem()},
+			{Role: "user", Content: string(userBytes)},
+		},
+		ResponseFormat: chatResponseFormatTranscriptClassifier(),
+	}
+	payload, err := json.Marshal(body)
+	if err != nil {
+		return agent.TranscriptClassifierResult{}, err
+	}
+	url := c.BaseURL + "/chat/completions"
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(payload))
+	if err != nil {
+		return agent.TranscriptClassifierResult{}, err
+	}
+	req.Header.Set("Authorization", "Bearer "+c.APIKey)
+	req.Header.Set("Content-Type", "application/json")
+
+	httpClient := c.HTTPClient
+	if httpClient == nil {
+		httpClient = http.DefaultClient
+	}
+	resp, err := httpClient.Do(req)
+	if err != nil {
+		return agent.TranscriptClassifierResult{}, fmt.Errorf("openai: request: %w", err)
+	}
+	defer resp.Body.Close()
+	respBody, err := io.ReadAll(io.LimitReader(resp.Body, 4<<20))
+	if err != nil {
+		return agent.TranscriptClassifierResult{}, err
+	}
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return agent.TranscriptClassifierResult{}, fmt.Errorf("openai: HTTP %s: %s", resp.Status, truncateForErr(respBody, 512))
+	}
+	var parsed chatCompletionsResponse
+	if err := json.Unmarshal(respBody, &parsed); err != nil {
+		return agent.TranscriptClassifierResult{}, fmt.Errorf("openai: decode response: %w", err)
+	}
+	if parsed.Error != nil && strings.TrimSpace(parsed.Error.Message) != "" {
+		return agent.TranscriptClassifierResult{}, fmt.Errorf("openai: %s", parsed.Error.Message)
+	}
+	if len(parsed.Choices) == 0 {
+		return agent.TranscriptClassifierResult{}, fmt.Errorf("openai: empty choices")
+	}
+	content := strings.TrimSpace(parsed.Choices[0].Message.Content)
+	if content == "" {
+		return agent.TranscriptClassifierResult{}, fmt.Errorf("openai: empty message content")
+	}
+	var out struct {
+		Kind       string `json:"kind"`
+		SearchQuery string `json:"searchQuery"`
+		AnswerText string `json:"answerText"`
+	}
+	if err := json.Unmarshal([]byte(content), &out); err != nil {
+		return agent.TranscriptClassifierResult{}, fmt.Errorf("openai: decode classifier: %w", err)
+	}
+	res := agent.TranscriptClassifierResult{
+		Kind:       agent.TranscriptKind(strings.TrimSpace(out.Kind)),
+		SearchQuery: out.SearchQuery,
+		AnswerText: out.AnswerText,
+	}
+	if err := res.Validate(); err != nil {
+		return agent.TranscriptClassifierResult{}, err
+	}
+	return res, nil
+}
+
 // ScopedEdit implements [agent.ModelClient].
 func (c *Client) ScopedEdit(ctx context.Context, in agentcontext.ScopedEditContext) (agent.ScopedEditResult, error) {
 	if strings.TrimSpace(c.APIKey) == "" {

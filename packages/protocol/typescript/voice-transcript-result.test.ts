@@ -28,6 +28,31 @@ test("isVoiceTranscriptCompletion accepts transcriptOutcome when success", () =>
   );
 });
 
+test("isVoiceTranscriptCompletion accepts answer outcome with answerText", () => {
+  assert.equal(
+    isVoiceTranscriptCompletion({
+      success: true,
+      transcriptOutcome: "answer",
+      answerText: "About 10,957 or 10,958 depending on leap years.",
+    }),
+    true,
+  );
+});
+
+test("isVoiceTranscriptCompletion accepts search outcome with searchResults", () => {
+  assert.equal(
+    isVoiceTranscriptCompletion({
+      success: true,
+      transcriptOutcome: "search",
+      searchResults: [
+        { path: "c:\\\\x.ts", line: 0, character: 1, preview: "function test() {}" },
+      ],
+      activeSearchIndex: 0,
+    }),
+    true,
+  );
+});
+
 test("isVoiceTranscriptCompletion rejects transcriptOutcome when not success", () => {
   assert.equal(
     isVoiceTranscriptCompletion({

@@ -248,7 +248,14 @@ export function isVoiceTranscriptCompletion(
   if (!isRecord(value) || typeof value.success !== "boolean") {
     return false;
   }
-  const allowedKeys = new Set(["success", "summary", "transcriptOutcome"]);
+  const allowedKeys = new Set([
+    "success",
+    "summary",
+    "transcriptOutcome",
+    "searchResults",
+    "activeSearchIndex",
+    "answerText",
+  ]);
   if (!Object.keys(value).every((k) => allowedKeys.has(k))) {
     return false;
   }
@@ -269,8 +276,64 @@ export function isVoiceTranscriptCompletion(
     }
     if (
       value.transcriptOutcome !== "irrelevant" &&
-      value.transcriptOutcome !== "completed"
+      value.transcriptOutcome !== "completed" &&
+      value.transcriptOutcome !== "clarify" &&
+      value.transcriptOutcome !== "search" &&
+      value.transcriptOutcome !== "answer"
     ) {
+      return false;
+    }
+  }
+
+  if (value.searchResults !== undefined) {
+    if (value.success !== true) {
+      return false;
+    }
+    if (!Array.isArray(value.searchResults)) {
+      return false;
+    }
+    for (const item of value.searchResults) {
+      if (!isRecord(item)) {
+        return false;
+      }
+      if (!hasOnlyKeys(item, ["path", "line", "character", "preview"])) {
+        return false;
+      }
+      const rec = item as Record<string, unknown>;
+      if (typeof rec.path !== "string") {
+        return false;
+      }
+      if (!Number.isInteger(rec.line) || (rec.line as number) < 0) {
+        return false;
+      }
+      if (!Number.isInteger(rec.character) || (rec.character as number) < 0) {
+        return false;
+      }
+      if (typeof rec.preview !== "string") {
+        return false;
+      }
+    }
+  }
+  if (value.activeSearchIndex !== undefined) {
+    if (value.success !== true) {
+      return false;
+    }
+    if (
+      typeof value.activeSearchIndex !== "number" ||
+      !Number.isInteger(value.activeSearchIndex) ||
+      value.activeSearchIndex < 0
+    ) {
+      return false;
+    }
+  }
+  if (value.answerText !== undefined) {
+    if (value.success !== true) {
+      return false;
+    }
+    if (typeof value.answerText !== "string") {
+      return false;
+    }
+    if ([...value.answerText].length > 8192) {
       return false;
     }
   }

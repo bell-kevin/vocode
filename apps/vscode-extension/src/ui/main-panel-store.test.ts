@@ -151,6 +151,21 @@ test("markHandled sets clarifyPrompt when transcript outcome is clarify", () => 
   assert.equal(snap.clarifyPrompt?.originalTranscript, "fix thing");
 });
 
+test("markHandled sets answerState when transcript outcome is answer", () => {
+  const store = new MainPanelStore();
+  const id = store.enqueueCommitted("what is a closure") as number;
+  store.markHandled(id, {
+    transcriptOutcome: "answer",
+    answerText: "A closure is a function plus its lexical environment.",
+  });
+  const snap = store.getSnapshot();
+  assert.equal(snap.answerState?.question, "what is a closure");
+  assert.equal(
+    snap.answerState?.answerText,
+    "A closure is a function plus its lexical environment.",
+  );
+});
+
 test("recordCompletedTranscript appends done entry without pending", () => {
   const store = new MainPanelStore();
   store.recordCompletedTranscript("manual line", { summary: "Done." });

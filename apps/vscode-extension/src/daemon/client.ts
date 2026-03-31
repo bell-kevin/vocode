@@ -31,7 +31,27 @@ export class DaemonClient {
     const result = await this.transport.request(method, params);
 
     if (isResult && !isResult(result)) {
-      throw new Error(`Invalid ${method} response from daemon.`);
+      const preview =
+        typeof result === "object" && result !== null
+          ? JSON.stringify(result)
+          : String(result);
+      throw new Error(
+        `Invalid ${method} response from daemon. result=${preview.slice(0, 2000)}`,
+      );
+    }
+
+    if (method === "voice.transcript") {
+      try {
+        const rec = result as Record<string, unknown>;
+        console.log("[vocode] voice.transcript result", {
+          keys: typeof rec === "object" && rec ? Object.keys(rec) : [],
+          transcriptOutcome: rec?.transcriptOutcome,
+          hasAnswerText:
+            typeof rec?.answerText === "string" && rec.answerText.length > 0,
+        });
+      } catch {
+        // ignore debug log failures
+      }
     }
 
     return result as T;

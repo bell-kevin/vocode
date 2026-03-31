@@ -52,62 +52,26 @@ func (e *Executor) Execute(
 	if text == "" {
 		return protocol.VoiceTranscriptCompletion{}, nil, gatheredIn, nil, false, "empty transcript text"
 	}
-	// Heuristic: host code actions for deterministic refactors and fixes.
-	if cad, ok := parseCodeAction(text, params); ok {
-		batchID, err := newDirectiveApplyBatchID()
-		if err != nil {
-			return protocol.VoiceTranscriptCompletion{Success: false}, nil, gatheredIn, nil, true, fmt.Sprintf("failed to create applyBatchId: %v", err)
-		}
-		dir := protocol.VoiceTranscriptDirective{
-			Kind: "code_action",
-			CodeActionDirective: &struct {
-				Path string `json:"path"`
-				Range *struct {
-					StartLine int64 `json:"startLine"`
-					StartChar int64 `json:"startChar"`
-					EndLine   int64 `json:"endLine"`
-					EndChar   int64 `json:"endChar"`
-				} `json:"range,omitempty"`
-				ActionKind string `json:"actionKind"`
-				PreferredTitleIncludes string `json:"preferredTitleIncludes,omitempty"`
-			}{
-				Path: cad.path,
-				Range: cad.rng,
-				ActionKind: cad.kind,
-				PreferredTitleIncludes: cad.pref,
-			},
-		}
-		pending := &agentcontext.DirectiveApplyBatch{ID: batchID, NumDirectives: 1}
-		return protocol.VoiceTranscriptCompletion{Success: true, Summary: cad.summary}, []protocol.VoiceTranscriptDirective{dir}, gatheredIn, pending, true, ""
+
+	// First-pass classifier: route transcript intent (instruction/search/question/irrelevant).
+	clsIn := agentcontext.TranscriptClassifierContext{
+		Instruction: text,
+		Editor:      agentcontext.EditorSnapshotFromParams(params, resolveHostCursorSymbol(e.symbolProvider, params)),
 	}
-	// Heuristic: host formatting.
-	if fd, ok := parseFormat(text, params); ok {
-		batchID, err := newDirectiveApplyBatchID()
-		if err != nil {
-			return protocol.VoiceTranscriptCompletion{Success: false}, nil, gatheredIn, nil, true, fmt.Sprintf("failed to create applyBatchId: %v", err)
-		}
-		dir := protocol.VoiceTranscriptDirective{
-			Kind: "format",
-			FormatDirective: &struct {
-				Path  string `json:"path"`
-				Scope string `json:"scope"`
-				Range *struct {
-					StartLine int64 `json:"startLine"`
-					StartChar int64 `json:"startChar"`
-					EndLine   int64 `json:"endLine"`
-					EndChar   int64 `json:"endChar"`
-				} `json:"range,omitempty"`
-			}{
-				Path:  fd.path,
-				Scope: fd.scope,
-				Range: fd.rng,
-			},
-		}
-		pending := &agentcontext.DirectiveApplyBatch{ID: batchID, NumDirectives: 1}
-		return protocol.VoiceTranscriptCompletion{Success: true, Summary: fd.summary}, []protocol.VoiceTranscriptDirective{dir}, gatheredIn, pending, true, ""
+	clsRes, err := e.agent.ClassifyTranscript(context.Background(), clsIn)
+	if err != nil {
+		return protocol.VoiceTranscriptCompletion{Success: false}, nil, gatheredIn, nil, true, fmt.Sprintf("classifier failed: %v", err)
 	}
-	// Heuristic: deterministic search when utterance looks like "find X" / "where is X".
-	if query, ok := parseSearchQuery(text); ok {
+	switch clsRes.Kind {
+	case agent.TranscriptIrrelevant:
+		return protocol.VoiceTranscriptCompletion{Success: true, TranscriptOutcome: "irrelevant"}, nil, gatheredIn, nil, true, ""
+	case agent.TranscriptQuestion:
+		ans := strings.TrimSpace(clsRes.AnswerText)
+		// Put the answer in both answerText (structured) and summary (UI fallback).
+		// Summary is what the panel shows even if answer-specific UI isn't available yet.
+		return protocol.VoiceTranscriptCompletion{Success: true, TranscriptOutcome: "answer", AnswerText: ans, Summary: ans}, nil, gatheredIn, nil, true, ""
+	case agent.TranscriptSearch:
+		query := strings.TrimSpace(clsRes.SearchQuery)
 		root := workspace.EffectiveWorkspaceRoot(params.WorkspaceRoot, params.ActiveFile)
 		if strings.TrimSpace(root) == "" {
 			return protocol.VoiceTranscriptCompletion{Success: false}, nil, gatheredIn, nil, true, "search requires workspaceRoot or activeFile"
@@ -140,7 +104,7 @@ func (e *Executor) Execute(
 				Preview:   h.Preview,
 			})
 		}
-		// Prefer opening + selecting the first hit; keep it deterministic and non-destructive.
+
 		open := protocol.VoiceTranscriptDirective{
 			Kind: "navigate",
 			NavigationDirective: &protocol.NavigationDirective{
@@ -198,6 +162,63 @@ func (e *Executor) Execute(
 			SearchResults:     wireHits,
 			ActiveSearchIndex: &z,
 		}, []protocol.VoiceTranscriptDirective{open, sel}, gatheredIn, pending, true, ""
+	default:
+		// continue as instruction
+	}
+
+	// Heuristic: host code actions for deterministic refactors and fixes.
+	if cad, ok := parseCodeAction(text, params); ok {
+		batchID, err := newDirectiveApplyBatchID()
+		if err != nil {
+			return protocol.VoiceTranscriptCompletion{Success: false}, nil, gatheredIn, nil, true, fmt.Sprintf("failed to create applyBatchId: %v", err)
+		}
+		dir := protocol.VoiceTranscriptDirective{
+			Kind: "code_action",
+			CodeActionDirective: &struct {
+				Path string `json:"path"`
+				Range *struct {
+					StartLine int64 `json:"startLine"`
+					StartChar int64 `json:"startChar"`
+					EndLine   int64 `json:"endLine"`
+					EndChar   int64 `json:"endChar"`
+				} `json:"range,omitempty"`
+				ActionKind string `json:"actionKind"`
+				PreferredTitleIncludes string `json:"preferredTitleIncludes,omitempty"`
+			}{
+				Path: cad.path,
+				Range: cad.rng,
+				ActionKind: cad.kind,
+				PreferredTitleIncludes: cad.pref,
+			},
+		}
+		pending := &agentcontext.DirectiveApplyBatch{ID: batchID, NumDirectives: 1}
+		return protocol.VoiceTranscriptCompletion{Success: true, Summary: cad.summary}, []protocol.VoiceTranscriptDirective{dir}, gatheredIn, pending, true, ""
+	}
+	// Heuristic: host formatting.
+	if fd, ok := parseFormat(text, params); ok {
+		batchID, err := newDirectiveApplyBatchID()
+		if err != nil {
+			return protocol.VoiceTranscriptCompletion{Success: false}, nil, gatheredIn, nil, true, fmt.Sprintf("failed to create applyBatchId: %v", err)
+		}
+		dir := protocol.VoiceTranscriptDirective{
+			Kind: "format",
+			FormatDirective: &struct {
+				Path  string `json:"path"`
+				Scope string `json:"scope"`
+				Range *struct {
+					StartLine int64 `json:"startLine"`
+					StartChar int64 `json:"startChar"`
+					EndLine   int64 `json:"endLine"`
+					EndChar   int64 `json:"endChar"`
+				} `json:"range,omitempty"`
+			}{
+				Path:  fd.path,
+				Scope: fd.scope,
+				Range: fd.rng,
+			},
+		}
+		pending := &agentcontext.DirectiveApplyBatch{ID: batchID, NumDirectives: 1}
+		return protocol.VoiceTranscriptCompletion{Success: true, Summary: fd.summary}, []protocol.VoiceTranscriptDirective{dir}, gatheredIn, pending, true, ""
 	}
 	// Heuristic: deterministic rename when utterance looks like "rename X to Y".
 	if newName, ok := parseRenameNewName(text); ok {
@@ -410,66 +431,6 @@ func atoiSafe(s string) int {
 	return n
 }
 
-func parseSearchQuery(text string) (string, bool) {
-	t := strings.TrimSpace(text)
-	if t == "" {
-		return "", false
-	}
-	l := strings.ToLower(t)
-	for _, p := range []string{"find ", "search for ", "where is ", "locate "} {
-		if strings.HasPrefix(l, p) {
-			q := strings.TrimSpace(t[len(p):])
-			q = strings.Trim(q, "\"'`")
-			q = strings.Trim(q, " .,!?:;")
-			if q == "" {
-				return "", false
-			}
-			return normalizeSearchQuery(q), true
-		}
-	}
-	if strings.HasPrefix(l, "find:") {
-		q := strings.TrimSpace(t[len("find:"):])
-		q = strings.Trim(q, "\"'`")
-		q = strings.Trim(q, " .,!?:;")
-		if q == "" {
-			return "", false
-		}
-		return normalizeSearchQuery(q), true
-	}
-	return "", false
-}
-
-func normalizeSearchQuery(q string) string {
-	orig := strings.TrimSpace(q)
-	if orig == "" {
-		return ""
-	}
-	low := strings.ToLower(orig)
-
-	// Heuristic: "the <name> function" / "<name> function" → search for the identifier.
-	// This makes utterances like "find the test function" work against real code.
-	if strings.Contains(low, "function") {
-		parts := strings.Fields(low)
-		for i := 0; i < len(parts); i++ {
-			if parts[i] == "function" && i+1 < len(parts) {
-				name := strings.Trim(parts[i+1], " .,!?:;(){}[]<>\"'`")
-				if name != "" && name != "the" && name != "a" {
-					// Prefer "function name" for JS/TS, but keep it a fixed string.
-					return "function " + name
-				}
-			}
-			if parts[i] == "function" && i-1 >= 0 {
-				name := strings.Trim(parts[i-1], " .,!?:;(){}[]<>\"'`")
-				if name != "" && name != "the" && name != "a" {
-					// "test function" → "test("
-					return name + "("
-				}
-			}
-		}
-	}
-
-	return orig
-}
 
 type parsedCodeAction struct {
 	path    string

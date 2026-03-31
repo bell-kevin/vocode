@@ -51,6 +51,87 @@ func NewFromEnv() (*Client, error) {
 	}, nil
 }
 
+func (c *Client) ClassifyTranscript(ctx context.Context, in agentcontext.TranscriptClassifierContext) (agent.TranscriptClassifierResult, error) {
+	if strings.TrimSpace(c.APIKey) == "" {
+		return agent.TranscriptClassifierResult{}, fmt.Errorf("anthropic: missing API key")
+	}
+	userBytes, err := prompt.TranscriptClassifierUserJSON(in)
+	if err != nil {
+		return agent.TranscriptClassifierResult{}, fmt.Errorf("anthropic: prompt: %w", err)
+	}
+	body := messagesRequest{
+		Model:     c.Model,
+		MaxTokens: 768,
+		System:    prompt.TranscriptClassifierSystem(),
+		Messages: []messageBlock{
+			{Role: "user", Content: []contentPart{{Type: "text", Text: string(userBytes)}}},
+		},
+	}
+	payload, err := json.Marshal(body)
+	if err != nil {
+		return agent.TranscriptClassifierResult{}, err
+	}
+	url := c.BaseURL + "/messages"
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(payload))
+	if err != nil {
+		return agent.TranscriptClassifierResult{}, err
+	}
+	req.Header.Set("x-api-key", c.APIKey)
+	req.Header.Set("anthropic-version", anthropicAPIVersion)
+	req.Header.Set("Content-Type", "application/json")
+
+	httpClient := c.HTTPClient
+	if httpClient == nil {
+		httpClient = http.DefaultClient
+	}
+	resp, err := httpClient.Do(req)
+	if err != nil {
+		return agent.TranscriptClassifierResult{}, fmt.Errorf("anthropic: request: %w", err)
+	}
+	defer resp.Body.Close()
+	respBody, err := io.ReadAll(io.LimitReader(resp.Body, 4<<20))
+	if err != nil {
+		return agent.TranscriptClassifierResult{}, err
+	}
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return agent.TranscriptClassifierResult{}, fmt.Errorf("anthropic: HTTP %s: %s", resp.Status, truncateForErr(respBody, 512))
+	}
+	var parsed messagesResponse
+	if err := json.Unmarshal(respBody, &parsed); err != nil {
+		return agent.TranscriptClassifierResult{}, fmt.Errorf("anthropic: decode: %w", err)
+	}
+	if parsed.Error != nil && strings.TrimSpace(parsed.Error.Message) != "" {
+		return agent.TranscriptClassifierResult{}, fmt.Errorf("anthropic: %s", parsed.Error.Message)
+	}
+	var text string
+	for _, b := range parsed.Content {
+		if b.Type == "text" {
+			text += b.Text
+		}
+	}
+	text = strings.TrimSpace(text)
+	if text == "" {
+		return agent.TranscriptClassifierResult{}, fmt.Errorf("anthropic: empty assistant content")
+	}
+	var out struct {
+		Kind       string `json:"kind"`
+		SearchQuery string `json:"searchQuery"`
+		AnswerText string `json:"answerText"`
+	}
+	if err := json.Unmarshal([]byte(text), &out); err != nil {
+		return agent.TranscriptClassifierResult{}, fmt.Errorf("anthropic: decode classifier: %w", err)
+	}
+	res := agent.TranscriptClassifierResult{
+		Kind:       agent.TranscriptKind(strings.TrimSpace(out.Kind)),
+		SearchQuery: out.SearchQuery,
+		AnswerText: out.AnswerText,
+	}
+	if err := res.Validate(); err != nil {
+		return agent.TranscriptClassifierResult{}, err
+	}
+	return res, nil
+}
+
 // ScopedEdit implements [agent.ModelClient].
 func (c *Client) ScopedEdit(ctx context.Context, in agentcontext.ScopedEditContext) (agent.ScopedEditResult, error) {
 	if strings.TrimSpace(c.APIKey) == "" {

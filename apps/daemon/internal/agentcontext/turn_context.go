@@ -34,3 +34,9 @@ type ScopeIntentContext struct {
 		Kind string `json:"kind"`
 	} `json:"activeFileSymbols,omitempty"`
 }
+
+// TranscriptClassifierContext is everything the model sees for the first-pass transcript router.
+type TranscriptClassifierContext struct {
+	Instruction string
+	Editor      EditorSnapshot
+}

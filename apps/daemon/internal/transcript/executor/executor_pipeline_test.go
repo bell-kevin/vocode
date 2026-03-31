@@ -13,8 +13,18 @@ import (
 )
 
 type fakeModel struct {
+	classifier agent.TranscriptClassifierResult
 	scope agent.ScopeIntentResult
 	edit  agent.ScopedEditResult
+}
+
+func (f fakeModel) ClassifyTranscript(ctx context.Context, in agentcontext.TranscriptClassifierContext) (agent.TranscriptClassifierResult, error) {
+	_ = ctx
+	_ = in
+	if f.classifier.Kind == "" {
+		return agent.TranscriptClassifierResult{Kind: agent.TranscriptInstruction}, nil
+	}
+	return f.classifier, nil
 }
 
 func (f fakeModel) ScopeIntent(ctx context.Context, in agentcontext.ScopeIntentContext) (agent.ScopeIntentResult, error) {
@@ -38,6 +48,7 @@ func TestExecutor_ScopedEdit_CurrentFile(t *testing.T) {
 	}
 
 	a := agent.New(fakeModel{
+		classifier: agent.TranscriptClassifierResult{Kind: agent.TranscriptInstruction},
 		scope: agent.ScopeIntentResult{ScopeKind: agent.ScopeCurrentFile},
 		edit:  agent.ScopedEditResult{ReplacementText: "REPLACED\n"},
 	})
@@ -78,6 +89,7 @@ func TestExecutor_ScopedEdit_NamedSymbol_PicksSmallestRange(t *testing.T) {
 	}
 
 	a := agent.New(fakeModel{
+		classifier: agent.TranscriptClassifierResult{Kind: agent.TranscriptInstruction},
 		scope: agent.ScopeIntentResult{ScopeKind: agent.ScopeNamedSymbol, SymbolName: "foo"},
 		edit:  agent.ScopedEditResult{ReplacementText: "X\n"},
 	})
@@ -158,6 +170,7 @@ func TestExecutor_RenameHeuristic_ProducesRenameDirective(t *testing.T) {
 		t.Fatal(err)
 	}
 	a := agent.New(fakeModel{
+		classifier: agent.TranscriptClassifierResult{Kind: agent.TranscriptInstruction},
 		scope: agent.ScopeIntentResult{ScopeKind: agent.ScopeCurrentFile},
 		edit:  agent.ScopedEditResult{ReplacementText: "x\n"},
 	})
@@ -182,6 +195,33 @@ func TestExecutor_RenameHeuristic_ProducesRenameDirective(t *testing.T) {
 	}
 	if dirs[0].RenameDirective.NewName != "bar" {
 		t.Fatalf("expected newName=bar, got %q", dirs[0].RenameDirective.NewName)
+	}
+}
+
+func TestExecutor_ClassifierQuestion_ReturnsAnswerOutcome(t *testing.T) {
+	t.Parallel()
+	a := agent.New(fakeModel{
+		classifier: agent.TranscriptClassifierResult{
+			Kind:       agent.TranscriptQuestion,
+			AnswerText: "Because.",
+		},
+		scope: agent.ScopeIntentResult{ScopeKind: agent.ScopeCurrentFile},
+		edit:  agent.ScopedEditResult{ReplacementText: "x\n"},
+	})
+	ex := executor.New(a, executor.Options{})
+	res, dirs, _, pending, ok, reason := ex.Execute(protocol.VoiceTranscriptParams{
+		Text:          "why",
+		ActiveFile:    "c:\\fake\\file.ts",
+		WorkspaceRoot: "c:\\fake",
+	}, agentcontext.Gathered{})
+	if !ok || !res.Success || reason != "" {
+		t.Fatalf("expected success, got ok=%v success=%v reason=%q", ok, res.Success, reason)
+	}
+	if len(dirs) != 0 || pending != nil {
+		t.Fatalf("expected no directives for answer")
+	}
+	if res.TranscriptOutcome != "answer" || res.AnswerText != "Because." {
+		t.Fatalf("expected answer outcome, got outcome=%q answer=%q", res.TranscriptOutcome, res.AnswerText)
 	}
 }
 

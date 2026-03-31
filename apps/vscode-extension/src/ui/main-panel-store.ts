@@ -54,6 +54,17 @@ export type MainPanelSnapshot = {
     }[];
     readonly activeIndex: number;
   };
+  /** Latest question answer (transcriptOutcome=answer). */
+  readonly answerState?: {
+    readonly question: string;
+    readonly answerText: string;
+  };
+  /** Recent Q/A pairs (newest first). */
+  readonly qaHistory?: readonly {
+    readonly question: string;
+    readonly answerText: string;
+    readonly receivedAt: Date;
+  }[];
   /**
    * Recently finished lines (newest first): success (optional `summary` for Summary panel)
    * or failure (`errorMessage` when daemon/apply did not complete successfully).
@@ -62,6 +73,8 @@ export type MainPanelSnapshot = {
     readonly text: string;
     readonly receivedAt: Date;
     readonly summary?: string;
+    readonly transcriptOutcome?: "irrelevant" | "completed" | "clarify" | "search" | "answer";
+    readonly answerText?: string;
     readonly errorMessage?: string;
     /** Agent marked transcript as irrelevant / non-actionable; listed in the Skipped section. */
     readonly skipped?: true;
@@ -93,6 +106,8 @@ export class MainPanelStore {
     text: string;
     receivedAt: Date;
     summary?: string;
+    transcriptOutcome?: "irrelevant" | "completed" | "clarify" | "search" | "answer";
+    answerText?: string;
     errorMessage?: string;
     skipped?: true;
     applyChecklist?: readonly DirectiveApplyChecklistItem[];
@@ -116,6 +131,19 @@ export class MainPanelStore {
         activeIndex: number;
       }
     | undefined;
+
+  private answerState:
+    | {
+        question: string;
+        answerText: string;
+      }
+    | undefined;
+
+  private qaHistory: {
+    question: string;
+    answerText: string;
+    receivedAt: Date;
+  }[] = [];
 
   private meterSpeaking = false;
   private meterRms = 0;
@@ -337,7 +365,12 @@ export class MainPanelStore {
     id: number,
     options?: {
       summary?: string;
-      transcriptOutcome?: "irrelevant" | "completed" | "clarify" | "search";
+      transcriptOutcome?:
+        | "irrelevant"
+        | "completed"
+        | "clarify"
+        | "search"
+        | "answer";
       searchResults?: readonly {
         path: string;
         line: number;
@@ -345,6 +378,7 @@ export class MainPanelStore {
         preview: string;
       }[];
       activeSearchIndex?: number | null;
+      answerText?: string | null;
     },
   ): void {
     const index = this.pending.findIndex((p) => p.id === id);
@@ -367,10 +401,32 @@ export class MainPanelStore {
         activeIndex: Math.max(0, options.activeSearchIndex ?? 0),
       };
     }
+    // Accept explicit transcriptOutcome="answer". If answerText is missing, fall back to summary
+    // (daemon also copies answerText into summary for UI compatibility).
+    if (options?.transcriptOutcome === "answer" || options?.answerText?.trim()) {
+      const ans = options?.answerText?.trim() ?? summary;
+      if (ans) {
+        this.answerState = { question: removed.text, answerText: ans };
+        this.qaHistory.unshift({
+          question: removed.text,
+          answerText: ans,
+          receivedAt: removed.receivedAt,
+        });
+        while (this.qaHistory.length > this.maxHandled) {
+          this.qaHistory.pop();
+        }
+      }
+    }
     this.recentHandled.unshift({
       text: removed.text,
       receivedAt: removed.receivedAt,
       ...(summary ? { summary } : {}),
+      ...(options?.transcriptOutcome ? { transcriptOutcome: options.transcriptOutcome } : {}),
+      ...(options?.answerText?.trim()
+        ? { answerText: options.answerText.trim() }
+        : options?.transcriptOutcome === "answer" && summary
+          ? { answerText: summary }
+          : {}),
       ...(skipped ? { skipped } : {}),
       ...(removed.applyChecklist !== undefined &&
       removed.applyChecklist.length > 0
@@ -394,7 +450,12 @@ export class MainPanelStore {
     options?: {
       summary?: string;
       errorMessage?: string;
-      transcriptOutcome?: "irrelevant" | "completed" | "clarify" | "search";
+      transcriptOutcome?:
+        | "irrelevant"
+        | "completed"
+        | "clarify"
+        | "search"
+        | "answer";
       searchResults?: readonly {
         path: string;
         line: number;
@@ -402,6 +463,7 @@ export class MainPanelStore {
         preview: string;
       }[];
       activeSearchIndex?: number | null;
+      answerText?: string | null;
     },
   ): void {
     const normalized = text.trim();
@@ -422,6 +484,20 @@ export class MainPanelStore {
         activeIndex: Math.max(0, options.activeSearchIndex ?? 0),
       };
     }
+    if (options?.transcriptOutcome === "answer" || options?.answerText?.trim()) {
+      const ans = options?.answerText?.trim() ?? summary;
+      if (ans) {
+        this.answerState = { question: normalized, answerText: ans };
+        this.qaHistory.unshift({
+          question: normalized,
+          answerText: ans,
+          receivedAt: new Date(),
+        });
+        while (this.qaHistory.length > this.maxHandled) {
+          this.qaHistory.pop();
+        }
+      }
+    }
     this.recentHandled.unshift({
       text: normalized,
       receivedAt: new Date(),
@@ -429,6 +505,12 @@ export class MainPanelStore {
         ? { errorMessage: err }
         : summary
           ? { summary }
+          : {}),
+      ...(options?.transcriptOutcome ? { transcriptOutcome: options.transcriptOutcome } : {}),
+      ...(options?.answerText?.trim()
+        ? { answerText: options.answerText.trim() }
+        : options?.transcriptOutcome === "answer" && summary
+          ? { answerText: summary }
           : {}),
       ...(skipped ? { skipped } : {}),
     });
@@ -470,6 +552,8 @@ export class MainPanelStore {
       pending: this.pending,
       ...(this.clarifyPrompt ? { clarifyPrompt: this.clarifyPrompt } : {}),
       ...(this.searchState ? { searchState: this.searchState } : {}),
+      ...(this.answerState ? { answerState: this.answerState } : {}),
+      ...(this.qaHistory.length > 0 ? { qaHistory: this.qaHistory } : {}),
       recentHandled: this.recentHandled,
       latestPartial: this.latestPartial,
       voiceListening: this.voiceListening,

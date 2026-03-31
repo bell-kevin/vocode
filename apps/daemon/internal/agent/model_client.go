@@ -8,6 +8,7 @@ import (
 
 // ModelClient is the operation pipeline contract.
 type ModelClient interface {
+	ClassifyTranscript(ctx context.Context, in agentcontext.TranscriptClassifierContext) (TranscriptClassifierResult, error)
 	ScopeIntent(ctx context.Context, in agentcontext.ScopeIntentContext) (ScopeIntentResult, error)
 	ScopedEdit(ctx context.Context, in agentcontext.ScopedEditContext) (ScopedEditResult, error)
 }

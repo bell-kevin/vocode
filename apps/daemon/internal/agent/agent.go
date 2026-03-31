@@ -15,6 +15,10 @@ func New(model ModelClient) *Agent {
 	return &Agent{model: model}
 }
 
+func (a *Agent) ClassifyTranscript(ctx context.Context, in agentcontext.TranscriptClassifierContext) (TranscriptClassifierResult, error) {
+	return a.model.ClassifyTranscript(ctx, in)
+}
+
 func (a *Agent) ScopeIntent(ctx context.Context, in agentcontext.ScopeIntentContext) (ScopeIntentResult, error) {
 	return a.model.ScopeIntent(ctx, in)
 }

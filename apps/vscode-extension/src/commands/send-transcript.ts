@@ -144,6 +144,7 @@ async function sendTranscript(
       transcriptOutcome: result.transcriptOutcome,
       searchResults: result.searchResults,
       activeSearchIndex: result.activeSearchIndex ?? null,
+      answerText: result.answerText ?? null,
     });
   } catch (err) {
     const message =

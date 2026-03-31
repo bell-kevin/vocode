@@ -77,6 +77,31 @@ function ClarifySection({ state }: { state: PanelState }) {
   );
 }
 
+function AnswerSection({ state }: { state: PanelState }) {
+  const ans = state.answerState;
+  if (!ans || !ans.answerText) {
+    return null;
+  }
+  return (
+    <>
+      <h1>Answer</h1>
+      <div className="stack">
+        <div className="card history-card">
+          <div className="meta">
+            <span className="badge" title="AI answer (no editor actions)">
+              Answer
+            </span>
+          </div>
+          <div className="text history-summary">{ans.answerText}</div>
+          <div className="history-transcript muted-transcript">
+            Question: {ans.question}
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}
+
 type ApplyStepVisual =
   | "done"
   | "active"
@@ -399,6 +424,47 @@ function SkippedSection({ items }: { items: readonly HandledRow[] }) {
   );
 }
 
+function ChatSection({ state }: { state: PanelState }) {
+  const handled = Array.isArray(state.recentHandled) ? state.recentHandled : [];
+  const items = handled
+    .filter(
+      (h) => h.transcriptOutcome === "answer" && !!(h.answerText || h.summary),
+    )
+    .map((h) => ({
+      question: h.text,
+      answerText: h.answerText || h.summary || "",
+      receivedAt: h.receivedAt,
+    }));
+  return (
+    <>
+      <h1>Chat</h1>
+      <div className="stack">
+        {items.length === 0 ? <div className="empty" /> : null}
+        {items.map((qa) => (
+          <div
+            key={`qa-${qa.receivedAt}-${qa.question}`}
+            className="card history-card"
+          >
+            <div className="meta">
+              <span className="badge" title="Question">
+                Q
+              </span>
+              <span className="muted-transcript">{qa.receivedAt}</span>
+            </div>
+            <div className="text">{qa.question}</div>
+            <div className="meta" style={{ marginTop: 8 }}>
+              <span className="badge" title="Answer">
+                A
+              </span>
+            </div>
+            <div className="text history-summary">{qa.answerText}</div>
+          </div>
+        ))}
+      </div>
+    </>
+  );
+}
+
 function SearchResultsSection({ state }: { state: PanelState }) {
   const ss = state.searchState;
   if (!ss || !Array.isArray(ss.results) || ss.results.length === 0) {
@@ -444,13 +510,18 @@ export function MainPanel({ state }: { state: PanelState }) {
     ? state.recentHandled
     : [];
   const skippedItems = recentHandled.filter((h) => h.skipped === true);
-  const historyItems = recentHandled.filter((h) => h.skipped !== true);
+  // Q/A belongs in Chat; keep Recent focused on coding actions.
+  const historyItems = recentHandled.filter(
+    (h) => h.skipped !== true && h.transcriptOutcome !== "answer",
+  );
 
   return (
     <div id="main-root">
-      <LiveSection state={state} />
+      <ChatSection state={state} />
       <ClarifySection state={state} />
       <SearchResultsSection state={state} />
+      <LiveSection state={state} />
+      <AnswerSection state={state} />
       <ApplyingSection pending={pending} />
       <HistorySection items={historyItems} />
       <SkippedSection items={skippedItems} />
