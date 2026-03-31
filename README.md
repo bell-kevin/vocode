@@ -1,3 +1,5 @@
+<a name="readme-top"></a>
+
 # Vocode
 
 Voice-driven AI code editing system powered by a local daemon and VS Code extension.
@@ -375,3 +377,5 @@ TBD
 > Speak code.
 > Watch it evolve.
 > Stay in the flow.
+
+<p align="right"><a href="#readme-top">back to top</a></p>
