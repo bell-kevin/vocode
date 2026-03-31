@@ -7,7 +7,11 @@ import {
   type ExtensionServices,
   VoiceSessionController,
 } from "./commands/services";
-import { ELEVENLABS_API_KEY_SECRET } from "./config/spawn-env";
+import {
+  ANTHROPIC_API_KEY_SECRET,
+  ELEVENLABS_API_KEY_SECRET,
+  OPENAI_API_KEY_SECRET,
+} from "./config/spawn-env";
 import { DaemonClient } from "./daemon/client";
 import { spawnDaemon } from "./daemon/spawn";
 import { attachTranscriptPipeline } from "./extension/transcript-pipeline";
@@ -256,11 +260,18 @@ export async function activate(context: vscode.ExtensionContext) {
   // so the running sidecar/daemon always see the latest configuration.
   context.subscriptions.push(
     context.secrets.onDidChange((e) => {
-      if (e.key !== ELEVENLABS_API_KEY_SECRET) {
+      if (e.key === ELEVENLABS_API_KEY_SECRET) {
+        // Only the voice sidecar consumes ELEVENLABS_API_KEY.
+        void services.restartVoiceSidecar?.();
         return;
       }
-      // Only the voice sidecar consumes ELEVENLABS_API_KEY.
-      void services.restartVoiceSidecar?.();
+      if (
+        e.key === OPENAI_API_KEY_SECRET ||
+        e.key === ANTHROPIC_API_KEY_SECRET
+      ) {
+        // Daemon consumes cloud model keys from env; restart to pick up latest values.
+        void services.restartVocode?.();
+      }
     }),
   );
 

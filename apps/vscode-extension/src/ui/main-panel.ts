@@ -5,8 +5,10 @@ import {
   buildVocodePanelConfigMessage,
 } from "../config/panel-settings";
 import {
+  ANTHROPIC_API_KEY_SECRET,
   ELEVENLABS_API_KEY_SECRET,
   elevenLabsApiKeyIsConfigured,
+  OPENAI_API_KEY_SECRET,
 } from "../config/spawn-env";
 import type { MainPanelStore } from "./main-panel-store";
 
@@ -65,6 +67,11 @@ export class MainPanelViewProvider
           return;
         }
         const m = msg as Record<string, unknown>;
+        const secretSetByType: Record<string, string> = {
+          setElevenLabsApiKey: ELEVENLABS_API_KEY_SECRET,
+          setOpenAIApiKey: OPENAI_API_KEY_SECRET,
+          setAnthropicApiKey: ANTHROPIC_API_KEY_SECRET,
+        };
         if (m.type === "webviewReady") {
           void (async () => {
             const ok = await elevenLabsApiKeyIsConfigured(
@@ -88,20 +95,16 @@ export class MainPanelViewProvider
           })();
           return;
         }
-        if (m.type === "setElevenLabsApiKey") {
+        if (typeof m.type === "string" && m.type in secretSetByType) {
           const v = m.value;
           const s = typeof v === "string" ? v.trim() : "";
+          const secretKey = secretSetByType[m.type];
           void (async () => {
             try {
               if (s === "") {
-                await this.extensionContext.secrets.delete(
-                  ELEVENLABS_API_KEY_SECRET,
-                );
+                await this.extensionContext.secrets.delete(secretKey);
               } else {
-                await this.extensionContext.secrets.store(
-                  ELEVENLABS_API_KEY_SECRET,
-                  s,
-                );
+                await this.extensionContext.secrets.store(secretKey, s);
               }
             } finally {
               void wv.postMessage(
@@ -156,7 +159,11 @@ export class MainPanelViewProvider
 
     disposables.push(
       this.extensionContext.secrets.onDidChange((e) => {
-        if (e.key === ELEVENLABS_API_KEY_SECRET) {
+        if (
+          e.key === ELEVENLABS_API_KEY_SECRET ||
+          e.key === OPENAI_API_KEY_SECRET ||
+          e.key === ANTHROPIC_API_KEY_SECRET
+        ) {
           void (async () => {
             void wv.postMessage(
               await buildVocodePanelConfigMessage(this.extensionContext),

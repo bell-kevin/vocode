@@ -6,8 +6,15 @@ export function vocodePanelConfigFromMessage(
 ): VocodePanelConfig {
   return {
     elevenLabsApiKeyConfigured: msg.elevenLabsApiKeyConfigured === true,
+    openaiApiKeyConfigured: msg.openaiApiKeyConfigured === true,
+    anthropicApiKeyConfigured: msg.anthropicApiKeyConfigured === true,
     voiceVadDebug: msg.voiceVadDebug === true,
     voiceSidecarLogProtocol: msg.voiceSidecarLogProtocol === true,
+    daemonAgentProvider: String(msg.daemonAgentProvider ?? "stub"),
+    daemonOpenaiModel: String(msg.daemonOpenaiModel ?? "gpt-4o-mini"),
+    daemonAnthropicModel: String(
+      msg.daemonAnthropicModel ?? "claude-3-5-haiku-latest",
+    ),
     elevenLabsSttLanguage: String(msg.elevenLabsSttLanguage ?? "en"),
     elevenLabsSttModelId: String(
       msg.elevenLabsSttModelId ?? "scribe_v2_realtime",

@@ -52,39 +52,47 @@ function ToggleRow(props: {
   );
 }
 
-export function SettingsPanel(props: { config: PanelConfig | null }) {
-  const { config } = props;
+function ApiKeysDisclosure(props: {
+  config: PanelConfig;
+  disabled: boolean;
+  keyDraft: string;
+  setKeyDraft: (v: string) => void;
+  openaiDraft: string;
+  setOpenaiDraft: (v: string) => void;
+  anthropicDraft: string;
+  setAnthropicDraft: (v: string) => void;
+}) {
+  const {
+    config,
+    disabled,
+    keyDraft,
+    setKeyDraft,
+    openaiDraft,
+    setOpenaiDraft,
+    anthropicDraft,
+    setAnthropicDraft,
+  } = props;
   const api = getVsCodeApi();
-  const disabled = !api || config === null;
-  const [keyDraft, setKeyDraft] = useState("");
 
   return (
-    <div className="settings-root">
-      {config === null ? (
-        <p className="settings-loading">Loading options…</p>
-      ) : null}
-      {config && !config.elevenLabsApiKeyConfigured ? (
-        <div className="settings-banner" role="status">
-          Add your ElevenLabs API key below to use voice. Keys are stored in VS
-          Code secret storage (not settings.json).
-        </div>
-      ) : null}
-
-      <p className="settings-intro-short">
-        Vocode configuration. Changes apply automatically.
-      </p>
-
-      {config ? (
-        <section className="settings-section">
-          <h2 className="settings-section-title">API key</h2>
+    <AdvancedDisclosure title="API Keys">
+      <div className="settings-advanced-inner">
+        <div className="settings-field">
+          <label
+            className="settings-field-label"
+            htmlFor="vocode-elevenlabs-key"
+          >
+            ElevenLabs API key (voice)
+          </label>
           <div className="settings-api-row">
             <input
+              id="vocode-elevenlabs-key"
               type="password"
               className="settings-input settings-input-grow"
               autoComplete="off"
               placeholder={
                 config.elevenLabsApiKeyConfigured
-                  ? "•••••••• (enter to replace)"
+                  ? "••••••••"
                   : "ElevenLabs API key"
               }
               disabled={disabled}
@@ -116,9 +124,238 @@ export function SettingsPanel(props: { config: PanelConfig | null }) {
               Remove
             </button>
           </div>
-          {config.elevenLabsApiKeyConfigured ? (
-            <p className="settings-subtle">A key is saved on this machine.</p>
-          ) : null}
+        </div>
+
+        <div className="settings-field">
+          <label className="settings-field-label" htmlFor="vocode-openai-key">
+            OpenAI API key
+          </label>
+          <div className="settings-api-row">
+            <input
+              id="vocode-openai-key"
+              type="password"
+              className="settings-input settings-input-grow"
+              autoComplete="off"
+              placeholder={
+                config.openaiApiKeyConfigured ? "••••••••" : "OpenAI API key"
+              }
+              disabled={disabled}
+              value={openaiDraft}
+              onChange={(e) => setOpenaiDraft(e.target.value)}
+            />
+            <button
+              type="button"
+              className="settings-btn"
+              disabled={disabled || !openaiDraft.trim()}
+              onClick={() => {
+                api?.postMessage({
+                  type: "setOpenAIApiKey",
+                  value: openaiDraft.trim(),
+                });
+                setOpenaiDraft("");
+              }}
+            >
+              Save key
+            </button>
+            <button
+              type="button"
+              className="settings-btn settings-btn-ghost"
+              disabled={disabled || !config.openaiApiKeyConfigured}
+              onClick={() =>
+                api?.postMessage({ type: "setOpenAIApiKey", value: "" })
+              }
+            >
+              Remove
+            </button>
+          </div>
+        </div>
+
+        <div className="settings-field">
+          <label
+            className="settings-field-label"
+            htmlFor="vocode-anthropic-key"
+          >
+            Anthropic API key
+          </label>
+          <div className="settings-api-row">
+            <input
+              id="vocode-anthropic-key"
+              type="password"
+              className="settings-input settings-input-grow"
+              autoComplete="off"
+              placeholder={
+                config.anthropicApiKeyConfigured
+                  ? "••••••••"
+                  : "Anthropic API key"
+              }
+              disabled={disabled}
+              value={anthropicDraft}
+              onChange={(e) => setAnthropicDraft(e.target.value)}
+            />
+            <button
+              type="button"
+              className="settings-btn"
+              disabled={disabled || !anthropicDraft.trim()}
+              onClick={() => {
+                api?.postMessage({
+                  type: "setAnthropicApiKey",
+                  value: anthropicDraft.trim(),
+                });
+                setAnthropicDraft("");
+              }}
+            >
+              Save key
+            </button>
+            <button
+              type="button"
+              className="settings-btn settings-btn-ghost"
+              disabled={disabled || !config.anthropicApiKeyConfigured}
+              onClick={() =>
+                api?.postMessage({ type: "setAnthropicApiKey", value: "" })
+              }
+            >
+              Remove
+            </button>
+          </div>
+        </div>
+      </div>
+    </AdvancedDisclosure>
+  );
+}
+
+export function SettingsPanel(props: { config: PanelConfig | null }) {
+  const { config } = props;
+  const api = getVsCodeApi();
+  const disabled = !api || config === null;
+  const [keyDraft, setKeyDraft] = useState("");
+  const [openaiDraft, setOpenaiDraft] = useState("");
+  const [anthropicDraft, setAnthropicDraft] = useState("");
+
+  const openaiModels = ["gpt-4o-mini", "gpt-4o", "gpt-4.1-mini", "gpt-4.1"];
+  const anthropicModels = [
+    "claude-3-5-haiku-latest",
+    "claude-3-5-sonnet-latest",
+  ];
+
+  return (
+    <div className="settings-root">
+      {config === null ? (
+        <p className="settings-loading">Loading options…</p>
+      ) : null}
+      {config && !config.elevenLabsApiKeyConfigured ? (
+        <div className="settings-banner" role="status">
+          Add your ElevenLabs API key below to use voice. Keys are stored in VS
+          Code secret storage (not settings.json).
+        </div>
+      ) : null}
+
+      <p className="settings-intro-short">
+        Vocode configuration. Changes apply automatically.
+      </p>
+
+      {config ? (
+        <ApiKeysDisclosure
+          config={config}
+          disabled={disabled}
+          keyDraft={keyDraft}
+          setKeyDraft={setKeyDraft}
+          openaiDraft={openaiDraft}
+          setOpenaiDraft={setOpenaiDraft}
+          anthropicDraft={anthropicDraft}
+          setAnthropicDraft={setAnthropicDraft}
+        />
+      ) : null}
+
+      {config ? (
+        <section className="settings-section">
+          <h2 className="settings-section-title">LLM Agent</h2>
+          <div className="settings-field-stack">
+            <div className="settings-field">
+              <span className="settings-field-label">Provider</span>
+              <div
+                className="settings-segmented"
+                role="group"
+                aria-label="LLM provider"
+              >
+                <button
+                  type="button"
+                  className={`settings-segment ${config.daemonAgentProvider === "stub" ? "settings-segment-active" : ""}`}
+                  disabled={disabled}
+                  onClick={() => patchConfig({ daemonAgentProvider: "stub" })}
+                >
+                  Stub
+                </button>
+                <button
+                  type="button"
+                  className={`settings-segment ${config.daemonAgentProvider === "openai" ? "settings-segment-active" : ""}`}
+                  disabled={disabled}
+                  onClick={() => patchConfig({ daemonAgentProvider: "openai" })}
+                >
+                  OpenAI
+                </button>
+                <button
+                  type="button"
+                  className={`settings-segment ${config.daemonAgentProvider === "anthropic" ? "settings-segment-active" : ""}`}
+                  disabled={disabled}
+                  onClick={() =>
+                    patchConfig({ daemonAgentProvider: "anthropic" })
+                  }
+                >
+                  Anthropic
+                </button>
+              </div>
+            </div>
+
+            {config.daemonAgentProvider === "openai" ? (
+              <div className="settings-field">
+                <label
+                  className="settings-field-label"
+                  htmlFor="vocode-openai-model"
+                >
+                  Model
+                </label>
+                <select
+                  id="vocode-openai-model"
+                  className="settings-select"
+                  disabled={disabled}
+                  value={config.daemonOpenaiModel}
+                  onChange={(e) =>
+                    patchConfig({ daemonOpenaiModel: e.target.value })
+                  }
+                >
+                  {openaiModels.map((m) => (
+                    <option key={m} value={m}>
+                      {m}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            ) : config.daemonAgentProvider === "anthropic" ? (
+              <div className="settings-field">
+                <label
+                  className="settings-field-label"
+                  htmlFor="vocode-anthropic-model"
+                >
+                  Model
+                </label>
+                <select
+                  id="vocode-anthropic-model"
+                  className="settings-select"
+                  disabled={disabled}
+                  value={config.daemonAnthropicModel}
+                  onChange={(e) =>
+                    patchConfig({ daemonAnthropicModel: e.target.value })
+                  }
+                >
+                  {anthropicModels.map((m) => (
+                    <option key={m} value={m}>
+                      {m}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            ) : null}
+          </div>
         </section>
       ) : null}
 

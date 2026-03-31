@@ -4,6 +4,10 @@ import { readWorkspaceSttKeywords } from "./workspace-vocode";
 
 /** VS Code SecretStorage key (never log). */
 export const ELEVENLABS_API_KEY_SECRET = "vocode.elevenLabsApiKey";
+/** VS Code SecretStorage key for OpenAI (never log). */
+export const OPENAI_API_KEY_SECRET = "vocode.openaiApiKey";
+/** VS Code SecretStorage key for Anthropic (never log). */
+export const ANTHROPIC_API_KEY_SECRET = "vocode.anthropicApiKey";
 
 type ConfigBinding =
   | { configKey: string; envVar: string; kind: "string" }
@@ -216,6 +220,20 @@ export async function applyVocodeSpawnEnvironment(
     delete env.ELEVENLABS_API_KEY;
   }
 
+  const openaiKey = await context.secrets.get(OPENAI_API_KEY_SECRET);
+  if (openaiKey !== undefined && openaiKey.trim() !== "") {
+    env.OPENAI_API_KEY = openaiKey.trim();
+  } else {
+    delete env.OPENAI_API_KEY;
+  }
+
+  const anthropicKey = await context.secrets.get(ANTHROPIC_API_KEY_SECRET);
+  if (anthropicKey !== undefined && anthropicKey.trim() !== "") {
+    env.ANTHROPIC_API_KEY = anthropicKey.trim();
+  } else {
+    delete env.ANTHROPIC_API_KEY;
+  }
+
   const config = vscode.workspace.getConfiguration("vocode");
   const capConfigKeysToSkipEnv = new Set<PanelConfigKey>([
     "maxPlannerTurns",
@@ -255,5 +273,19 @@ export async function elevenLabsApiKeyIsConfigured(
   context: vscode.ExtensionContext,
 ): Promise<boolean> {
   const secret = await context.secrets.get(ELEVENLABS_API_KEY_SECRET);
+  return secret !== undefined && secret.trim() !== "";
+}
+
+export async function openaiApiKeyIsConfigured(
+  context: vscode.ExtensionContext,
+): Promise<boolean> {
+  const secret = await context.secrets.get(OPENAI_API_KEY_SECRET);
+  return secret !== undefined && secret.trim() !== "";
+}
+
+export async function anthropicApiKeyIsConfigured(
+  context: vscode.ExtensionContext,
+): Promise<boolean> {
+  const secret = await context.secrets.get(ANTHROPIC_API_KEY_SECRET);
   return secret !== undefined && secret.trim() !== "";
 }

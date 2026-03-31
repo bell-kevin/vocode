@@ -1,8 +1,13 @@
 /** Mirrors extension `VocodePanelConfigMessage` (without `type`). */
 export type VocodePanelConfig = {
   elevenLabsApiKeyConfigured: boolean;
+  openaiApiKeyConfigured: boolean;
+  anthropicApiKeyConfigured: boolean;
   voiceVadDebug: boolean;
   voiceSidecarLogProtocol: boolean;
+  daemonAgentProvider: string;
+  daemonOpenaiModel: string;
+  daemonAnthropicModel: string;
   elevenLabsSttLanguage: string;
   elevenLabsSttModelId: string;
   voiceSttCommitResponseTimeoutMs: number;

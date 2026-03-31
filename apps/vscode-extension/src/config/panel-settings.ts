@@ -1,7 +1,9 @@
 import * as vscode from "vscode";
 
 import {
+  anthropicApiKeyIsConfigured,
   elevenLabsApiKeyIsConfigured,
+  openaiApiKeyIsConfigured,
   PANEL_CONFIG_KEYS,
   type PanelConfigKey,
 } from "./spawn-env";
@@ -9,8 +11,13 @@ import {
 export type VocodePanelConfigMessage = {
   type: "panelConfig";
   elevenLabsApiKeyConfigured: boolean;
+  openaiApiKeyConfigured: boolean;
+  anthropicApiKeyConfigured: boolean;
   voiceVadDebug: boolean;
   voiceSidecarLogProtocol: boolean;
+  daemonAgentProvider: string;
+  daemonOpenaiModel: string;
+  daemonAnthropicModel: string;
   elevenLabsSttLanguage: string;
   elevenLabsSttModelId: string;
   voiceSttCommitResponseTimeoutMs: number;
@@ -36,6 +43,11 @@ export type VocodePanelConfigMessage = {
 };
 
 const STRING_KEYS = new Set<string>([
+  "daemonAgentProvider",
+  "daemonOpenaiModel",
+  "daemonOpenaiBaseUrl",
+  "daemonAnthropicModel",
+  "daemonAnthropicBaseUrl",
   "elevenLabsSttLanguage",
   "elevenLabsSttModelId",
 ]);
@@ -61,8 +73,14 @@ export async function buildVocodePanelConfigMessage(
   return {
     type: "panelConfig",
     elevenLabsApiKeyConfigured: await elevenLabsApiKeyIsConfigured(context),
+    openaiApiKeyConfigured: await openaiApiKeyIsConfigured(context),
+    anthropicApiKeyConfigured: await anthropicApiKeyIsConfigured(context),
     voiceVadDebug: c.get<boolean>("voiceVadDebug") === true,
     voiceSidecarLogProtocol: c.get<boolean>("voiceSidecarLogProtocol") === true,
+    daemonAgentProvider: c.get<string>("daemonAgentProvider") ?? "stub",
+    daemonOpenaiModel: c.get<string>("daemonOpenaiModel") ?? "gpt-4o-mini",
+    daemonAnthropicModel:
+      c.get<string>("daemonAnthropicModel") ?? "claude-3-5-haiku-latest",
     elevenLabsSttLanguage: c.get<string>("elevenLabsSttLanguage") ?? "en",
     elevenLabsSttModelId:
       c.get<string>("elevenLabsSttModelId") ?? "scribe_v2_realtime",
