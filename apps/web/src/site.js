@@ -2,7 +2,7 @@
 export const SITE = {
   name: "Vocode",
   /** Short line under logo in nav / meta */
-  shortTagline: "Voice-first coding in VS Code",
+  shortTagline: "Voice-first agentic programming",
   marketplaceUrl:
     "https://marketplace.visualstudio.com/items?itemName=publisher.extension-id",
   githubUrl: "https://github.com/your-org/your-extension-repo",

@@ -9,7 +9,7 @@ const PILLARS = [
   },
   {
     title: "Your editor, amplified",
-    body: "Stay in VS Code. Keep your shortcuts, themes, and muscle memory. Voice becomes another input—fast when you want it, silent when you don’t.",
+    body: "Stay in your editor. Keep your shortcuts, themes, and muscle memory. Voice becomes another input—fast when you want it, silent when you don’t.",
   },
   {
     title: "Built to ship",
@@ -136,10 +136,12 @@ function HomePage() {
             .
           </h1>
           <p className="mt-6 max-w-2xl text-left text-lg leading-relaxed text-neutral-400 sm:text-xl">
-            Vocode is voice-first development: speak intent, get structured
-            changes in{" "}
-            <strong className="font-medium text-neutral-200">VS Code</strong>,
-            and never snap out of the loop. This isn’t a demo repo—it’s the
+            Vocode is voice-first agentic programming: speak intent, get
+            structured changes in{" "}
+            <strong className="font-medium text-neutral-200">
+              your favorite editor
+            </strong>
+            , and never snap out of the loop. This isn’t a demo repo—it’s the
             paradigm you’ll wish you had years ago.
           </p>
           <div className="mt-10 flex flex-wrap items-center gap-4">
