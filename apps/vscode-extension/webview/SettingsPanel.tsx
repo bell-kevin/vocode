@@ -25,6 +25,59 @@ function formatMs(ms: number): string {
   return `${ms} ms`;
 }
 
+function LlmWarnings({ config }: { config: PanelConfig | null }) {
+  if (!config) {
+    return null;
+  }
+  const items: string[] = [];
+  if (!config.elevenLabsApiKeyConfigured) {
+    items.push(
+      "ElevenLabs STT is not configured yet. Add an API key under API Keys to enable voice.",
+    );
+  }
+  if (!config.daemonAgentProvider) {
+    items.push(
+      "No LLM provider is selected. Choose one under LLM Agent or leave it on Stub to run without a cloud model.",
+    );
+  }
+  if (config.daemonAgentProvider === "openai") {
+    if (!config.openaiApiKeyConfigured) {
+      items.push(
+        "OpenAI provider is selected, but no OpenAI API key is configured. Add one under API Keys for the agent to use OpenAI; otherwise it will fall back to a stub model.",
+      );
+    }
+    if (!config.daemonOpenaiModel) {
+      items.push(
+        "OpenAI is selected, but no model is set. Pick a model under LLM Agent so the agent knows which OpenAI model to call.",
+      );
+    }
+  }
+  if (config.daemonAgentProvider === "anthropic") {
+    if (!config.anthropicApiKeyConfigured) {
+      items.push(
+        "Anthropic provider is selected, but no Anthropic API key is configured. Add one under API Keys for the agent to use Anthropic; otherwise it will fall back to a stub model.",
+      );
+    }
+    if (!config.daemonAnthropicModel) {
+      items.push(
+        "Anthropic is selected, but no model is set. Pick a model under LLM Agent so the agent knows which Anthropic model to call.",
+      );
+    }
+  }
+  if (items.length === 0) {
+    return null;
+  }
+  return (
+    <>
+      {items.map((text) => (
+        <p key={text} className="settings-subtle">
+          {text}
+        </p>
+      ))}
+    </>
+  );
+}
+
 function ToggleRow(props: {
   id: string;
   label: string;
@@ -244,14 +297,14 @@ export function SettingsPanel(props: { config: PanelConfig | null }) {
       ) : null}
       {config && !config.elevenLabsApiKeyConfigured ? (
         <div className="settings-banner" role="status">
-          Add your ElevenLabs API key below to use voice. Keys are stored in VS
-          Code secret storage (not settings.json).
+          Add your ElevenLabs API key below to use voice.
         </div>
       ) : null}
 
       <p className="settings-intro-short">
         Vocode configuration. Changes apply automatically.
       </p>
+      <LlmWarnings config={config} />
 
       {config ? (
         <ApiKeysDisclosure
