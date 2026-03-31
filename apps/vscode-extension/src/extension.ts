@@ -256,6 +256,43 @@ export async function activate(context: vscode.ExtensionContext) {
 
   await wireVocodeBackend(context, services, daemonProcRef, voiceProcRef);
 
+  // Some daemon settings are passed via spawn env (provider/model/base URL) and therefore
+  // require a restart to take effect. Keep the running backend consistent with settings.
+  let daemonConfigRestartTimeout: NodeJS.Timeout | undefined;
+  context.subscriptions.push(
+    vscode.workspace.onDidChangeConfiguration((e) => {
+      const affectsDaemonSpawnEnv =
+        e.affectsConfiguration("vocode.daemonAgentProvider") ||
+        e.affectsConfiguration("vocode.daemonOpenaiModel") ||
+        e.affectsConfiguration("vocode.daemonOpenaiBaseUrl") ||
+        e.affectsConfiguration("vocode.daemonAnthropicModel") ||
+        e.affectsConfiguration("vocode.daemonAnthropicBaseUrl") ||
+        e.affectsConfiguration("vocode.daemonVoiceLogTranscript") ||
+        e.affectsConfiguration("vocode.daemonVoiceTranscriptQueueSize") ||
+        e.affectsConfiguration("vocode.daemonVoiceTranscriptCoalesceMs") ||
+        e.affectsConfiguration("vocode.daemonVoiceTranscriptMaxMergeJobs") ||
+        e.affectsConfiguration("vocode.daemonVoiceTranscriptMaxMergeChars");
+
+      if (!affectsDaemonSpawnEnv) {
+        return;
+      }
+
+      if (daemonConfigRestartTimeout) {
+        clearTimeout(daemonConfigRestartTimeout);
+      }
+      daemonConfigRestartTimeout = setTimeout(() => {
+        void services.restartVocode?.();
+      }, 250);
+    }),
+    {
+      dispose: () => {
+        if (daemonConfigRestartTimeout) {
+          clearTimeout(daemonConfigRestartTimeout);
+        }
+      },
+    },
+  );
+
   // Secrets apply immediately: restart the backend when the ElevenLabs key changes
   // so the running sidecar/daemon always see the latest configuration.
   context.subscriptions.push(

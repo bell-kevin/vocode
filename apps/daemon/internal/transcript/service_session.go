@@ -11,7 +11,7 @@ import (
 	protocol "vocoding.net/vocode/v2/packages/protocol/go"
 )
 
-func (s *TranscriptService) runExecute(params protocol.VoiceTranscriptParams) (protocol.VoiceTranscriptCompletion, bool) {
+func (s *TranscriptService) runExecute(params protocol.VoiceTranscriptParams) (protocol.VoiceTranscriptCompletion, bool, string) {
 	s.executeMu.Lock()
 	defer s.executeMu.Unlock()
 
@@ -77,7 +77,7 @@ func (s *TranscriptService) runExecute(params protocol.VoiceTranscriptParams) (p
 			maxGatheredExcerpts,
 		)
 
-		res, dirs, g1, pending, ok := s.executor.Execute(params, vs.Gathered, vs.IntentApplyHistory, extSucc, extFail, extSkipped)
+		res, dirs, g1, pending, ok, reason := s.executor.Execute(params, vs.Gathered, vs.IntentApplyHistory, extSucc, extFail, extSkipped)
 		vs.Gathered = g1
 		if strings.TrimSpace(key) != "" {
 			vs.Gathered = agentcontext.ApplyGatheredRollingCap(vs.Gathered, activeFile, maxGatheredBytes, maxGatheredExcerpts)
@@ -90,7 +90,10 @@ func (s *TranscriptService) runExecute(params protocol.VoiceTranscriptParams) (p
 			} else {
 				voicesession.SaveKeyed(s.sessions, key, vs)
 			}
-			return protocol.VoiceTranscriptCompletion{Success: false}, false
+			if strings.TrimSpace(reason) == "" {
+				reason = "executor rejected transcript params"
+			}
+			return protocol.VoiceTranscriptCompletion{Success: false}, false, reason
 		}
 
 		if !res.Success || len(dirs) == 0 {
@@ -102,7 +105,10 @@ func (s *TranscriptService) runExecute(params protocol.VoiceTranscriptParams) (p
 				voicesession.SaveKeyed(s.sessions, key, vs)
 			}
 			// Transcript logging is now a daemon logger concern rather than env-driven tuning.
-			return res, ok
+			if !res.Success && strings.TrimSpace(reason) != "" {
+				return res, ok, reason
+			}
+			return res, ok, ""
 		}
 
 		// We have directives; in duplex mode we must call the host for outcomes.
@@ -113,7 +119,7 @@ func (s *TranscriptService) runExecute(params protocol.VoiceTranscriptParams) (p
 			} else {
 				voicesession.SaveKeyed(s.sessions, key, vs)
 			}
-			return protocol.VoiceTranscriptCompletion{Success: false}, true
+			return protocol.VoiceTranscriptCompletion{Success: false}, true, "daemon has directives but no host apply client is configured"
 		}
 
 		vs.PendingDirectiveApply = pending
@@ -130,7 +136,7 @@ func (s *TranscriptService) runExecute(params protocol.VoiceTranscriptParams) (p
 			} else {
 				voicesession.SaveKeyed(s.sessions, key, vs)
 			}
-			return protocol.VoiceTranscriptCompletion{Success: false}, true
+			return protocol.VoiceTranscriptCompletion{Success: false}, true, "host.applyDirectives failed: " + err.Error()
 		}
 
 		// Consume the host report to update IntentApplyHistory and compute delta
@@ -147,7 +153,7 @@ func (s *TranscriptService) runExecute(params protocol.VoiceTranscriptParams) (p
 			} else {
 				voicesession.SaveKeyed(s.sessions, key, vs)
 			}
-			return protocol.VoiceTranscriptCompletion{Success: false}, true
+			return protocol.VoiceTranscriptCompletion{Success: false}, true, "failed to consume host apply report: " + err.Error()
 		}
 
 		appliedBatchesTotal++
@@ -162,5 +168,5 @@ func (s *TranscriptService) runExecute(params protocol.VoiceTranscriptParams) (p
 	} else {
 		voicesession.SaveKeyed(s.sessions, key, vs)
 	}
-	return protocol.VoiceTranscriptCompletion{Success: false}, true
+	return protocol.VoiceTranscriptCompletion{Success: false}, true, "maxTranscriptRepairRpcs exceeded; directives still failing or being retried"
 }

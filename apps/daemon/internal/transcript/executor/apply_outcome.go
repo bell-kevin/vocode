@@ -8,12 +8,12 @@ import (
 	protocol "vocoding.net/vocode/v2/packages/protocol/go"
 )
 
-func (e *Executor) applyDirective(out dispatch.Directive, next intents.Intent, st *agentLoopState, caps ExecutionCaps) (loopAdvance, protocol.VoiceTranscriptCompletion, bool) {
+func (e *Executor) applyDirective(out dispatch.Directive, next intents.Intent, st *agentLoopState, caps ExecutionCaps) (loopAdvance, protocol.VoiceTranscriptCompletion, bool, string) {
 	if out.IsEmpty() {
-		return advanceContinue, protocol.VoiceTranscriptCompletion{Success: false}, true
+		return advanceContinue, protocol.VoiceTranscriptCompletion{Success: false}, true, "dispatch returned empty directive"
 	}
 	if err := out.Validate(); err != nil {
-		return advanceContinue, protocol.VoiceTranscriptCompletion{Success: false}, true
+		return advanceContinue, protocol.VoiceTranscriptCompletion{Success: false}, true, fmt.Sprintf("dispatch returned invalid directive: %v", err)
 	}
 
 	st.maxRetries = caps.MaxIntentRetries
@@ -50,7 +50,7 @@ func (e *Executor) applyDirective(out dispatch.Directive, next intents.Intent, s
 		st.completed = append(st.completed, next)
 		appendSourceIntentForDirective(&st.batchSourceIntents, next)
 	default:
-		return advanceContinue, protocol.VoiceTranscriptCompletion{Success: false}, true
+		return advanceContinue, protocol.VoiceTranscriptCompletion{Success: false}, true, fmt.Sprintf("unknown directive kind %q", out.Kind)
 	}
-	return advanceBatchIntentDone, protocol.VoiceTranscriptCompletion{}, false
+	return advanceBatchIntentDone, protocol.VoiceTranscriptCompletion{}, false, ""
 }

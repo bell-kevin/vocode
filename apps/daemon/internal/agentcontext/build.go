@@ -40,6 +40,7 @@ func ComposeTurnContext(
 	intentApplyHistory []IntentApplyRecord,
 	gathered Gathered,
 	cursor *CursorSymbol,
+	limits TurnLimits,
 ) TurnContext {
 	return TurnContext{
 		TranscriptText:     transcript,
@@ -49,6 +50,7 @@ func ComposeTurnContext(
 		IntentApplyHistory: append([]IntentApplyRecord(nil), intentApplyHistory...),
 		Editor:             EditorSnapshotFromParams(params, cursor),
 		Gathered:           gathered,
+		Limits:             limits,
 	}
 }
 

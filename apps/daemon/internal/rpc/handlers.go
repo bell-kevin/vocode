@@ -9,7 +9,9 @@ type HandlerDefinition struct {
 
 type VoiceTranscriptService interface {
 	// AcceptTranscript returns ok=false for semantically invalid params.
-	AcceptTranscript(params protocol.VoiceTranscriptParams) (protocol.VoiceTranscriptCompletion, bool)
+	// If ok=true and failureReason is non-empty, the handler will return a JSON-RPC error
+	// so the extension can show a useful failure message.
+	AcceptTranscript(params protocol.VoiceTranscriptParams) (protocol.VoiceTranscriptCompletion, bool, string)
 }
 
 func BuildHandlers(voiceService VoiceTranscriptService) []HandlerDefinition {

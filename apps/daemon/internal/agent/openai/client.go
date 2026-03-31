@@ -27,7 +27,7 @@ type Client struct {
 }
 
 // NewFromEnv builds a client from OPENAI_API_KEY (required), VOCODE_OPENAI_BASE_URL (optional),
-// and VOCODE_OPENAI_MODEL (optional, default gpt-4o-mini).
+// and VOCODE_OPENAI_MODEL (required, supplied by the VS Code extension).
 func NewFromEnv() (*Client, error) {
 	key := strings.TrimSpace(os.Getenv("OPENAI_API_KEY"))
 	if key == "" {
@@ -40,7 +40,7 @@ func NewFromEnv() (*Client, error) {
 	}
 	model := strings.TrimSpace(os.Getenv("VOCODE_OPENAI_MODEL"))
 	if model == "" {
-		model = "gpt-4o-mini"
+		return nil, fmt.Errorf("VOCODE_OPENAI_MODEL is not set")
 	}
 	return &Client{
 		HTTPClient: &http.Client{Timeout: 120 * time.Second},
@@ -64,7 +64,7 @@ func (c *Client) NextTurn(ctx context.Context, in agentcontext.TurnContext) (age
 		Model:       c.Model,
 		Temperature: &temp,
 		Messages: []chatMessage{
-			{Role: "system", Content: prompt.System()},
+			{Role: "system", Content: prompt.System(prompt.SystemConfig{MaxContextRounds: in.Limits.MaxContextRounds})},
 			{Role: "user", Content: string(userBytes)},
 		},
 		ResponseFormat: chatResponseFormat(),

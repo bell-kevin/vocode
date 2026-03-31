@@ -21,7 +21,7 @@ func finalizeExecute(st *agentLoopState) (protocol.VoiceTranscriptCompletion, []
 	if len(dirs) > 0 {
 		bid, err := newDirectiveApplyBatchID()
 		if err != nil {
-			return protocol.VoiceTranscriptCompletion{Success: false}, nil, st.gathered, nil, true
+			return protocol.VoiceTranscriptCompletion{Success: false}, nil, st.gathered, nil, false
 		}
 		pending = &agentcontext.DirectiveApplyBatch{
 			ID:            bid,
@@ -29,7 +29,7 @@ func finalizeExecute(st *agentLoopState) (protocol.VoiceTranscriptCompletion, []
 		}
 	}
 	if err := result.Validate(); err != nil {
-		return protocol.VoiceTranscriptCompletion{Success: false}, nil, st.gathered, nil, true
+		return protocol.VoiceTranscriptCompletion{Success: false}, nil, st.gathered, nil, false
 	}
 	return result, dirs, st.gathered, pending, true
 }

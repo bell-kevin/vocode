@@ -13,4 +13,11 @@ type TurnContext struct {
 	IntentApplyHistory []IntentApplyRecord
 	Editor             EditorSnapshot
 	Gathered           Gathered
+	Limits             TurnLimits
+}
+
+// TurnLimits are per-transcript caps the planner should respect.
+// These values come from the daemon's effective execution caps (env defaults overridden by voice.transcript daemonConfig).
+type TurnLimits struct {
+	MaxContextRounds int `json:"maxContextRounds"`
 }

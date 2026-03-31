@@ -42,7 +42,7 @@ func NewFromEnv() (*Client, error) {
 	}
 	model := strings.TrimSpace(os.Getenv("VOCODE_ANTHROPIC_MODEL"))
 	if model == "" {
-		model = "claude-3-5-haiku-latest"
+		return nil, fmt.Errorf("VOCODE_ANTHROPIC_MODEL is not set")
 	}
 	return &Client{
 		HTTPClient: &http.Client{Timeout: 120 * time.Second},
@@ -64,7 +64,7 @@ func (c *Client) NextTurn(ctx context.Context, in agentcontext.TurnContext) (age
 	body := messagesRequest{
 		Model:     c.Model,
 		MaxTokens: 4096,
-		System:    prompt.System(),
+		System:    prompt.System(prompt.SystemConfig{MaxContextRounds: in.Limits.MaxContextRounds}),
 		Messages: []messageBlock{
 			{Role: "user", Content: []contentPart{{Type: "text", Text: string(userBytes)}}},
 		},

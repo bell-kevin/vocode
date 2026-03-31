@@ -12,7 +12,9 @@ func chatResponseFormat() *responseFormat {
 		Type: "json_schema",
 		JSONSchema: &namedJSONSchema{
 			Name:   "vocode_turn",
-			Strict: true,
+			// Strict=false: schema guides the model shape, but we rely on
+			// turnjson.ParseTurn + Go validators for hard validation.
+			Strict: false,
 			Schema: turnEnvelopeJSONSchema(),
 		},
 	}
@@ -30,7 +32,6 @@ type namedJSONSchema struct {
 }
 
 func turnEnvelopeJSONSchema() map[string]any {
-	// Non-strict: additionalProperties allowed so intent objects stay flexible.
 	return map[string]any{
 		"type": "object",
 		"properties": map[string]any{
@@ -54,7 +55,10 @@ func turnEnvelopeJSONSchema() map[string]any {
 			},
 		},
 		"required":             []string{"kind"},
-		"additionalProperties": true,
+		// OpenAI structured outputs require additionalProperties=false at the top level
+		// when using strict json_schema response_format. Intent payloads remain flexible
+		// because they are nested objects inside the "intents" array.
+		"additionalProperties": false,
 	}
 }
 

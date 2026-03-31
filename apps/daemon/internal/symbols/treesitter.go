@@ -84,8 +84,12 @@ func candidateFiles(workspaceRoot, symbolName, hintPath string) ([]string, error
 		files = append(files, hint)
 	}
 
+	rgBin := "rg"
+	if p := strings.TrimSpace(os.Getenv("VOCODE_RG_BIN")); p != "" {
+		rgBin = p
+	}
 	cmd := exec.Command(
-		"rg",
+		rgBin,
 		"--files-with-matches",
 		"--glob",
 		"*.{go,ts,tsx,js,jsx,py,java,rs,c,cc,cpp,cxx,h,hpp,cs,kt,kts,swift,rb,php,lua}",

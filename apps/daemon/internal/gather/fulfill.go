@@ -18,6 +18,13 @@ import (
 	protocol "vocoding.net/vocode/v2/packages/protocol/go"
 )
 
+func ripgrepBinary() string {
+	if p := strings.TrimSpace(os.Getenv("VOCODE_RG_BIN")); p != "" {
+		return p
+	}
+	return "rg"
+}
+
 // Provider resolves symbols and reads files for context enrichment.
 type Provider struct {
 	symbols symbols.Resolver
@@ -102,7 +109,7 @@ func FulfillSpec(
 		if searchRoot == "" {
 			return out, nil
 		}
-		cmd := exec.Command("rg", "-n", pattern, searchRoot)
+		cmd := exec.Command(ripgrepBinary(), "-n", pattern, searchRoot)
 		var stdout bytes.Buffer
 		cmd.Stdout = &stdout
 		if err := cmd.Run(); err != nil && stdout.Len() == 0 {

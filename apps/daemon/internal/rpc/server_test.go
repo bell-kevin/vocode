@@ -15,12 +15,20 @@ type voiceTranscriptServiceStub struct{}
 
 func (s *voiceTranscriptServiceStub) AcceptTranscript(
 	params protocol.VoiceTranscriptParams,
-) (protocol.VoiceTranscriptCompletion, bool) {
+) (protocol.VoiceTranscriptCompletion, bool, string) {
 	if strings.TrimSpace(params.Text) == "" {
-		return protocol.VoiceTranscriptCompletion{}, false
+		return protocol.VoiceTranscriptCompletion{}, false, ""
 	}
 
-	return protocol.VoiceTranscriptCompletion{Success: true}, true
+	return protocol.VoiceTranscriptCompletion{Success: true}, true, ""
+}
+
+type voiceTranscriptServiceFunc func(params protocol.VoiceTranscriptParams) (protocol.VoiceTranscriptCompletion, bool, string)
+
+func (f voiceTranscriptServiceFunc) AcceptTranscript(
+	params protocol.VoiceTranscriptParams,
+) (protocol.VoiceTranscriptCompletion, bool, string) {
+	return f(params)
 }
 
 func runSingleRequest(
@@ -77,6 +85,28 @@ func TestServerVoiceTranscriptSuccess(t *testing.T) {
 
 	if got := result["success"]; got != true {
 		t.Fatalf("expected success=true, got %#v", got)
+	}
+}
+
+func TestServerVoiceTranscriptFailureReturnsError(t *testing.T) {
+	t.Parallel()
+
+	request := `{"jsonrpc":"2.0","id":1,"method":"voice.transcript","params":{"text":"hello world"}}`
+
+	response := runSingleRequest(
+		t,
+		voiceTranscriptServiceFunc(func(params protocol.VoiceTranscriptParams) (protocol.VoiceTranscriptCompletion, bool, string) {
+			return protocol.VoiceTranscriptCompletion{Success: false}, true, "openai: HTTP 401: invalid api key"
+		}),
+		request,
+	)
+
+	errorObject, ok := response["error"].(map[string]any)
+	if !ok {
+		t.Fatalf("expected error object, got: %#v", response)
+	}
+	if got := errorObject["message"]; got != "openai: HTTP 401: invalid api key" {
+		t.Fatalf("expected error message, got %#v", got)
 	}
 }
 

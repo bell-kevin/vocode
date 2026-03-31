@@ -1,6 +1,7 @@
 package executor
 
 import (
+	"fmt"
 	"strings"
 
 	"vocoding.net/vocode/v2/apps/daemon/internal/agent"
@@ -119,10 +120,10 @@ func (e *Executor) Execute(
 	extSucceeded []intents.Intent,
 	extFailed []agentcontext.FailedIntent,
 	extSkipped []intents.Intent,
-) (protocol.VoiceTranscriptCompletion, []protocol.VoiceTranscriptDirective, agentcontext.Gathered, *agentcontext.DirectiveApplyBatch, bool) {
+) (protocol.VoiceTranscriptCompletion, []protocol.VoiceTranscriptDirective, agentcontext.Gathered, *agentcontext.DirectiveApplyBatch, bool, string) {
 	text := strings.TrimSpace(params.Text)
 	if text == "" {
-		return protocol.VoiceTranscriptCompletion{}, nil, gatheredIn, nil, false
+		return protocol.VoiceTranscriptCompletion{}, nil, gatheredIn, nil, false, "empty transcript text"
 	}
 	caps := e.effectiveCaps(params)
 	maxLoopIters := caps.MaxAgentTurns
@@ -137,7 +138,7 @@ func (e *Executor) Execute(
 
 	brokeOK := false
 	for range maxLoopIters {
-		adv, failRes, abort := e.runOneAgentLoopIteration(
+		adv, failRes, abort, reason := e.runOneAgentLoopIteration(
 			params,
 			text,
 			hostCursor,
@@ -149,7 +150,10 @@ func (e *Executor) Execute(
 			caps,
 		)
 		if abort {
-			return failRes, nil, st.gathered, nil, true
+			if strings.TrimSpace(reason) == "" {
+				reason = "executor aborted"
+			}
+			return failRes, nil, st.gathered, nil, true, reason
 		}
 		if adv == advanceBreakLoop {
 			brokeOK = true
@@ -158,7 +162,11 @@ func (e *Executor) Execute(
 	}
 
 	if !brokeOK {
-		return protocol.VoiceTranscriptCompletion{Success: false}, nil, st.gathered, nil, true
+		return protocol.VoiceTranscriptCompletion{Success: false}, nil, st.gathered, nil, true, fmt.Sprintf("planner did not finish within maxPlannerTurns=%d", maxLoopIters)
 	}
-	return finalizeExecute(st)
+	res, dirs, g2, pending, ok := finalizeExecute(st)
+	if !ok {
+		return protocol.VoiceTranscriptCompletion{Success: false}, nil, g2, nil, true, "failed to finalize transcript result"
+	}
+	return res, dirs, g2, pending, ok, ""
 }

@@ -3,6 +3,7 @@ package prompt
 
 import (
 	"encoding/json"
+	"strconv"
 	"strings"
 	"unicode/utf8"
 
@@ -14,11 +15,29 @@ const (
 	maxExcerptsInPrompt = 6
 )
 
-// System returns the fixed system instructions for one transcript planner turn.
-func System() string {
+type SystemConfig struct {
+	MaxContextRounds int
+}
+
+// System returns the system instructions for one transcript planner turn.
+// The caller should pass the effective per-transcript caps so the model can respect them.
+func System(cfg SystemConfig) string {
+	maxCtx := cfg.MaxContextRounds
+	if maxCtx <= 0 {
+		// 0 means "no cap" in some contexts, but for planner guidance we treat it as "cap disabled/unknown".
+		maxCtx = 0
+	}
 	return strings.TrimSpace(`
 You are Vocode's voice coding planner. The user spoke; you receive IDE context and prior outcomes as a single JSON object.
 You must respond with exactly one JSON object (no markdown fences, no extra text) describing what to do next.
+
+Per-transcript limits:
+- maxContextRounds: ` + func() string {
+		if maxCtx == 0 {
+			return "no explicit limit (do not rely on repeated request_context; prefer emitting intents)"
+		}
+		return strconv.Itoa(maxCtx)
+	}() + `
 
 Top-level union (exactly one variant per response):
 
@@ -31,6 +50,10 @@ Top-level union (exactly one variant per response):
   {"kind":"done","summary":"optional short string describing what you accomplished"}
 
 3. Request enriched IDE context before planning executables. This does not produce host directives; it only asks the daemon to gather more context for the next turn. The payload must match one of the allowed requestContext kinds.
+
+  - The daemon enforces maxContextRounds (see limits above). If you keep asking for more context without making executable progress, the entire transcript will fail.
+  - Prefer using the existing gathered excerpts and symbols when they are already sufficient; only request more context when you truly cannot answer correctly with what you have.
+  - In typical cases you should need **at most one** request_context turn before emitting intents. A second request_context turn is only appropriate when a previous gather clearly failed to return what you asked for, or when you are explicitly resolving a prior failure.
 
   {"kind":"request_context","requestContext":{"kind":"request_symbols","query":"rename foo","maxResult":10}}
 
@@ -134,17 +157,20 @@ Allowed intent kinds (for kind:"intents"):
     }
   }
 
-- Edit intent (kind:"edit"):
+  - Edit intent (kind:"edit"):
 
-  Use a replace/insert/delete/insert_import/create_file/append_to_file intent. Identify the target location using an EditTarget kind and provide the required payload.
+  Use a replace/insert/delete/insert_import/create_file/append_to_file intent. Identify the target location using an EditTarget kind and provide the required payload. Prefer symbol-scoped or range-scoped edits over whole-file replaces.
 
   {
     "kind":"edit",
     "edit":{
       "kind":"replace",
       "replace":{
-        "target":{"kind":"range","range":{"path":"apps/daemon/internal/agent/turn_result.go","startLine":10,"startChar":0,"endLine":20,"endChar":0}},
-        "newText":"replacement Go code for those lines"
+        "target":{
+          "kind":"symbol_id",
+          "symbolId":{"id":"symbol-id-from-gathered.symbols"}
+        },
+        "newText":"function thing(name) { console.log(\"hello from \" + name); }"
       }
     }
   }
@@ -168,6 +194,20 @@ Allowed intent kinds (for kind:"intents"):
       "kind":"delete",
       "delete":{
         "target":{"kind":"current_selection","currentSelection":{}}
+      }
+    }
+  }
+
+  {
+    "kind":"edit",
+    "edit":{
+      "kind":"replace",
+      "replace":{
+        "target":{
+          "kind":"range",
+          "range":{"path":"apps/daemon/internal/agent/turn_result.go","startLine":10,"startChar":0,"endLine":20,"endChar":0}
+        },
+        "newText":"replacement Go code for those lines"
       }
     }
   }
@@ -239,6 +279,7 @@ History and partial-apply rules:
 - You receive attemptHistory: an array of past intents with status "ok" | "failed" | "skipped".
 - Never repeat an intent whose status is "ok"; assume it already ran successfully on the host.
 - If a previous intent failed and the user asks you to fix it, emit a new intent that corrects the problem instead of modifying the historical intent.
+- When an attemptHistory failure message already tells you how to fix the intent (for example: "the active file contains multiple candidate functions, so the current function is ambiguous. Fix: target a specific symbol_id (with a name), or use an anchor/range target; retry with corrected intent"), do NOT emit another "request_context" turn. Instead, emit a new "kind":"intents" turn containing a corrected "edit" intent that uses the suggested target (symbol_id, anchor, or range).
 - Prefer a single kind:"intents" response per turn that batches all outstanding executables in a sensible order.
 
 General rules:
@@ -264,6 +305,9 @@ func UserJSON(in agentcontext.TurnContext) ([]byte, error) {
 		},
 		AttemptHistory: attemptHistoryToWire(in),
 		Gathered:       gatheredToWire(in.Gathered),
+		Limits: promptLimitsPayload{
+			MaxContextRounds: in.Limits.MaxContextRounds,
+		},
 	}
 	if in.Editor.CursorSymbol != nil {
 		p.Editor.Cursor = &cursorPayload{
@@ -276,10 +320,15 @@ func UserJSON(in agentcontext.TurnContext) ([]byte, error) {
 }
 
 type turnPromptPayload struct {
-	Transcript     string        `json:"transcript"`
-	Editor         editorPayload `json:"editor"`
-	AttemptHistory []attemptWire `json:"attemptHistory,omitempty"`
-	Gathered       gatheredWire  `json:"gathered"`
+	Transcript     string              `json:"transcript"`
+	Editor         editorPayload       `json:"editor"`
+	AttemptHistory []attemptWire       `json:"attemptHistory,omitempty"`
+	Gathered       gatheredWire        `json:"gathered"`
+	Limits         promptLimitsPayload `json:"limits"`
+}
+
+type promptLimitsPayload struct {
+	MaxContextRounds int `json:"maxContextRounds"`
 }
 
 type editorPayload struct {

@@ -78,3 +78,26 @@ export function resolveTreeSitterPath(
   }
   return undefined;
 }
+
+export function resolveRipgrepPath(
+  context: vscode.ExtensionContext,
+): string | undefined {
+  const binaryName = getPlatformToolBinaryName("rg");
+  const rel = path.join(
+    "tools",
+    "ripgrep",
+    getPlatformBinarySubdir(),
+    binaryName,
+  );
+  const devPath = path.resolve(context.extensionPath, "..", "..", rel);
+  if (fs.existsSync(devPath)) {
+    console.log(`[vocode] using dev ripgrep: ${devPath}`);
+    return devPath;
+  }
+  const bundledPath = path.join(context.extensionPath, rel);
+  if (fs.existsSync(bundledPath)) {
+    console.log(`[vocode] using bundled ripgrep: ${bundledPath}`);
+    return bundledPath;
+  }
+  return undefined;
+}

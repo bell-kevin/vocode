@@ -174,9 +174,9 @@ func TestVoiceTranscript_DuplexApply_RepairsAndEditsBubbleSort(t *testing.T) {
 		}{Line: 0, Character: 0},
 	}
 
-	res, ok := svc.AcceptTranscript(params)
+	res, ok, reason := svc.AcceptTranscript(params)
 	if !ok || !res.Success {
-		t.Fatalf("expected success, got ok=%v success=%v summary=%q", ok, res.Success, res.Summary)
+		t.Fatalf("expected success, got ok=%v success=%v reason=%q summary=%q", ok, res.Success, reason, res.Summary)
 	}
 
 	b, err := os.ReadFile(active)

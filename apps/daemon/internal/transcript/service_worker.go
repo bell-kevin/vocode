@@ -39,6 +39,7 @@ func (s *TranscriptService) runWorker() {
 					j.resp <- transcriptAcceptResp{
 						result: protocol.VoiceTranscriptCompletion{Success: true},
 						ok:     true,
+						reason: "",
 					}
 					continue
 				}
@@ -65,7 +66,7 @@ func (s *TranscriptService) runWorker() {
 		mergedParams := primary.params
 		mergedParams.Text = strings.Join(mergedTextParts, " ")
 
-		mergedResult, ok := s.runExecute(mergedParams)
+		mergedResult, ok, reason := s.runExecute(mergedParams)
 
 		// Primary job carries the real result; coalesced jobs no-op success to avoid duplicate applies.
 		for i, j := range coalesceGroup {
@@ -73,11 +74,13 @@ func (s *TranscriptService) runWorker() {
 				j.resp <- transcriptAcceptResp{
 					result: mergedResult,
 					ok:     ok,
+					reason: reason,
 				}
 			} else {
 				j.resp <- transcriptAcceptResp{
 					result: protocol.VoiceTranscriptCompletion{Success: true},
 					ok:     true,
+					reason: "",
 				}
 			}
 		}
