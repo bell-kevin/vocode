@@ -50,6 +50,8 @@ export type MainPanelSnapshot = {
     readonly errorMessage?: string;
     /** Agent marked transcript as irrelevant / non-actionable; listed in the Skipped section. */
     readonly skipped?: true;
+    /** Final directive checklist captured from Applying for user-visible history. */
+    readonly applyChecklist?: readonly DirectiveApplyChecklistItem[];
   }[];
   /** Latest partial hypothesis after the most recent committed event. */
   readonly latestPartial: string | null;
@@ -78,6 +80,7 @@ export class MainPanelStore {
     summary?: string;
     errorMessage?: string;
     skipped?: true;
+    applyChecklist?: readonly DirectiveApplyChecklistItem[];
   }[] = [];
 
   private latestPartial: string | null = null;
@@ -295,6 +298,12 @@ export class MainPanelStore {
       receivedAt: removed.receivedAt,
       ...(summary ? { summary } : {}),
       ...(skipped ? { skipped } : {}),
+      ...(removed.applyChecklist !== undefined &&
+      removed.applyChecklist.length > 0
+        ? {
+            applyChecklist: removed.applyChecklist.map((item) => ({ ...item })),
+          }
+        : {}),
     });
     while (this.recentHandled.length > this.maxHandled) {
       this.recentHandled.pop();
@@ -356,6 +365,12 @@ export class MainPanelStore {
       text: removed.text,
       receivedAt: removed.receivedAt,
       ...(err !== undefined && err !== "" ? { errorMessage: err } : {}),
+      ...(removed.applyChecklist !== undefined &&
+      removed.applyChecklist.length > 0
+        ? {
+            applyChecklist: removed.applyChecklist.map((item) => ({ ...item })),
+          }
+        : {}),
     });
     while (this.recentHandled.length > this.maxHandled) {
       this.recentHandled.pop();

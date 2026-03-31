@@ -108,6 +108,43 @@ function ApplyStepRow({
   );
 }
 
+function DirectiveChecklist({
+  items,
+  showTitle = true,
+}: {
+  items: readonly {
+    id: string;
+    label: string;
+    state: DirectiveApplyChecklistRowState;
+    message?: string;
+  }[];
+  showTitle?: boolean;
+}) {
+  return (
+    <>
+      {showTitle ? <h2 className="apply-steps-subhead">Directives</h2> : null}
+      <div
+        className="apply-steps apply-steps-directives"
+        role="list"
+        aria-label="Directives to apply"
+      >
+        {items.map((item) => (
+          <ApplyStepRow
+            key={item.id}
+            label={item.label}
+            visual={checklistRowVisual(item.state)}
+            title={
+              item.message !== undefined && item.message.length > 0
+                ? item.message
+                : undefined
+            }
+          />
+        ))}
+      </div>
+    </>
+  );
+}
+
 function CompactQueuedCard({ p }: { p: PendingRow }) {
   return (
     <div className={`card pending-compact pending ${p.status}`}>
@@ -151,27 +188,7 @@ function ApplyingSection({ pending }: { pending: readonly PendingRow[] }) {
             </div>
             {primary.applyChecklist !== undefined &&
             primary.applyChecklist.length > 0 ? (
-              <>
-                <h2 className="apply-steps-subhead">Directives</h2>
-                <div
-                  className="apply-steps apply-steps-directives"
-                  role="list"
-                  aria-label="Directives to apply"
-                >
-                  {primary.applyChecklist.map((item) => (
-                    <ApplyStepRow
-                      key={item.id}
-                      label={item.label}
-                      visual={checklistRowVisual(item.state)}
-                      title={
-                        item.message !== undefined && item.message.length > 0
-                          ? item.message
-                          : undefined
-                      }
-                    />
-                  ))}
-                </div>
-              </>
+              <DirectiveChecklist items={primary.applyChecklist} />
             ) : null}
           </div>
           {queuedRest.map((p) => (
@@ -190,6 +207,35 @@ function HistoryCard({ h }: { h: HandledRow }) {
     typeof h.summary === "string" && h.summary.trim().length > 0
       ? h.summary.trim()
       : null;
+  const checklist =
+    h.applyChecklist !== undefined && h.applyChecklist.length > 0
+      ? h.applyChecklist
+      : null;
+  const checklistCounts =
+    checklist === null
+      ? null
+      : checklist.reduce(
+          (acc, item) => {
+            switch (item.state) {
+              case "done":
+                acc.done += 1;
+                break;
+              case "failed":
+                acc.failed += 1;
+                break;
+              case "skipped":
+                acc.skipped += 1;
+                break;
+              case "running":
+                acc.running += 1;
+                break;
+              default:
+                acc.pending += 1;
+            }
+            return acc;
+          },
+          { done: 0, failed: 0, skipped: 0, running: 0, pending: 0 },
+        );
 
   if (failed) {
     return (
@@ -206,6 +252,24 @@ function HistoryCard({ h }: { h: HandledRow }) {
         {summary ? <div className="text history-summary">{summary}</div> : null}
         <div className="history-transcript muted-transcript">{h.text}</div>
         <div className="error-detail">Error: {h.errorMessage}</div>
+        {checklist !== null ? (
+          <details className="history-directives">
+            <summary className="history-directives-summary">
+              <span className="history-directives-summary-label">
+                Directives ({checklist.length})
+              </span>
+              {checklistCounts ? (
+                <span className="history-directives-summary-counts">
+                  {checklistCounts.done} done
+                  {checklistCounts.failed > 0
+                    ? ` • ${checklistCounts.failed} failed`
+                    : ""}
+                </span>
+              ) : null}
+            </summary>
+            <DirectiveChecklist items={checklist} showTitle={false} />
+          </details>
+        ) : null}
       </div>
     );
   }
@@ -223,6 +287,24 @@ function HistoryCard({ h }: { h: HandledRow }) {
       ) : (
         <div className="text">{h.text}</div>
       )}
+      {checklist !== null ? (
+        <details className="history-directives">
+          <summary className="history-directives-summary">
+            <span className="history-directives-summary-label">
+              Directives ({checklist.length})
+            </span>
+            {checklistCounts ? (
+              <span className="history-directives-summary-counts">
+                {checklistCounts.done} done
+                {checklistCounts.failed > 0
+                  ? ` • ${checklistCounts.failed} failed`
+                  : ""}
+              </span>
+            ) : null}
+          </summary>
+          <DirectiveChecklist items={checklist} showTitle={false} />
+        </details>
+      ) : null}
     </div>
   );
 }
@@ -302,7 +384,7 @@ export function MainPanel({ state }: { state: PanelState }) {
       <ApplyingSection pending={pending} />
       <HistorySection items={historyItems} />
       <SkippedSection items={skippedItems} />
-      <p className="hint">Vocode · a new paradigm</p>
+      <p className="hint">Vocode · Speak code</p>
     </div>
   );
 }

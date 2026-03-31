@@ -5,8 +5,8 @@ export const SITE = {
   shortTagline: "Voice-first agentic programming",
   marketplaceUrl:
     "https://marketplace.visualstudio.com/items?itemName=publisher.extension-id",
-  githubUrl: "https://github.com/your-org/your-extension-repo",
-  docsUrl: "https://github.com/your-org/your-extension-repo#readme",
+  githubUrl: "https://github.com/Spencer1O1/vocode",
+  docsUrl: "https://github.com/Spencer1O1/vocode#readme",
   marketplaceId: "publisher.extension-id",
 };
 

@@ -91,6 +91,35 @@ export function normalizePanelState(raw: unknown): PanelState {
     recentHandled: Array.isArray(o.recentHandled)
       ? o.recentHandled.map((row) => {
           const r = row as Record<string, unknown>;
+          const checklistRaw = r.applyChecklist;
+          let applyChecklist: PanelState["recentHandled"][number]["applyChecklist"];
+          if (Array.isArray(checklistRaw)) {
+            applyChecklist = checklistRaw.map((c) => {
+              const x = c as Record<string, unknown>;
+              const stateRaw = x.state;
+              let state: DirectiveApplyChecklistRowState = "pending";
+              if (
+                stateRaw === "pending" ||
+                stateRaw === "running" ||
+                stateRaw === "done" ||
+                stateRaw === "failed" ||
+                stateRaw === "skipped"
+              ) {
+                state = stateRaw;
+              }
+              return {
+                id:
+                  typeof x.id === "string" && x.id.length > 0
+                    ? x.id
+                    : `done-check-${Math.random().toString(36).slice(2)}`,
+                label: typeof x.label === "string" ? x.label : "",
+                state,
+                ...(typeof x.message === "string" && x.message.length > 0
+                  ? { message: x.message }
+                  : {}),
+              };
+            });
+          }
           const base: PanelState["recentHandled"][number] = {
             text: typeof r.text === "string" ? r.text : "",
             receivedAt:
@@ -106,6 +135,11 @@ export function normalizePanelState(raw: unknown): PanelState {
           }
           if (r.skipped === true) {
             (base as { skipped?: true }).skipped = true;
+          }
+          if (applyChecklist !== undefined && applyChecklist.length > 0) {
+            (
+              base as { applyChecklist?: typeof applyChecklist }
+            ).applyChecklist = applyChecklist;
           }
           return base;
         })

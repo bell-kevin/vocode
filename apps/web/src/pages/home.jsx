@@ -128,8 +128,7 @@ function HomePage() {
             id="hero-title"
             className="max-w-4xl text-left text-[clamp(2.25rem,6vw,3.75rem)] font-semibold leading-[1.08] tracking-tight text-white"
           >
-            Code at the speed
-            <br />
+            Code at the speed{" "}
             <span className="bg-gradient-to-r from-white via-[#7396ff] to-[#4f81ff] bg-clip-text text-transparent">
               you speak
             </span>

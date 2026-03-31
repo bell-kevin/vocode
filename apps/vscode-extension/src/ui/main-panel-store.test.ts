@@ -90,6 +90,36 @@ test("directive apply checklist appends across repair batches", () => {
   );
 });
 
+test("markHandled preserves directive checklist in recent history", () => {
+  const store = new MainPanelStore();
+  const id = store.enqueueCommitted("apply directives") as number;
+  store.appendDirectiveApplyChecklist(id, ["1. Edit a.ts", "2. npm test"]);
+  store.setDirectiveApplyItemState(id, 0, "done");
+  store.setDirectiveApplyItemState(id, 1, "failed", "Command failed");
+
+  store.markHandled(id, { summary: "Applied what it could." });
+  const h = store.getSnapshot().recentHandled[0];
+  assert.equal(h?.applyChecklist?.length, 2);
+  assert.equal(h?.applyChecklist?.[0]?.state, "done");
+  assert.equal(h?.applyChecklist?.[1]?.state, "failed");
+  assert.equal(h?.applyChecklist?.[1]?.message, "Command failed");
+});
+
+test("markError preserves directive checklist in recent history", () => {
+  const store = new MainPanelStore();
+  const id = store.enqueueCommitted("apply directives") as number;
+  store.appendDirectiveApplyChecklist(id, ["1. Edit a.ts", "2. npm test"]);
+  store.setDirectiveApplyItemState(id, 0, "done");
+  store.setDirectiveApplyItemState(id, 1, "skipped", "Stopped after failure");
+
+  store.markError(id, "Failed while applying");
+  const h = store.getSnapshot().recentHandled[0];
+  assert.equal(h?.applyChecklist?.length, 2);
+  assert.equal(h?.applyChecklist?.[0]?.state, "done");
+  assert.equal(h?.applyChecklist?.[1]?.state, "skipped");
+  assert.equal(h?.applyChecklist?.[1]?.message, "Stopped after failure");
+});
+
 test("markHandled stores optional agent summary", () => {
   const store = new MainPanelStore();
   const id = store.enqueueCommitted("fix the bug") as number;

@@ -426,14 +426,16 @@ export function AdvancedDisclosure(props: {
         />
         <span className="settings-disclosure-title">{title}</span>
       </button>
-      <div
-        id={panelId}
-        className="settings-disclosure-panel"
-        role="region"
-        aria-label={title}
-      >
-        {open ? children : null}
-      </div>
+      {open ? (
+        <div
+          id={panelId}
+          className="settings-disclosure-panel"
+          role="region"
+          aria-label={title}
+        >
+          {children}
+        </div>
+      ) : null}
     </div>
   );
 }

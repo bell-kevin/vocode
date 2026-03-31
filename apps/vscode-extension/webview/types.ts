@@ -38,4 +38,10 @@ export type HandledRow = {
   errorMessage?: string;
   /** Irrelevant / non-actionable transcript (daemon transcriptOutcome irrelevant). */
   skipped?: true;
+  applyChecklist?: readonly {
+    id: string;
+    label: string;
+    state: DirectiveApplyChecklistRowState;
+    message?: string;
+  }[];
 };
