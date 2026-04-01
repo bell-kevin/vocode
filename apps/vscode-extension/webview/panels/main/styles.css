@@ -294,8 +294,7 @@
     opacity: 0.65;
   }
   50% {
-    box-shadow: 0 0 0 2px
-      var(--vscode-focusBorder, rgba(100, 160, 255, 0.35));
+    box-shadow: 0 0 0 2px var(--vscode-focusBorder, rgba(100, 160, 255, 0.35));
     opacity: 1;
   }
 }
@@ -318,4 +317,3 @@
 .skipped-summary {
   font-size: 12px;
 }
-

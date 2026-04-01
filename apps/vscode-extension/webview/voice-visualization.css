@@ -121,27 +121,15 @@
     transform: scale(1);
     box-shadow:
       0 0 0 2px
-      color-mix(
-        in srgb,
-        var(--vscode-textLink-foreground) 30%,
-        transparent
-      ),
+      color-mix(in srgb, var(--vscode-textLink-foreground) 30%, transparent),
       0 0 12px
-      color-mix(
-        in srgb,
-        var(--vscode-textLink-foreground) 35%,
-        transparent
-      );
+      color-mix(in srgb, var(--vscode-textLink-foreground) 35%, transparent);
   }
   50% {
     transform: scale(1.12);
     box-shadow:
       0 0 0 4px
-      color-mix(
-        in srgb,
-        var(--vscode-textLink-foreground) 25%,
-        transparent
-      ),
+      color-mix(in srgb, var(--vscode-textLink-foreground) 25%, transparent),
       0 0 18px
       color-mix(in srgb, var(--vscode-textLink-foreground) 50%, transparent);
   }
@@ -225,4 +213,3 @@
 .voice-viz-typing {
   margin-top: 6px;
 }
-

@@ -242,6 +242,7 @@ export function isVoiceTranscriptDirective(
   return false;
 }
 
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Validator is expected to be complex (exhaustive)
 export function isVoiceTranscriptCompletion(
   value: unknown,
 ): value is VoiceTranscriptCompletion {
