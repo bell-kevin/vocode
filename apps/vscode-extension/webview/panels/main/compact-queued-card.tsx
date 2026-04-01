@@ -4,7 +4,7 @@ import { fmtTime, statusBadgeTitle, statusLabel } from "../../util";
 export function CompactQueuedCard({ p }: { p: PendingRow }) {
   return (
     <div
-      className={`card pending-compact pending applying-queued-card ${p.status}`}
+      className={`card pending-compact pending processing-queued-card ${p.status}`}
     >
       <div className="meta">
         <span className="badge" title={statusBadgeTitle(p.status) || undefined}>

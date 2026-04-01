@@ -1,7 +1,7 @@
 import type { PanelState } from "../../types";
-import { ApplyingSection } from "./applying-section";
 import { ChatSection } from "./chat-section";
 import { HistorySection } from "./history-section";
+import { ProcessingSection } from "./processing-section";
 import { SkippedSection } from "./skipped-section";
 
 export function MainPanel({ state }: { state: PanelState }) {
@@ -17,7 +17,7 @@ export function MainPanel({ state }: { state: PanelState }) {
   return (
     <div id="main-root">
       <ChatSection state={state} />
-      <ApplyingSection pending={pending} />
+      <ProcessingSection pending={pending} />
       <HistorySection items={historyItems} />
       <SkippedSection items={skippedItems} />
       <p className="hint">Vocode · Speak code</p>

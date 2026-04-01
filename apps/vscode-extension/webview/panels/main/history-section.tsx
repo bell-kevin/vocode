@@ -13,10 +13,7 @@ function HistoryCard({ h }: { h: HandledRow }) {
     return (
       <div className="card done failed history-card">
         <div className="meta">
-          <span
-            className="badge"
-            title="Daemon or workspace apply did not succeed"
-          >
+          <span className="badge" title="Processing did not succeed">
             {"Couldn't run"}
           </span>
           <span>{fmtTime(h.receivedAt)}</span>
