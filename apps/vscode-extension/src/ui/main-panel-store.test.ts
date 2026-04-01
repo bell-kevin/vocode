@@ -184,7 +184,10 @@ test("uiDisposition=hidden prevents adding items to Recent while clarify is acti
   assert.ok(store.getSnapshot().clarifyPrompt);
 
   const filler = store.enqueueCommitted("uh") as number;
-  store.markHandled(filler, { transcriptOutcome: "irrelevant", uiDisposition: "hidden" });
+  store.markHandled(filler, {
+    transcriptOutcome: "irrelevant",
+    uiDisposition: "hidden",
+  });
   assert.equal(store.getSnapshot().recentHandled.length, 0);
 
   // Explicit cancel still appends a skipped row.
@@ -227,7 +230,10 @@ test("uiDisposition=hidden prevents skipped spam while searchState is active", (
 
   // Simulate daemon returning uiDisposition=hidden (e.g. during active search navigation flow).
   const nav = store.enqueueCommitted("next") as number;
-  store.markHandled(nav, { transcriptOutcome: "irrelevant", uiDisposition: "hidden" });
+  store.markHandled(nav, {
+    transcriptOutcome: "irrelevant",
+    uiDisposition: "hidden",
+  });
   assert.equal(store.getSnapshot().recentHandled.length, 0);
 });
 

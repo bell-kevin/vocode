@@ -477,7 +477,8 @@ export class MainPanelStore {
     })();
 
     // Don't put answers into Recent — they belong in Chat.
-    const shouldLogToRecent = disp !== "hidden" && options?.transcriptOutcome !== "answer";
+    const shouldLogToRecent =
+      disp !== "hidden" && options?.transcriptOutcome !== "answer";
     if (shouldLogToRecent) {
       this.recentHandled.unshift({
         text: removed.text,
