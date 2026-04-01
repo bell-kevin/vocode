@@ -1,13 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 
 import { getVsCodeApi } from "./api/vscode";
-import { AudioMeter } from "./audio-meter";
 import type { VocodeConfig } from "./config";
 import { vocodeConfigFromMessage } from "./config";
-import { LivePartialCard } from "./live-partial-card";
 import { ClarifyPanel, MainPanel, SearchPanel, SettingsPanel } from "./panels";
 import type { PanelState } from "./types";
 import { emptyState, normalizePanelState } from "./util";
+import { VoiceVisualization } from "./voice-visualization";
 
 type PanelView = "main" | "settings" | "clarify" | "search";
 
@@ -170,7 +169,9 @@ export function App() {
       <div className="app-body">
         {panelView === "main" ? (
           <>
-            <AudioMeter state={panel} />
+            <div className="voice-viz-slot">
+              <VoiceVisualization state={panel} />
+            </div>
             <MainPanel state={panel} />
           </>
         ) : null}
@@ -179,23 +180,17 @@ export function App() {
         ) : null}
         {panelView === "clarify" ? (
           <>
-            <AudioMeter state={panel} />
-            <LivePartialCard
-              state={panel}
-              showPlaceholderWhenListening
-              className="interrupt-live-partial"
-            />
+            <div className="voice-viz-slot">
+              <VoiceVisualization state={panel} />
+            </div>
             <ClarifyPanel state={panel} />
           </>
         ) : null}
         {panelView === "search" ? (
           <>
-            <AudioMeter state={panel} />
-            <LivePartialCard
-              state={panel}
-              showPlaceholderWhenListening
-              className="interrupt-live-partial"
-            />
+            <div className="voice-viz-slot">
+              <VoiceVisualization state={panel} />
+            </div>
             <SearchPanel state={panel} />
           </>
         ) : null}

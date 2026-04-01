@@ -2,7 +2,7 @@ import { useLayoutEffect, useRef } from "react";
 
 import type { PanelState } from "./types";
 
-function drawWaveform(
+export function drawWaveform(
   canvas: HTMLCanvasElement | null,
   samples: readonly number[],
   opts?: { listening?: boolean; rms?: number },
@@ -64,13 +64,18 @@ function drawWaveform(
   ctx.globalAlpha = 1;
 }
 
-export function AudioMeter(props: { state: PanelState }) {
-  const { state } = props;
+/**
+ * Level bar + waveform canvas only (no card chrome). Used inside {@link VoiceVisualization}.
+ */
+export function AudioInputMeter(props: {
+  state: PanelState;
+  className?: string;
+}) {
+  const { state, className } = props;
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const voiceListening = state.voiceListening === true;
   const am = state.audioMeter;
   const rms = typeof am.rms === "number" ? am.rms : 0;
-  const speaking = am.speaking === true;
   const pct = Math.round(Math.min(1, Math.max(0, rms)) * 100);
 
   useLayoutEffect(() => {
@@ -81,13 +86,7 @@ export function AudioMeter(props: { state: PanelState }) {
   }, [am.waveform, voiceListening, rms]);
 
   return (
-    <div className="meter card">
-      <div className="meta">
-        <span className="badge">
-          {!voiceListening ? "Idle" : speaking ? "Speaking" : "Quiet"}
-        </span>
-        <span>{!voiceListening ? "Not listening" : "Input level"}</span>
-      </div>
+    <div className={["audio-input-meter", className].filter(Boolean).join(" ")}>
       <div className="meter-bar">
         <div
           className="meter-fill"
@@ -105,7 +104,7 @@ export function AudioMeter(props: { state: PanelState }) {
         className="wave-canvas"
         width={320}
         height={44}
-        aria-label="Recent level"
+        aria-label="Recent input level"
       />
     </div>
   );
