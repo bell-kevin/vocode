@@ -48,7 +48,9 @@ export type HandledRow = {
     | "irrelevant"
     | "completed"
     | "clarify"
+    | "clarify_control"
     | "search"
+    | "search_control"
     | "answer";
   answerText?: string;
   errorMessage?: string;

@@ -10,9 +10,7 @@ export function MainPanel({ state }: { state: PanelState }) {
     ? state.recentHandled
     : [];
   const skippedItems = recentHandled.filter((h) => h.skipped === true);
-  const historyItems = recentHandled.filter(
-    (h) => h.skipped !== true && h.transcriptOutcome !== "answer",
-  );
+  const historyItems = recentHandled.filter((h) => h.skipped !== true);
 
   return (
     <div id="main-root">

@@ -23,6 +23,34 @@ test("isVoiceTranscriptCompletion accepts transcriptOutcome when success", () =>
       success: true,
       summary: "Not a coding request.",
       transcriptOutcome: "irrelevant",
+      uiDisposition: "skipped",
+    }),
+    true,
+  );
+});
+
+test("isVoiceTranscriptCompletion accepts search_control outcome when success", () => {
+  assert.equal(
+    isVoiceTranscriptCompletion({
+      success: true,
+      transcriptOutcome: "search_control",
+      uiDisposition: "hidden",
+      searchResults: [
+        { path: "c:\\\\x.ts", line: 0, character: 1, preview: "hit" },
+      ],
+      activeSearchIndex: 0,
+    }),
+    true,
+  );
+});
+
+test("isVoiceTranscriptCompletion accepts clarify_control outcome when success", () => {
+  assert.equal(
+    isVoiceTranscriptCompletion({
+      success: true,
+      transcriptOutcome: "clarify_control",
+      uiDisposition: "hidden",
+      summary: "Clarification cancelled",
     }),
     true,
   );

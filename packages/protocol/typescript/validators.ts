@@ -253,6 +253,7 @@ export function isVoiceTranscriptCompletion(
     "success",
     "summary",
     "transcriptOutcome",
+    "uiDisposition",
     "searchResults",
     "activeSearchIndex",
     "answerText",
@@ -279,8 +280,23 @@ export function isVoiceTranscriptCompletion(
       value.transcriptOutcome !== "irrelevant" &&
       value.transcriptOutcome !== "completed" &&
       value.transcriptOutcome !== "clarify" &&
+      value.transcriptOutcome !== "clarify_control" &&
       value.transcriptOutcome !== "search" &&
+      value.transcriptOutcome !== "search_control" &&
       value.transcriptOutcome !== "answer"
+    ) {
+      return false;
+    }
+  }
+
+  if (value.uiDisposition !== undefined) {
+    if (value.success !== true) {
+      return false;
+    }
+    if (
+      value.uiDisposition !== "shown" &&
+      value.uiDisposition !== "skipped" &&
+      value.uiDisposition !== "hidden"
     ) {
       return false;
     }
