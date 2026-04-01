@@ -20,6 +20,7 @@ import (
 // Phrase shape is not fixed — see TestParseSearchControl_exitDetectsKeywordInUtterance.
 func TestAcceptTranscript_searchControl_exitClearsSession(t *testing.T) {
 	t.Helper()
+	requireRipgrep(t)
 	exitUtterances := []string{
 		"cancel",
 		"I'm done",
@@ -32,7 +33,6 @@ func TestAcceptTranscript_searchControl_exitClearsSession(t *testing.T) {
 			ag := agent.New(stub.New())
 			svc := NewService(ag, log.New(io.Discard, "", 0))
 			svc.queue = nil
-			t.Setenv("VOCODE_RG_BIN", `C:\Dev\vocode\tools\ripgrep\win32-x64\rg.exe`)
 
 			key := fmt.Sprintf("session-key-exit-%d", i)
 
