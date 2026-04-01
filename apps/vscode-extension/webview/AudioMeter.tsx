@@ -5,6 +5,7 @@ import type { PanelState } from "./types";
 function drawWaveform(
   canvas: HTMLCanvasElement | null,
   samples: readonly number[],
+  opts?: { listening?: boolean; rms?: number },
 ) {
   if (!canvas?.getContext) {
     return;
@@ -22,12 +23,29 @@ function drawWaveform(
       .trim() || "#3794ff";
   const arr = Array.isArray(samples) ? samples : [];
   if (arr.length === 0) {
+    if (opts?.listening === true) {
+      const level = Math.min(1, Math.max(0, opts.rms ?? 0));
+      const pad = 4;
+      const innerW = w - pad * 2;
+      const barH = Math.max(6, Math.min(h - pad * 2, 14));
+      const y = h - pad - barH;
+      ctx.fillStyle = fg;
+      ctx.globalAlpha = 0.2;
+      ctx.fillRect(pad, y, innerW, barH);
+      ctx.globalAlpha = 0.55 + 0.35 * level;
+      const fillW = Math.max(level > 0 ? 3 : 0, innerW * level);
+      ctx.fillRect(pad, y, fillW, barH);
+      ctx.globalAlpha = 1;
+      return;
+    }
     ctx.strokeStyle = fg;
     ctx.globalAlpha = 0.22;
+    ctx.setLineDash([4, 4]);
     ctx.beginPath();
     ctx.moveTo(0, h - 2);
     ctx.lineTo(w, h - 2);
     ctx.stroke();
+    ctx.setLineDash([]);
     ctx.globalAlpha = 1;
     return;
   }
@@ -56,8 +74,11 @@ export function AudioMeter(props: { state: PanelState }) {
   const pct = Math.round(Math.min(1, Math.max(0, rms)) * 100);
 
   useLayoutEffect(() => {
-    drawWaveform(canvasRef.current, am.waveform ?? []);
-  }, [am.waveform]);
+    drawWaveform(canvasRef.current, am.waveform ?? [], {
+      listening: voiceListening,
+      rms,
+    });
+  }, [am.waveform, voiceListening, rms]);
 
   return (
     <div className="meter card">
@@ -68,7 +89,16 @@ export function AudioMeter(props: { state: PanelState }) {
         <span>{!voiceListening ? "Not listening" : "Input level"}</span>
       </div>
       <div className="meter-bar">
-        <div className="meter-fill" style={{ width: `${pct}%` }} />
+        <div
+          className="meter-fill"
+          style={{
+            width: voiceListening
+              ? pct <= 0
+                ? "4px"
+                : `max(${pct}%, 4px)`
+              : `${pct}%`,
+          }}
+        />
       </div>
       <canvas
         ref={canvasRef}

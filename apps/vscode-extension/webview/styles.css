@@ -937,9 +937,14 @@ h1 {
 .meter-bar {
   height: 8px;
   border-radius: 4px;
-  background: var(--vscode-input-background);
+  /* Must differ from `.card` background or the empty track reads as “missing”. */
+  background: var(
+    --vscode-scrollbarSlider-background,
+    var(--vscode-editor-inactiveSelectionBackground, rgba(128, 128, 128, 0.22))
+  );
   overflow: hidden;
   border: 1px solid var(--vscode-widget-border, rgba(128, 128, 128, 0.2));
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.12);
 }
 .meter-fill {
   height: 100%;
