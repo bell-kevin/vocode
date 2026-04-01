@@ -28,7 +28,7 @@ func TestAcceptTranscript_clarifyControl_cancelClearsState(t *testing.T) {
 
 	res, ok, reason := svc.AcceptTranscript(protocol.VoiceTranscriptParams{
 		ContextSessionId: key,
-		Text:             "cancel",
+		Text:             "quit please",
 	})
 	if !ok || !res.Success || reason != "" {
 		t.Fatalf("got ok=%v success=%v reason=%q res=%+v", ok, res.Success, reason, res)

@@ -14,14 +14,14 @@ import (
 var (
 	searchControlNextRe   = regexp.MustCompile(`\b(next|forward)\b`)
 	searchControlBackRe   = regexp.MustCompile(`\b(back|prev|previous)\b`)
-	searchControlExitRe   = regexp.MustCompile(`\b(cancel|exit|close|stop|done)\b`)
+	searchControlExitRe   = regexp.MustCompile(`\b(cancel|exit|close|stop|done|quit|leave|end|abort)\b`)
 	searchControlResultRe = regexp.MustCompile(`\bresult\b`)
 	searchControlEditRe   = regexp.MustCompile(`\bedit\b`)
 	searchControlSelectRe = regexp.MustCompile(`\b(select|choose|pick)\b`)
 	searchControlGoRe     = regexp.MustCompile(`\b(go|jump|open|show)\b`)
 	searchControlIntRe    = regexp.MustCompile(`\b\d+\b`)
 
-	clarifyControlExitRe = regexp.MustCompile(`\b(cancel|exit|close|stop|done)\b`)
+	clarifyControlExitRe = regexp.MustCompile(`\b(cancel|exit|close|stop|done|quit|leave|end|abort)\b`)
 )
 
 func parseSearchControl(text string) (kind string, ordinal int, ok bool) {
@@ -546,6 +546,16 @@ func (s *TranscriptService) runExecute(params protocol.VoiceTranscriptParams) (p
 				voicesession.SaveKeyed(s.sessions, key, vs)
 			}
 			return protocol.VoiceTranscriptCompletion{Success: false}, true, "host apply failed: " + err.Error()
+		}
+
+		// Persist search results when the daemon returned them (even with directives).
+		if res.TranscriptOutcome == "search" && len(res.SearchResults) > 0 {
+			vs.SearchResults = wireHitsToVoiceSession(res.SearchResults)
+			if res.ActiveSearchIndex != nil {
+				vs.ActiveSearchIndex = int(*res.ActiveSearchIndex)
+			} else {
+				vs.ActiveSearchIndex = 0
+			}
 		}
 
 		if strings.TrimSpace(key) == "" {
