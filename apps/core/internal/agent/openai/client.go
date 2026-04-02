@@ -1,4 +1,4 @@
-// Package openai implements agent.ModelClient via OpenAI Chat Completions (JSON schema response_format).
+// Package openai implements [agent.ModelClient] via the OpenAI Chat Completions API.
 package openai
 
 import (
@@ -13,7 +13,6 @@ import (
 	"time"
 
 	"vocoding.net/vocode/v2/apps/core/internal/agent"
-	aiprompt "vocoding.net/vocode/v2/apps/core/internal/agent/prompt"
 )
 
 type Client struct {
@@ -45,80 +44,61 @@ func NewFromEnv() (*Client, error) {
 	}, nil
 }
 
-func (c *Client) ClassifyFlow(ctx context.Context, in agent.ClassifierContext) (agent.ClassifierResult, error) {
+func (c *Client) Complete(ctx context.Context, req agent.CompletionRequest) (string, error) {
 	if strings.TrimSpace(c.APIKey) == "" {
-		return agent.ClassifierResult{}, fmt.Errorf("openai: missing API key")
-	}
-	userBytes, err := aiprompt.FlowClassifierUserJSON(in)
-	if err != nil {
-		return agent.ClassifierResult{}, fmt.Errorf("openai: prompt: %w", err)
+		return "", fmt.Errorf("openai: missing API key")
 	}
 	temp := 0.0
 	body := chatCompletionsRequest{
 		Model:       c.Model,
 		Temperature: &temp,
 		Messages: []chatMessage{
-			{Role: "system", Content: aiprompt.FlowClassifierSystem(in.Flow)},
-			{Role: "user", Content: string(userBytes)},
+			{Role: "system", Content: req.System},
+			{Role: "user", Content: req.User},
 		},
-		ResponseFormat: chatResponseFormatFlowClassifier(in.Flow),
+	}
+	if len(req.JSONSchema) > 0 {
+		body.ResponseFormat = chatResponseFormatFromSchema(req.JSONSchema)
 	}
 	payload, err := json.Marshal(body)
 	if err != nil {
-		return agent.ClassifierResult{}, err
+		return "", err
 	}
 	url := c.BaseURL + "/chat/completions"
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(payload))
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(payload))
 	if err != nil {
-		return agent.ClassifierResult{}, err
+		return "", err
 	}
-	req.Header.Set("Authorization", "Bearer "+c.APIKey)
-	req.Header.Set("Content-Type", "application/json")
+	httpReq.Header.Set("Authorization", "Bearer "+c.APIKey)
+	httpReq.Header.Set("Content-Type", "application/json")
 
 	httpClient := c.HTTPClient
 	if httpClient == nil {
 		httpClient = http.DefaultClient
 	}
-	resp, err := httpClient.Do(req)
+	resp, err := httpClient.Do(httpReq)
 	if err != nil {
-		return agent.ClassifierResult{}, fmt.Errorf("openai: request: %w", err)
+		return "", fmt.Errorf("openai: request: %w", err)
 	}
 	defer resp.Body.Close()
 	respBody, err := io.ReadAll(io.LimitReader(resp.Body, 4<<20))
 	if err != nil {
-		return agent.ClassifierResult{}, err
+		return "", err
 	}
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return agent.ClassifierResult{}, fmt.Errorf("openai: HTTP %s: %s", resp.Status, truncateForErr(respBody, 512))
+		return "", fmt.Errorf("openai: HTTP %s: %s", resp.Status, truncateForErr(respBody, 512))
 	}
 	var parsed chatCompletionsResponse
 	if err := json.Unmarshal(respBody, &parsed); err != nil {
-		return agent.ClassifierResult{}, fmt.Errorf("openai: decode response: %w", err)
+		return "", fmt.Errorf("openai: decode response: %w", err)
 	}
 	if parsed.Error != nil && strings.TrimSpace(parsed.Error.Message) != "" {
-		return agent.ClassifierResult{}, fmt.Errorf("openai: %s", parsed.Error.Message)
+		return "", fmt.Errorf("openai: %s", parsed.Error.Message)
 	}
 	if len(parsed.Choices) == 0 {
-		return agent.ClassifierResult{}, fmt.Errorf("openai: empty choices")
+		return "", fmt.Errorf("openai: empty choices")
 	}
-	content := strings.TrimSpace(parsed.Choices[0].Message.Content)
-	if content == "" {
-		return agent.ClassifierResult{}, fmt.Errorf("openai: empty message content")
-	}
-	var raw struct {
-		Route string `json:"route"`
-	}
-	if err := json.Unmarshal([]byte(content), &raw); err != nil {
-		return agent.ClassifierResult{}, fmt.Errorf("openai: decode classifier: %w", err)
-	}
-	res := agent.ClassifierResult{
-		Flow:  in.Flow,
-		Route: strings.TrimSpace(raw.Route),
-	}
-	if err := res.Validate(); err != nil {
-		return agent.ClassifierResult{}, err
-	}
-	return res, nil
+	return strings.TrimSpace(parsed.Choices[0].Message.Content), nil
 }
 
 type chatCompletionsRequest struct {

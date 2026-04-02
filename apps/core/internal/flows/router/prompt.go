@@ -1,16 +1,15 @@
-package prompt
+package router
 
 import (
 	"encoding/json"
 	"fmt"
 	"strings"
 
-	"vocoding.net/vocode/v2/apps/core/internal/agent"
 	"vocoding.net/vocode/v2/apps/core/internal/flows"
 )
 
-// FlowClassifierSystem builds the system prompt for flow classification.
-func FlowClassifierSystem(flow flows.ID) string {
+// ClassifierSystem builds the system prompt for flow route classification.
+func ClassifierSystem(flow flows.ID) string {
 	spec := flows.SpecFor(flow)
 	var b strings.Builder
 	b.WriteString(strings.TrimSpace(spec.Intro))
@@ -30,8 +29,8 @@ Rules:
 	return strings.TrimSpace(b.String())
 }
 
-// FlowClassifierUserJSON builds user context for flow classification.
-func FlowClassifierUserJSON(in agent.ClassifierContext) ([]byte, error) {
+// ClassifierUserJSON builds user context for flow route classification.
+func ClassifierUserJSON(in Context) ([]byte, error) {
 	activeFile := strings.TrimSpace(in.Editor.ActiveFilePath)
 	workspaceRoot := strings.TrimSpace(in.Editor.WorkspaceRoot)
 	var cursor *struct {
@@ -78,4 +77,20 @@ func FlowClassifierUserJSON(in agent.ClassifierContext) ([]byte, error) {
 		p.ListActiveIndex = in.ListActiveIndex
 	}
 	return json.MarshalIndent(p, "", "  ")
+}
+
+// ClassifierResponseJSONSchema is the JSON Schema for route-only classification (passed to the model client).
+func ClassifierResponseJSONSchema(flow flows.ID) map[string]any {
+	routes := flows.SpecFor(flow).RouteIDs()
+	return map[string]any{
+		"type": "object",
+		"properties": map[string]any{
+			"route": map[string]any{
+				"type": "string",
+				"enum": routes,
+			},
+		},
+		"required":             []string{"route"},
+		"additionalProperties": false,
+	}
 }

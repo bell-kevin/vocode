@@ -31,7 +31,7 @@ type VoiceSession struct {
 	ActiveSearchIndex int
 
 	BasePhase BasePhase
-	Clarify *ClarifyOverlay
+	Clarify   *ClarifyOverlay
 
 	FileSelectionPaths []string
 	FileSelectionIndex int
@@ -40,9 +40,9 @@ type VoiceSession struct {
 
 // VoiceSessionStore retains VoiceSession between voice.transcript calls.
 type VoiceSessionStore struct {
-	mu         sync.Mutex
+	mu          sync.Mutex
 	maxSessions int
-	data       map[string]voiceSessionEntry
+	data        map[string]voiceSessionEntry
 }
 
 type voiceSessionEntry struct {
@@ -65,15 +65,15 @@ func CloneVoiceSession(v VoiceSession) VoiceSession {
 	}
 
 	out := VoiceSession{
-		Gathered:             v.Gathered,
+		Gathered:              v.Gathered,
 		PendingDirectiveApply: pending,
-		SearchResults:        append([]SearchHit(nil), v.SearchResults...),
-		ActiveSearchIndex:    v.ActiveSearchIndex,
-		BasePhase:            v.BasePhase,
-		Clarify:              cloneClarifyOverlay(v.Clarify),
-		FileSelectionPaths:  append([]string(nil), v.FileSelectionPaths...),
-		FileSelectionIndex:  v.FileSelectionIndex,
-		FileSelectionFocus:  v.FileSelectionFocus,
+		SearchResults:         append([]SearchHit(nil), v.SearchResults...),
+		ActiveSearchIndex:     v.ActiveSearchIndex,
+		BasePhase:             v.BasePhase,
+		Clarify:               cloneClarifyOverlay(v.Clarify),
+		FileSelectionPaths:    append([]string(nil), v.FileSelectionPaths...),
+		FileSelectionIndex:    v.FileSelectionIndex,
+		FileSelectionFocus:    v.FileSelectionFocus,
 	}
 
 	// Ensure slices are nil when empty to keep behavior predictable.
@@ -153,8 +153,8 @@ type DirectiveApplyBatch struct {
 }
 
 const (
-	ApplyItemStatusOK     = "ok"
-	ApplyItemStatusFailed = "failed"
+	ApplyItemStatusOK      = "ok"
+	ApplyItemStatusFailed  = "failed"
 	ApplyItemStatusSkipped = "skipped"
 )
 
@@ -188,4 +188,3 @@ func (b *DirectiveApplyBatch) ConsumeHostApplyReport(
 	}
 	return nil
 }
-

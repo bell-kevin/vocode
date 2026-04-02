@@ -13,8 +13,7 @@ const (
 // ClarifyOverlay is stored in session when a clarification prompt is active.
 // It is suspended over the current BasePhase.
 type ClarifyOverlay struct {
-	TargetResolution string
-	Question         string
+	TargetResolution   string
+	Question           string
 	OriginalTranscript string
 }
-

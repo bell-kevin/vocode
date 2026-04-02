@@ -16,6 +16,12 @@ func parseControl(transcript string) (kind string, ok bool) {
 	return "", false
 }
 
+// IsExitPhrase is true when the utterance clearly requests leaving the flow.
+func IsExitPhrase(transcript string) bool {
+	t := strings.TrimSpace(strings.ToLower(transcript))
+	return exitRe.MatchString(t)
+}
+
 // HandleControl determines a control intent and handles it.
 func HandleControl(transcript string) {
 	intent, ok := parseControl(transcript)

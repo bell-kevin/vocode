@@ -3,7 +3,7 @@ package service
 import (
 	"strings"
 
-	"vocoding.net/vocode/v2/apps/core/internal/flows/global"
+	global "vocoding.net/vocode/v2/apps/core/internal/flows/global"
 	"vocoding.net/vocode/v2/apps/core/internal/flows/selection"
 )
 

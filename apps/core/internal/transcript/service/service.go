@@ -7,9 +7,9 @@ import (
 	"sync/atomic"
 	"time"
 
-	"vocoding.net/vocode/v2/apps/core/internal/agent"
 	"vocoding.net/vocode/v2/apps/core/internal/flows"
-	"vocoding.net/vocode/v2/apps/core/internal/flows/global"
+	global "vocoding.net/vocode/v2/apps/core/internal/flows/global"
+	"vocoding.net/vocode/v2/apps/core/internal/flows/router"
 	"vocoding.net/vocode/v2/apps/core/internal/flows/selection"
 	"vocoding.net/vocode/v2/apps/core/internal/transcript/clarify"
 	"vocoding.net/vocode/v2/apps/core/internal/transcript/session"
@@ -23,14 +23,17 @@ type Service struct {
 	sessions  *session.VoiceSessionStore
 	ephemeral session.VoiceSession
 
-	hostApply hostApplyClient
-	agent     *agent.Agent
+	hostApply  hostApplyClient
+	flowRouter *router.FlowRouter
 }
 
-func NewService(agentRuntime *agent.Agent) *Service {
+func NewService(flowRouter *router.FlowRouter) *Service {
+	if flowRouter == nil {
+		flowRouter = router.NewFlowRouter(nil)
+	}
 	return &Service{
-		sessions: session.NewVoiceSessionStore(),
-		agent:    agentRuntime,
+		sessions:   session.NewVoiceSessionStore(),
+		flowRouter: flowRouter,
 	}
 }
 
@@ -226,7 +229,7 @@ func (s *Service) AcceptTranscript(
 
 		tl := strings.ToLower(strings.TrimSpace(text))
 
-		if s.agent == nil {
+		if s.flowRouter.Model == nil {
 			if res, fail, ok := s.fileSelectionLegacyKeywordOps(params, &vs, text); ok {
 				if strings.TrimSpace(fail) != "" {
 					s.persist(key, vs)
@@ -272,28 +275,17 @@ func (s *Service) AcceptTranscript(
 			}, true, ""
 		}
 
-		if s.agent != nil {
-			frRes, frFail := s.dispatchSelectFileFlow(params, &vs, text)
-			if strings.TrimSpace(frFail) != "" {
-				s.persist(key, vs)
-				if !frRes.Success {
-					return frRes, true, frFail
-				}
-				return protocol.VoiceTranscriptCompletion{Success: false}, true, frFail
-			}
+		frRes, frFail := s.dispatchSelectFileFlow(params, &vs, text)
+		if strings.TrimSpace(frFail) != "" {
 			s.persist(key, vs)
-			s.applyTranscriptOutcome(&vs, params, frRes)
-			return frRes, true, ""
+			if !frRes.Success {
+				return frRes, true, frFail
+			}
+			return protocol.VoiceTranscriptCompletion{Success: false}, true, frFail
 		}
-
 		s.persist(key, vs)
-		return protocol.VoiceTranscriptCompletion{
-			Success:                true,
-			Summary:                "file focus updated",
-			TranscriptOutcome:      "file_selection_control",
-			UiDisposition:          "hidden",
-			FileSelectionFocusPath: vs.FileSelectionFocus,
-		}, true, ""
+		s.applyTranscriptOutcome(&vs, params, frRes)
+		return frRes, true, ""
 	}
 
 	// Main/default: stub completion.
@@ -327,6 +319,13 @@ func (s *Service) persist(key string, vs session.VoiceSession) {
 }
 
 func ptrInt64(v int64) *int64 { return &v }
+
+func editorSnapshotFromParams(params protocol.VoiceTranscriptParams) router.EditorSnapshot {
+	return router.EditorSnapshot{
+		ActiveFilePath: strings.TrimSpace(params.ActiveFile),
+		WorkspaceRoot:  strings.TrimSpace(params.WorkspaceRoot),
+	}
+}
 
 func wireHitsToProtocol(in []session.SearchHit) []struct {
 	Path      string `json:"path"`
@@ -390,69 +389,63 @@ func (s *Service) executeStub(
 		}, ""
 	}
 
-	// Prefer model classifier when available so it can infer better searchQuery than a literal prefix slice.
-	if s.agent != nil {
-		fr, err := s.agent.ClassifyFlow(context.Background(), agent.ClassifierContext{
-			Flow:        flows.Root,
-			Instruction: text,
-			Editor: agent.EditorSnapshot{
-				ActiveFilePath: strings.TrimSpace(params.ActiveFile),
-				WorkspaceRoot:  strings.TrimSpace(params.WorkspaceRoot),
-			},
-		})
-		if err == nil {
-			switch fr.Route {
-			case "select":
-				q := heuristicSearchQuery(text)
-				if res, ok, reason := s.searchFromQuery(params, q, vs); ok {
-					if strings.TrimSpace(reason) != "" {
-						return protocol.VoiceTranscriptCompletion{Success: false}, reason
-					}
-					return res, ""
+	fr, err := s.flowRouter.ClassifyFlow(context.Background(), router.Context{
+		Flow:        flows.Root,
+		Instruction: text,
+		Editor:      editorSnapshotFromParams(params),
+	})
+	if err == nil {
+		switch fr.Route {
+		case "select":
+			q := heuristicSearchQuery(text)
+			if res, ok, reason := s.searchFromQuery(params, q, vs); ok {
+				if strings.TrimSpace(reason) != "" {
+					return protocol.VoiceTranscriptCompletion{Success: false}, reason
 				}
-			case "select_file":
-				q := heuristicSearchQuery(text)
-				if res, ok, reason := s.fileSearchFromQuery(params, q, vs); ok {
-					if strings.TrimSpace(reason) != "" {
-						return protocol.VoiceTranscriptCompletion{Success: false}, reason
-					}
-					return res, ""
+				return res, ""
+			}
+		case "select_file":
+			q := heuristicSearchQuery(text)
+			if res, ok, reason := s.fileSearchFromQuery(params, q, vs); ok {
+				if strings.TrimSpace(reason) != "" {
+					return protocol.VoiceTranscriptCompletion{Success: false}, reason
 				}
+				return res, ""
+			}
+			return protocol.VoiceTranscriptCompletion{
+				Success:           true,
+				TranscriptOutcome: "irrelevant",
+				UiDisposition:     "skipped",
+			}, ""
+		case "question":
+			ans := stubQuestionAnswer()
+			return protocol.VoiceTranscriptCompletion{
+				Success:           true,
+				TranscriptOutcome: "answer",
+				UiDisposition:     "hidden",
+				AnswerText:        ans,
+				Summary:           ans,
+			}, ""
+		case "irrelevant":
+			return protocol.VoiceTranscriptCompletion{
+				Success:           true,
+				TranscriptOutcome: "irrelevant",
+				UiDisposition:     "skipped",
+			}, ""
+		case "control":
+			if global.IsExitPhrase(text) {
 				return protocol.VoiceTranscriptCompletion{
 					Success:           true,
-					TranscriptOutcome: "irrelevant",
-					UiDisposition:     "skipped",
-				}, ""
-			case "question":
-				ans := stubQuestionAnswer()
-				return protocol.VoiceTranscriptCompletion{
-					Success:           true,
-					TranscriptOutcome: "answer",
+					Summary:           "core transcript (stub)",
+					TranscriptOutcome: "completed",
 					UiDisposition:     "hidden",
-					AnswerText:        ans,
-					Summary:           ans,
-				}, ""
-			case "irrelevant":
-				return protocol.VoiceTranscriptCompletion{
-					Success:           true,
-					TranscriptOutcome: "irrelevant",
-					UiDisposition:     "skipped",
-				}, ""
-			case "control":
-				if global.IsExitPhrase(text) {
-					return protocol.VoiceTranscriptCompletion{
-						Success:           true,
-						Summary:           "core transcript (stub)",
-						TranscriptOutcome: "completed",
-						UiDisposition:     "hidden",
-					}, ""
-				}
-				return protocol.VoiceTranscriptCompletion{
-					Success:           true,
-					TranscriptOutcome: "irrelevant",
-					UiDisposition:     "skipped",
 				}, ""
 			}
+			return protocol.VoiceTranscriptCompletion{
+				Success:           true,
+				TranscriptOutcome: "irrelevant",
+				UiDisposition:     "skipped",
+			}, ""
 		}
 	}
 

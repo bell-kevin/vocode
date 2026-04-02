@@ -3,7 +3,7 @@ package transcript
 import (
 	protocol "vocoding.net/vocode/v2/packages/protocol/go"
 
-	"vocoding.net/vocode/v2/apps/core/internal/agent"
+	"vocoding.net/vocode/v2/apps/core/internal/flows/router"
 	transcriptservice "vocoding.net/vocode/v2/apps/core/internal/transcript/service"
 )
 
@@ -12,8 +12,8 @@ type Service struct {
 	inner *transcriptservice.Service
 }
 
-func NewService(agentRuntime *agent.Agent) *Service {
-	return &Service{inner: transcriptservice.NewService(agentRuntime)}
+func NewService(flowRouter *router.FlowRouter) *Service {
+	return &Service{inner: transcriptservice.NewService(flowRouter)}
 }
 
 func (s *Service) AcceptTranscript(params protocol.VoiceTranscriptParams) (protocol.VoiceTranscriptCompletion, bool, string) {
@@ -40,4 +40,3 @@ func (s *Service) SetHostApplyClient(
 	}
 	s.inner.SetHostApplyClient(client)
 }
-

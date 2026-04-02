@@ -34,4 +34,3 @@ func TestConsumeHostApplyReport_rejectsItemCountMismatch(t *testing.T) {
 		t.Fatalf("expected error on item count mismatch")
 	}
 }
-

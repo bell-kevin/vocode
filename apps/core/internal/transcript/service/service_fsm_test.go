@@ -6,15 +6,14 @@ import (
 	"sort"
 	"testing"
 
-	"vocoding.net/vocode/v2/apps/core/internal/agent"
-	"vocoding.net/vocode/v2/apps/core/internal/agent/stub"
+	"vocoding.net/vocode/v2/apps/core/internal/flows/router"
 	"vocoding.net/vocode/v2/apps/core/internal/transcript/clarify"
 	"vocoding.net/vocode/v2/apps/core/internal/transcript/session"
 	protocol "vocoding.net/vocode/v2/packages/protocol/go"
 )
 
 func TestCancelSelection_clearsSelectionAndDismissesClarify(t *testing.T) {
-	s := NewService(agent.New(stub.New()))
+	s := NewService(router.NewFlowRouter(nil))
 	s.ephemeral = session.VoiceSession{
 		BasePhase:             session.BasePhaseSelection,
 		SearchResults:         []session.SearchHit{{Path: "x.go", Line: 0, Character: 0, Preview: ""}},
@@ -52,7 +51,7 @@ func TestCancelSelection_clearsSelectionAndDismissesClarify(t *testing.T) {
 }
 
 func TestClarifyAnswer_editWhileSelection_closesSelection(t *testing.T) {
-	s := NewService(agent.New(stub.New()))
+	s := NewService(router.NewFlowRouter(nil))
 	s.ephemeral = session.VoiceSession{
 		BasePhase:         session.BasePhaseSelection,
 		SearchResults:     []session.SearchHit{{Path: "x.go", Line: 0, Character: 0, Preview: ""}},
@@ -105,7 +104,7 @@ func TestFileSelectionNavigation_nextUpdatesFocus(t *testing.T) {
 	sort.Strings(paths)
 	expected := paths[1]
 
-	s := NewService(agent.New(stub.New()))
+	s := NewService(router.NewFlowRouter(nil))
 	s.ephemeral = session.VoiceSession{
 		BasePhase:          session.BasePhaseFileSelection,
 		FileSelectionPaths: paths,
@@ -134,7 +133,7 @@ func TestFileSelectionExit_doneReturnsMain(t *testing.T) {
 		t.Fatalf("write a.go: %v", err)
 	}
 
-	s := NewService(agent.New(stub.New()))
+	s := NewService(router.NewFlowRouter(nil))
 	s.ephemeral = session.VoiceSession{
 		BasePhase: session.BasePhaseFileSelection,
 	}

@@ -10,4 +10,3 @@ type ClarificationContext struct {
 	// ClarifyTargetResolution is a protocol string such as "selection", "edit", etc.
 	ClarifyTargetResolution string
 }
-

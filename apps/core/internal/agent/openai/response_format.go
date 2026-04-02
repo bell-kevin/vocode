@@ -1,17 +1,12 @@
 package openai
 
-import (
-	"vocoding.net/vocode/v2/apps/core/internal/agent/prompt"
-	"vocoding.net/vocode/v2/apps/core/internal/flows"
-)
-
-func chatResponseFormatFlowClassifier(flow flows.ID) *responseFormat {
+func chatResponseFormatFromSchema(schema map[string]any) *responseFormat {
 	return &responseFormat{
 		Type: "json_schema",
 		JSONSchema: &namedJSONSchema{
-			Name:   "vocode_flow_classifier",
+			Name:   "vocode_structured_response",
 			Strict: false,
-			Schema: prompt.FlowClassifierJSONSchema(flow),
+			Schema: schema,
 		},
 	}
 }

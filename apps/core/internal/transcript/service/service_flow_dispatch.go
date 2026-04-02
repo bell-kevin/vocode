@@ -5,8 +5,8 @@ import (
 	"os"
 	"strings"
 
-	"vocoding.net/vocode/v2/apps/core/internal/agent"
 	"vocoding.net/vocode/v2/apps/core/internal/flows"
+	"vocoding.net/vocode/v2/apps/core/internal/flows/router"
 	"vocoding.net/vocode/v2/apps/core/internal/transcript/session"
 	protocol "vocoding.net/vocode/v2/packages/protocol/go"
 )
@@ -85,21 +85,10 @@ func (s *Service) dispatchSelectionFlow(
 	vs *session.VoiceSession,
 	text string,
 ) (protocol.VoiceTranscriptCompletion, string) {
-	if s.agent == nil {
-		return protocol.VoiceTranscriptCompletion{
-			Success:           true,
-			Summary:           "core transcript (stub)",
-			TranscriptOutcome: "completed",
-			UiDisposition:     "hidden",
-		}, ""
-	}
-	fr, err := s.agent.ClassifyFlow(context.Background(), agent.ClassifierContext{
+	fr, err := s.flowRouter.ClassifyFlow(context.Background(), router.Context{
 		Flow:        flows.Select,
 		Instruction: text,
-		Editor: agent.EditorSnapshot{
-			ActiveFilePath: strings.TrimSpace(params.ActiveFile),
-			WorkspaceRoot:  strings.TrimSpace(params.WorkspaceRoot),
-		},
+		Editor:      editorSnapshotFromParams(params),
 		HitCount:    len(vs.SearchResults),
 		ActiveIndex: vs.ActiveSearchIndex,
 	})
@@ -323,16 +312,10 @@ func (s *Service) dispatchSelectFileFlow(
 	vs *session.VoiceSession,
 	text string,
 ) (protocol.VoiceTranscriptCompletion, string) {
-	if s.agent == nil {
-		return protocol.VoiceTranscriptCompletion{}, "no agent"
-	}
-	fr, err := s.agent.ClassifyFlow(context.Background(), agent.ClassifierContext{
-		Flow:        flows.SelectFile,
-		Instruction: text,
-		Editor: agent.EditorSnapshot{
-			ActiveFilePath: strings.TrimSpace(params.ActiveFile),
-			WorkspaceRoot:  strings.TrimSpace(params.WorkspaceRoot),
-		},
+	fr, err := s.flowRouter.ClassifyFlow(context.Background(), router.Context{
+		Flow:            flows.SelectFile,
+		Instruction:     text,
+		Editor:          editorSnapshotFromParams(params),
 		FocusPath:       vs.FileSelectionFocus,
 		ListCount:       len(vs.FileSelectionPaths),
 		ListActiveIndex: vs.FileSelectionIndex,

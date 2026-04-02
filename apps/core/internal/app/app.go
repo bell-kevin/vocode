@@ -6,9 +6,9 @@ import (
 	"os"
 	"strings"
 
-	"vocoding.net/vocode/v2/apps/core/internal/agent"
+	"vocoding.net/vocode/v2/apps/core/internal/agent/anthropic"
 	"vocoding.net/vocode/v2/apps/core/internal/agent/openai"
-	"vocoding.net/vocode/v2/apps/core/internal/agent/stub"
+	"vocoding.net/vocode/v2/apps/core/internal/flows/router"
 	"vocoding.net/vocode/v2/apps/core/internal/rpc"
 	"vocoding.net/vocode/v2/apps/core/internal/transcript"
 )
@@ -23,19 +23,18 @@ func New(opts Options) (*App, error) {
 	var stdin io.Reader = opts.Stdin
 	var stdout io.Writer = opts.Stdout
 
-	agentRuntime := agent.New(selectModelClient(opts.Logger))
-	voiceService := transcript.NewService(agentRuntime)
+	voiceService := transcript.NewService(selectFlowRouter(opts.Logger))
 
-	router := rpc.NewRouter(opts.Logger)
+	r := rpc.NewRouter(opts.Logger)
 	for _, def := range rpc.BuildHandlers(voiceService) {
-		router.Register(def.Method, def.Handler)
+		r.Register(def.Method, def.Handler)
 	}
 
 	server := rpc.NewServer(rpc.ServerOptions{
 		Logger: opts.Logger,
 		Stdin:  stdin,
 		Stdout: stdout,
-		Router: router,
+		Router: r,
 	})
 
 	voiceService.SetHostApplyClient(server)
@@ -46,28 +45,40 @@ func New(opts Options) (*App, error) {
 	}, nil
 }
 
-func selectModelClient(logger *log.Logger) agent.ModelClient {
+func selectFlowRouter(logger *log.Logger) *router.FlowRouter {
 	provider := strings.ToLower(strings.TrimSpace(os.Getenv("VOCODE_AGENT_PROVIDER")))
 	switch provider {
 	case "", "stub":
-		return stub.New()
+		return router.NewFlowRouter(nil)
 	case "openai":
 		c, err := openai.NewFromEnv()
 		if err != nil {
 			if logger != nil {
-				logger.Printf("vocode agent: OpenAI unavailable (%v); using stub model client", err)
+				logger.Printf("vocode agent: OpenAI unavailable (%v); using heuristic flow router", err)
 			}
-			return stub.New()
+			return router.NewFlowRouter(nil)
 		}
 		if logger != nil {
-			logger.Printf("vocode agent: using OpenAI model client")
+			logger.Printf("vocode agent: using OpenAI model for flow routing")
 		}
-		return c
+		return router.NewFlowRouter(c)
+	case "anthropic":
+		c, err := anthropic.NewFromEnv()
+		if err != nil {
+			if logger != nil {
+				logger.Printf("vocode agent: Anthropic unavailable (%v); using heuristic flow router", err)
+			}
+			return router.NewFlowRouter(nil)
+		}
+		if logger != nil {
+			logger.Printf("vocode agent: using Anthropic model for flow routing")
+		}
+		return router.NewFlowRouter(c)
 	default:
 		if logger != nil {
-			logger.Printf("vocode agent: unknown VOCODE_AGENT_PROVIDER %q; using stub model client", provider)
+			logger.Printf("vocode agent: unknown VOCODE_AGENT_PROVIDER %q; using heuristic flow router", provider)
 		}
-		return stub.New()
+		return router.NewFlowRouter(nil)
 	}
 }
 
@@ -77,4 +88,3 @@ func (a *App) Run() error {
 	}
 	return a.server.Run()
 }
-
