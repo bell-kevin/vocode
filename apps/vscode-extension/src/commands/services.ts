@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 
 import type { DaemonClient } from "../daemon/client";
-import type { MainPanelStore } from "../ui/main-panel-store";
+import type { MainPanelStore } from "../ui/panel/main-panel-store";
 import type { VoiceStatusIndicator } from "../ui/status-bar";
 import type { VoiceSidecarClient } from "../voice/client";
 

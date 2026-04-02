@@ -125,50 +125,28 @@ Daemon transcript queueing:
 - the daemon processes transcripts in FIFO order and can coalesce multiple committed transcripts that arrive within `VOCODE_DAEMON_VOICE_TRANSCRIPT_COALESCE_MS`
 - queue + merge bounds are configurable via `VOCODE_DAEMON_VOICE_TRANSCRIPT_QUEUE_SIZE`, `VOCODE_DAEMON_VOICE_TRANSCRIPT_MAX_MERGE_JOBS`, and `VOCODE_DAEMON_VOICE_TRANSCRIPT_MAX_MERGE_CHARS`
 
-### Daemon agent protocol (iterative)
+### Daemon voice transcript (single-shot)
 
-`voice.transcript` runs an iterative agent loop inside the daemon:
-1. model returns one `intents.Intent` (control or executable; JSON has top-level `kind`)
-2. daemon validates and executes it (or fulfills `request_context`)
-3. daemon feeds accumulated context + completed actions back to the model
-4. repeats until `done` or guardrail limits are hit
+`voice.transcript` runs a **narrow-model** pipeline in `apps/daemon/internal/transcript/executor` (classify → scope intent → scoped edit / search / format / …). It is **not** an iterative `intents[]` loop.
 
-Current intent `kind` values (executable unless noted):
-- `edit`, `command`, `navigate`, `undo`
-- `request_context` (control), `done` (control)
-
-`voice.transcript` uses a duplex apply loop:
-- the daemon sends directive batches to the extension via `host.applyDirectives`
-- the extension applies directives and returns per-directive outcomes
-- the daemon continues planning/repair until done
+Per committed utterance: at most one `executor.Execute` and one `host.applyDirectives` batch. On apply failure (e.g. `stale_range`), the daemon returns `success: false`; the user re-speaks.
 
 `voice.transcript` returns `VoiceTranscriptCompletion`:
-- `success: true` when the daemon finished successfully (apply/repair loop completed)
-- optional `summary` for UI
-- `transcriptOutcome` (e.g. `search`, `search_control`, `clarify`, `clarify_control`, `irrelevant`, `answer`)
-- `uiDisposition` (`shown | skipped | hidden`) for host UI logging
-- optional `searchResults` + `activeSearchIndex` for search flows
-- optional `answerText` for Q/A
+- `success` and optional `summary`
+- `transcriptOutcome` (e.g. `search`, `selection`, `selection_control`, `file_selection`, `file_selection_control`, `clarify`, `clarify_control`, `needs_workspace_folder`, `irrelevant`, `answer`, `completed`)
+- `uiDisposition` (`shown | skipped | hidden`)
+- optional `searchResults` + `activeSearchIndex`, `answerText`, etc.
 
 `transcriptOutcome` + `uiDisposition` quick guide:
-- `search` → `hidden` (search is a panel flow, not Edit history)
-- `search_control` → `hidden` (next/back/pick/close while search is active)
-- `clarify` → `hidden` (clarify prompt is a panel flow)
-- `clarify_control` → `hidden` (cancel/close while clarify is active)
-- `irrelevant` → `skipped` (unless a search session is active, then `hidden` to avoid spam)
-- `answer` → `hidden` (shown in Chat, not history)
-- normal edit/apply completion → `shown`
+- `search` / `selection` / `selection_control` / `file_selection` / `file_selection_control` → usually `hidden` (panel flows)
+- `clarify` / `clarify_control` → `hidden`
+- `irrelevant` → `skipped` (or `hidden` during an active match-list session)
+- `answer` → `hidden` (Chat UI)
+- successful edit completion → `shown`
 
-### Agent loop troubleshooting
+### Transcript troubleshooting
 
-When `success` is `false`, no directives are emitted and the extension should ignore the transcript (or show an error in the transcript panel).
-
-Useful knobs while debugging the agent loop:
-- `VOCODE_DAEMON_VOICE_MAX_AGENT_TURNS`
-- `VOCODE_DAEMON_VOICE_MAX_INTENT_RETRIES`
-- `VOCODE_DAEMON_VOICE_MAX_CONTEXT_ROUNDS`
-- `VOCODE_DAEMON_VOICE_MAX_CONTEXT_BYTES`
-- `VOCODE_DAEMON_VOICE_MAX_CONSECUTIVE_CONTEXT_REQUESTS`
+When `success` is `false`, treat directives as invalid. Session tuning uses `vocode.sessionIdleResetMs` and `daemonConfig` on the RPC (`maxGatheredBytes`, `maxGatheredExcerpts`).
 
 3. Build the daemon
 
@@ -233,9 +211,11 @@ go test ./...
 VS Code Extension
 ├── commands/
 ├── daemon/ (spawn + path resolution)
-├── voice-sidecar/ (spawn + sidecar transport)
+├── directives/ (host apply for protocol directives)
+├── voice-transcript/ (voice.transcript RPC + apply batch)
 ├── ui/
-└── voice/
+│   └── panel/ (main webview + store)
+└── voice/ (sidecar client + spawn)
 
         ↓ stdio (JSON-RPC)
 

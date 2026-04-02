@@ -3,7 +3,6 @@ package transcript
 import (
 	"io"
 	"log"
-	"strings"
 	"testing"
 	"time"
 
@@ -22,8 +21,12 @@ func TestAcceptTranscript_clarifyControl_cancelClearsState(t *testing.T) {
 
 	key := "session-key-clarify-1"
 	voicesession.SaveKeyed(svc.sessions, key, agentcontext.VoiceSession{
-		ClarifyQuestion:           "Which file?",
-		ClarifyOriginalTranscript: "fix thing",
+		FlowStack: []agentcontext.FlowFrame{{
+			Kind:                      agentcontext.FlowKindClarify,
+			ClarifyTargetResolution:   "instruction",
+			ClarifyQuestion:           "Which file?",
+			ClarifyOriginalTranscript: "fix thing",
+		}},
 	})
 
 	res, ok, reason := svc.AcceptTranscript(protocol.VoiceTranscriptParams{
@@ -41,8 +44,7 @@ func TestAcceptTranscript_clarifyControl_cancelClearsState(t *testing.T) {
 	}
 
 	loaded := voicesession.Load(svc.sessions, key, time.Hour, nil)
-	if strings.TrimSpace(loaded.ClarifyQuestion) != "" || strings.TrimSpace(loaded.ClarifyOriginalTranscript) != "" {
-		t.Fatalf("expected clarify state cleared, got %+v", loaded)
+	if agentcontext.FlowTopKind(loaded.FlowStack) == agentcontext.FlowKindClarify {
+		t.Fatalf("expected clarify frame popped, stack=%+v", loaded.FlowStack)
 	}
 }
-

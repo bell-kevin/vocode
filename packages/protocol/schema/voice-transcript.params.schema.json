@@ -19,6 +19,14 @@
           "type": "string",
           "description": "Absolute workspace folder when one is open; otherwise the host may send the active file's parent directory so relative paths still resolve (single-file windows)."
         },
+        "workspaceFolderOpen": {
+          "type": "boolean",
+          "description": "True when vscode.workspace.workspaceFolders is non-empty. Used to gate file-selection / explorer voice flows (VS Code\u2013aligned: open a folder first)."
+        },
+        "focusedWorkspacePath": {
+          "type": "string",
+          "description": "Absolute path of the focused file or folder in the file-selection UI, when that flow is active."
+        },
         "cursorPosition": {
           "type": "object",
           "description": "Caret in the active editor (LSP / VS Code Position). The daemon resolves the innermost symbol at this location using host-provided document symbols (LSP).",
@@ -41,10 +49,22 @@
           "additionalProperties": false,
           "required": ["startLine", "startChar", "endLine", "endChar"],
           "properties": {
-            "startLine": { "type": "integer", "minimum": 0 },
-            "startChar": { "type": "integer", "minimum": 0 },
-            "endLine": { "type": "integer", "minimum": 0 },
-            "endChar": { "type": "integer", "minimum": 0 }
+            "startLine": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "startChar": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "endLine": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "endChar": {
+              "type": "integer",
+              "minimum": 0
+            }
           }
         },
         "activeFileSymbols": {
@@ -55,17 +75,33 @@
             "additionalProperties": false,
             "required": ["name", "kind", "range", "selectionRange"],
             "properties": {
-              "name": { "type": "string" },
-              "kind": { "type": "string" },
+              "name": {
+                "type": "string"
+              },
+              "kind": {
+                "type": "string"
+              },
               "range": {
                 "type": "object",
                 "additionalProperties": false,
                 "required": ["startLine", "startChar", "endLine", "endChar"],
                 "properties": {
-                  "startLine": { "type": "integer", "minimum": 0 },
-                  "startChar": { "type": "integer", "minimum": 0 },
-                  "endLine": { "type": "integer", "minimum": 0 },
-                  "endChar": { "type": "integer", "minimum": 0 }
+                  "startLine": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "startChar": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "endLine": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "endChar": {
+                    "type": "integer",
+                    "minimum": 0
+                  }
                 }
               },
               "selectionRange": {
@@ -73,10 +109,22 @@
                 "additionalProperties": false,
                 "required": ["startLine", "startChar", "endLine", "endChar"],
                 "properties": {
-                  "startLine": { "type": "integer", "minimum": 0 },
-                  "startChar": { "type": "integer", "minimum": 0 },
-                  "endLine": { "type": "integer", "minimum": 0 },
-                  "endChar": { "type": "integer", "minimum": 0 }
+                  "startLine": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "startChar": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "endLine": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "endChar": {
+                    "type": "integer",
+                    "minimum": 0
+                  }
                 }
               }
             }
@@ -88,41 +136,13 @@
         },
         "controlRequest": {
           "type": "string",
-          "enum": ["cancel_clarify", "cancel_search"],
-          "description": "Host UI control: cancel clarification or close search session without spoken text. Bypasses transcript coalescing on the daemon."
+          "enum": ["cancel_clarify", "cancel_selection"],
+          "description": "Host UI control: cancel clarification or close code-selection session without spoken text."
         },
         "daemonConfig": {
           "type": "object",
           "additionalProperties": false,
           "properties": {
-            "maxPlannerTurns": {
-              "type": "integer",
-              "description": "Overrides VOCODE_DAEMON_VOICE_MAX_AGENT_TURNS (<=0 uses daemon default)."
-            },
-            "maxIntentsPerBatch": {
-              "type": "integer",
-              "description": "Overrides VOCODE_DAEMON_VOICE_MAX_INTENTS_PER_BATCH (>0 enables cap; <=0 disables)."
-            },
-            "maxIntentDispatchRetries": {
-              "type": "integer",
-              "description": "Overrides VOCODE_DAEMON_VOICE_MAX_INTENT_RETRIES (<0 uses 0)."
-            },
-            "maxContextRounds": {
-              "type": "integer",
-              "description": "Overrides VOCODE_DAEMON_VOICE_MAX_CONTEXT_ROUNDS (>0 enables cap; <=0 disables)."
-            },
-            "maxContextBytes": {
-              "type": "integer",
-              "description": "Overrides VOCODE_DAEMON_VOICE_MAX_CONTEXT_BYTES (>0 enables cap; <=0 disables)."
-            },
-            "maxConsecutiveContextRequests": {
-              "type": "integer",
-              "description": "Overrides VOCODE_DAEMON_VOICE_MAX_CONSECUTIVE_CONTEXT_REQUESTS (>0 enables cap; <=0 disables)."
-            },
-            "maxTranscriptRepairRpcs": {
-              "type": "integer",
-              "description": "Overrides VOCODE_DAEMON_VOICE_MAX_REPAIR_RPCS (>=1 iterations)."
-            },
             "sessionIdleResetMs": {
               "type": "integer",
               "description": "Overrides VOCODE_DAEMON_SESSION_IDLE_RESET_MS (0 disables idle eviction)."
@@ -143,14 +163,16 @@
       "type": "object",
       "additionalProperties": false,
       "allOf": [
-        { "$ref": "#/$defs/HostContext" },
+        {
+          "$ref": "#/$defs/HostContext"
+        },
         {
           "type": "object",
           "required": ["controlRequest"],
           "properties": {
             "controlRequest": {
               "type": "string",
-              "enum": ["cancel_clarify", "cancel_search"]
+              "enum": ["cancel_clarify", "cancel_selection"]
             }
           }
         }
@@ -160,7 +182,9 @@
       "type": "object",
       "additionalProperties": false,
       "allOf": [
-        { "$ref": "#/$defs/HostContext" },
+        {
+          "$ref": "#/$defs/HostContext"
+        },
         {
           "type": "object",
           "required": ["text"],
@@ -174,5 +198,12 @@
       ]
     }
   },
-  "oneOf": [{ "$ref": "#/$defs/AsControl" }, { "$ref": "#/$defs/AsTranscript" }]
+  "oneOf": [
+    {
+      "$ref": "#/$defs/AsControl"
+    },
+    {
+      "$ref": "#/$defs/AsTranscript"
+    }
+  ]
 }

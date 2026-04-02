@@ -14,13 +14,16 @@ import {
 } from "./config/spawn-env";
 import { DaemonClient } from "./daemon/client";
 import { spawnDaemon } from "./daemon/spawn";
-import { attachTranscriptPipeline } from "./extension/transcript-pipeline";
-import { applyDirectives } from "./transcript/apply-directives";
-import { MainPanelViewProvider, mainPanelViewType } from "./ui/main-panel";
-import { MainPanelStore } from "./ui/main-panel-store";
+import {
+  MainPanelViewProvider,
+  mainPanelViewType,
+} from "./ui/panel/main-panel";
+import { MainPanelStore } from "./ui/panel/main-panel-store";
 import { VoiceStatusIndicator } from "./ui/status-bar";
 import { VoiceSidecarClient } from "./voice/client";
 import { spawnVoiceSidecar } from "./voice/spawn";
+import { applyDirectives } from "./voice-transcript/apply-directives";
+import { attachTranscriptPipeline } from "./voice-transcript/pipeline";
 
 function safeKillProcess(proc: ChildProcessWithoutNullStreams | null): void {
   if (!proc || proc.killed) {

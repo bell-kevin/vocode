@@ -239,7 +239,179 @@ export function isVoiceTranscriptDirective(
       isUndoDirective(value.undoDirective)
     );
   }
+  if (value.kind === "rename") {
+    return (
+      hasOnlyKeys(value, ["kind", "renameDirective"]) &&
+      isRenameDirective(value.renameDirective)
+    );
+  }
+  if (value.kind === "code_action") {
+    return (
+      hasOnlyKeys(value, ["kind", "codeActionDirective"]) &&
+      isCodeActionDirective(value.codeActionDirective)
+    );
+  }
+  if (value.kind === "format") {
+    return (
+      hasOnlyKeys(value, ["kind", "formatDirective"]) &&
+      isFormatDirective(value.formatDirective)
+    );
+  }
+  if (value.kind === "delete_file") {
+    return (
+      hasOnlyKeys(value, ["kind", "deleteFileDirective"]) &&
+      isDeleteFileDirective(value.deleteFileDirective)
+    );
+  }
+  if (value.kind === "move_path") {
+    return (
+      hasOnlyKeys(value, ["kind", "movePathDirective"]) &&
+      isMovePathDirective(value.movePathDirective)
+    );
+  }
+  if (value.kind === "create_folder") {
+    return (
+      hasOnlyKeys(value, ["kind", "createFolderDirective"]) &&
+      isCreateFolderDirective(value.createFolderDirective)
+    );
+  }
   return false;
+}
+
+function isRenameDirective(value: unknown): boolean {
+  return (
+    isRecord(value) &&
+    hasOnlyKeys(value, ["path", "position", "newName"]) &&
+    typeof value.path === "string" &&
+    value.path.trim() !== "" &&
+    typeof value.newName === "string" &&
+    value.newName.trim() !== "" &&
+    isRecord(value.position) &&
+    hasOnlyKeys(value.position as Record<string, unknown>, [
+      "line",
+      "character",
+    ]) &&
+    typeof (value.position as { line: unknown }).line === "number" &&
+    Number.isInteger((value.position as { line: number }).line) &&
+    (value.position as { line: number }).line >= 0 &&
+    typeof (value.position as { character: unknown }).character === "number" &&
+    Number.isInteger((value.position as { character: number }).character) &&
+    (value.position as { character: number }).character >= 0
+  );
+}
+
+const codeActionKinds = new Set([
+  "refactor.extract.function",
+  "refactor.extract.variable",
+  "refactor.extract.constant",
+  "refactor.inline",
+  "source.organizeImports",
+  "source.fixAll",
+  "quickfix",
+]);
+
+function isCodeActionDirective(value: unknown): boolean {
+  if (!isRecord(value)) return false;
+  const keys = [
+    "path",
+    "actionKind",
+    "range",
+    "preferredTitleIncludes",
+  ] as const;
+  if (!hasOnlyKeys(value, [...keys])) return false;
+  if (typeof value.path !== "string" || value.path.trim() === "") return false;
+  if (
+    typeof value.actionKind !== "string" ||
+    !codeActionKinds.has(value.actionKind)
+  ) {
+    return false;
+  }
+  if (value.range !== undefined) {
+    if (!isRecord(value.range)) return false;
+    const r = value.range as Record<string, unknown>;
+    if (
+      !hasOnlyKeys(r, ["startLine", "startChar", "endLine", "endChar"]) ||
+      typeof r.startLine !== "number" ||
+      !Number.isInteger(r.startLine) ||
+      r.startLine < 0 ||
+      typeof r.startChar !== "number" ||
+      !Number.isInteger(r.startChar) ||
+      r.startChar < 0 ||
+      typeof r.endLine !== "number" ||
+      !Number.isInteger(r.endLine) ||
+      r.endLine < 0 ||
+      typeof r.endChar !== "number" ||
+      !Number.isInteger(r.endChar) ||
+      r.endChar < 0
+    ) {
+      return false;
+    }
+  }
+  if (
+    value.preferredTitleIncludes !== undefined &&
+    typeof value.preferredTitleIncludes !== "string"
+  ) {
+    return false;
+  }
+  return true;
+}
+
+function isFormatDirective(value: unknown): boolean {
+  if (!isRecord(value)) return false;
+  if (!hasOnlyKeys(value, ["path", "scope", "range"])) return false;
+  if (typeof value.path !== "string" || value.path.trim() === "") return false;
+  if (value.scope !== "document" && value.scope !== "selection") return false;
+  if (value.range !== undefined) {
+    if (!isRecord(value.range)) return false;
+    const r = value.range as Record<string, unknown>;
+    if (
+      !hasOnlyKeys(r, ["startLine", "startChar", "endLine", "endChar"]) ||
+      typeof r.startLine !== "number" ||
+      !Number.isInteger(r.startLine) ||
+      r.startLine < 0 ||
+      typeof r.startChar !== "number" ||
+      !Number.isInteger(r.startChar) ||
+      r.startChar < 0 ||
+      typeof r.endLine !== "number" ||
+      !Number.isInteger(r.endLine) ||
+      r.endLine < 0 ||
+      typeof r.endChar !== "number" ||
+      !Number.isInteger(r.endChar) ||
+      r.endChar < 0
+    ) {
+      return false;
+    }
+  }
+  return true;
+}
+
+function isDeleteFileDirective(value: unknown): boolean {
+  return (
+    isRecord(value) &&
+    hasOnlyKeys(value, ["path"]) &&
+    typeof value.path === "string" &&
+    value.path.trim() !== ""
+  );
+}
+
+function isMovePathDirective(value: unknown): boolean {
+  return (
+    isRecord(value) &&
+    hasOnlyKeys(value, ["from", "to"]) &&
+    typeof value.from === "string" &&
+    value.from.trim() !== "" &&
+    typeof value.to === "string" &&
+    value.to.trim() !== ""
+  );
+}
+
+function isCreateFolderDirective(value: unknown): boolean {
+  return (
+    isRecord(value) &&
+    hasOnlyKeys(value, ["path"]) &&
+    typeof value.path === "string" &&
+    value.path.trim() !== ""
+  );
 }
 
 // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Validator is expected to be complex (exhaustive)
@@ -257,6 +429,8 @@ export function isVoiceTranscriptCompletion(
     "searchResults",
     "activeSearchIndex",
     "answerText",
+    "clarifyTargetResolution",
+    "fileSelectionFocusPath",
   ]);
   if (!Object.keys(value).every((k) => allowedKeys.has(k))) {
     return false;
@@ -282,9 +456,22 @@ export function isVoiceTranscriptCompletion(
       value.transcriptOutcome !== "clarify" &&
       value.transcriptOutcome !== "clarify_control" &&
       value.transcriptOutcome !== "search" &&
-      value.transcriptOutcome !== "search_control" &&
+      value.transcriptOutcome !== "selection" &&
+      value.transcriptOutcome !== "selection_control" &&
+      value.transcriptOutcome !== "file_selection" &&
+      value.transcriptOutcome !== "file_selection_control" &&
+      value.transcriptOutcome !== "needs_workspace_folder" &&
       value.transcriptOutcome !== "answer"
     ) {
+      return false;
+    }
+  }
+
+  if (value.clarifyTargetResolution !== undefined) {
+    if (value.success !== true) {
+      return false;
+    }
+    if (typeof value.clarifyTargetResolution !== "string") {
       return false;
     }
   }
@@ -351,6 +538,22 @@ export function isVoiceTranscriptCompletion(
       return false;
     }
     if ([...value.answerText].length > 8192) {
+      return false;
+    }
+  }
+  if (value.fileSelectionFocusPath !== undefined) {
+    if (value.success !== true) {
+      return false;
+    }
+    if (typeof value.fileSelectionFocusPath !== "string") {
+      return false;
+    }
+  }
+  if (value.transcriptOutcome === "file_selection_control") {
+    if (
+      typeof value.fileSelectionFocusPath !== "string" ||
+      value.fileSelectionFocusPath.trim() === ""
+    ) {
       return false;
     }
   }

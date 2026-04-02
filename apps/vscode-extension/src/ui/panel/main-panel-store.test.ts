@@ -112,7 +112,7 @@ test("dismissSearchState clears search hit list", () => {
   assert.equal(store.getSnapshot().searchState, undefined);
 });
 
-test("markHandled search_control without searchResults clears search (voice cancel)", () => {
+test("markHandled selection_control without searchResults clears search (voice cancel)", () => {
   const store = new MainPanelStore();
   const id1 = store.enqueueCommitted("find foo") as number;
   store.markHandled(id1, {
@@ -124,7 +124,7 @@ test("markHandled search_control without searchResults clears search (voice canc
   assert.ok(store.getSnapshot().searchState);
   const id2 = store.enqueueCommitted("cancel") as number;
   store.markHandled(id2, {
-    transcriptOutcome: "search_control",
+    transcriptOutcome: "selection_control",
     uiDisposition: "hidden",
     summary: "Search session closed",
   });
@@ -170,7 +170,7 @@ test("markHandled preserves search contextSessionId when follow-up omits it", ()
   });
   const id2 = store.enqueueCommitted("next") as number;
   store.markHandled(id2, {
-    transcriptOutcome: "search_control",
+    transcriptOutcome: "selection_control",
     uiDisposition: "hidden",
     searchResults: [{ path: "b.ts", line: 1, character: 0, preview: "h2" }],
     activeSearchIndex: 0,
@@ -214,7 +214,7 @@ test("uiDisposition=hidden prevents adding items to Recent while clarify is acti
   assert.equal(store.getSnapshot().recentHandled[0]?.skipped, true);
 });
 
-test("uiDisposition=hidden keeps search/search_control out of Recent/History", () => {
+test("uiDisposition=hidden keeps search/selection_control out of Recent/History", () => {
   const store = new MainPanelStore();
   const id = store.enqueueCommitted("find foo") as number;
   store.markHandled(id, {
@@ -228,7 +228,7 @@ test("uiDisposition=hidden keeps search/search_control out of Recent/History", (
 
   const nav = store.enqueueCommitted("next") as number;
   store.markHandled(nav, {
-    transcriptOutcome: "search_control",
+    transcriptOutcome: "selection_control",
     uiDisposition: "hidden",
     searchResults: [{ path: "b.ts", line: 1, character: 0, preview: "hit2" }],
     activeSearchIndex: 0,

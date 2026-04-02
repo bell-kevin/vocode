@@ -2,7 +2,7 @@ import type { VoiceTranscriptParams } from "@vocode/protocol";
 import * as vscode from "vscode";
 
 import type { ExtensionServices } from "../commands/services";
-import { transcriptWorkspaceRoot } from "../transcript/workspace-root";
+import { transcriptWorkspaceRoot } from "./workspace-root";
 
 /**
  * Notifies the daemon to clear session state for clarify/search UI cancel, then the caller
@@ -10,7 +10,7 @@ import { transcriptWorkspaceRoot } from "../transcript/workspace-root";
  */
 export async function sendTranscriptControlRequest(
   services: ExtensionServices,
-  kind: "cancel_clarify" | "cancel_search",
+  kind: "cancel_clarify" | "cancel_selection",
   contextSessionId: string | undefined,
 ): Promise<boolean> {
   const { client } = services;
@@ -27,6 +27,7 @@ export async function sendTranscriptControlRequest(
   const params: VoiceTranscriptParams = {
     controlRequest: kind,
     activeFile: activeFile || undefined,
+    ...(activeFile ? { focusedWorkspacePath: activeFile } : {}),
     workspaceRoot: transcriptWorkspaceRoot(activeFile),
     cursorPosition: editor
       ? {

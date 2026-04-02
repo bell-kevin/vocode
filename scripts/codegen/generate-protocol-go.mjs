@@ -25,6 +25,12 @@ const entries = [
   { file: "ping.result.schema.json", name: "PingResult" },
   { file: "edit-directive.schema.json", name: "EditDirective" },
   { file: "undo-directive.schema.json", name: "UndoDirective" },
+  { file: "delete-file-directive.schema.json", name: "DeleteFileDirective" },
+  { file: "move-path-directive.schema.json", name: "MovePathDirective" },
+  {
+    file: "create-folder-directive.schema.json",
+    name: "CreateFolderDirective",
+  },
   {
     file: "voice-transcript.params.schema.json",
     name: "VoiceTranscriptParams",

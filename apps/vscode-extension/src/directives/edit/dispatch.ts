@@ -1,6 +1,6 @@
 import type { EditDirective } from "@vocode/protocol";
 
-import type { TranscriptApplyContext } from "../../transcript/context";
+import type { TranscriptApplyContext } from "../../voice-transcript/context";
 import type { DirectiveDispatchOutcome } from "../dispatch";
 import { recordAppliedEditUndoPaths } from "../undo/transcript-undo-ledger";
 import { dispatchEditResultWorkspaceEdit } from "./dispatch-workspace-edit";

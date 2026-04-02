@@ -1,7 +1,7 @@
 import * as vscode from "vscode";
 
 import type { DaemonClient } from "../daemon/client";
-import { runDaemonTranscriptForPendingId } from "../extension/run-daemon-transcript";
+import { runDaemonTranscriptForPendingId } from "../voice-transcript/run-daemon-transcript";
 import type { ExtensionServices } from "./services";
 import type { CommandDefinition } from "./types";
 

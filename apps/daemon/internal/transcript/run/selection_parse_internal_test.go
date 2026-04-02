@@ -1,10 +1,10 @@
-package transcript
+package run
 
 import "testing"
 
-// parseSearchControl treats exit as any utterance containing a whole word from
-// searchControlExitRe (cancel, done, close, stop, etc.), not a single fixed phrase.
-func TestParseSearchControl_exitDetectsKeywordInUtterance(t *testing.T) {
+// parseSelectionNav treats exit as any utterance containing a whole-word exit cue
+// (cancel, done, close, stop, etc.), not a single fixed phrase.
+func TestParseSelectionNav_exitDetectsKeywordInUtterance(t *testing.T) {
 	t.Parallel()
 	exitPhrases := []string{
 		"cancel",
@@ -25,15 +25,15 @@ func TestParseSearchControl_exitDetectsKeywordInUtterance(t *testing.T) {
 	for _, text := range exitPhrases {
 		t.Run(text, func(t *testing.T) {
 			t.Parallel()
-			kind, _, ok := parseSearchControl(text)
+			kind, _, ok := parseSelectionNav(text)
 			if !ok || kind != "exit" {
-				t.Fatalf("parseSearchControl(%q) = kind=%q ok=%v; want exit, true", text, kind, ok)
+				t.Fatalf("parseSelectionNav(%q) = kind=%q ok=%v; want exit, true", text, kind, ok)
 			}
 		})
 	}
 }
 
-func TestParseSearchControl_nonExitUtterances(t *testing.T) {
+func TestParseSelectionNav_nonExitUtterances(t *testing.T) {
 	t.Parallel()
 	cases := []struct {
 		text string
@@ -51,15 +51,15 @@ func TestParseSearchControl_nonExitUtterances(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.text, func(t *testing.T) {
 			t.Parallel()
-			kind, _, ok := parseSearchControl(tc.text)
+			kind, _, ok := parseSelectionNav(tc.text)
 			if tc.kind == "" {
 				if ok {
-					t.Fatalf("parseSearchControl(%q) = kind=%q ok=true; want ok=false", tc.text, kind)
+					t.Fatalf("parseSelectionNav(%q) = kind=%q ok=true; want ok=false", tc.text, kind)
 				}
 				return
 			}
 			if !ok || kind != tc.kind {
-				t.Fatalf("parseSearchControl(%q) = kind=%q ok=%v; want kind=%q ok=true", tc.text, kind, ok, tc.kind)
+				t.Fatalf("parseSelectionNav(%q) = kind=%q ok=%v; want kind=%q ok=true", tc.text, kind, ok, tc.kind)
 			}
 		})
 	}

@@ -14,8 +14,8 @@ import (
 
 type fakeModel struct {
 	classifier agent.TranscriptClassifierResult
-	scope agent.ScopeIntentResult
-	edit  agent.ScopedEditResult
+	scope      agent.ScopeIntentResult
+	edit       agent.ScopedEditResult
 }
 
 func (f fakeModel) ClassifyTranscript(ctx context.Context, in agentcontext.TranscriptClassifierContext) (agent.TranscriptClassifierResult, error) {
@@ -49,15 +49,15 @@ func TestExecutor_ScopedEdit_CurrentFile(t *testing.T) {
 
 	a := agent.New(fakeModel{
 		classifier: agent.TranscriptClassifierResult{Kind: agent.TranscriptInstruction},
-		scope: agent.ScopeIntentResult{ScopeKind: agent.ScopeCurrentFile},
-		edit:  agent.ScopedEditResult{ReplacementText: "REPLACED\n"},
+		scope:      agent.ScopeIntentResult{ScopeKind: agent.ScopeCurrentFile},
+		edit:       agent.ScopedEditResult{ReplacementText: "REPLACED\n"},
 	})
 	ex := executor.New(a, executor.Options{})
 	res, dirs, _, pending, ok, reason := ex.Execute(protocol.VoiceTranscriptParams{
 		Text:          "replace whole file",
 		ActiveFile:    active,
 		WorkspaceRoot: dir,
-	}, agentcontext.Gathered{})
+	}, agentcontext.Gathered{}, executor.ExecuteOptions{})
 	if !ok || !res.Success || reason != "" {
 		t.Fatalf("expected success, got ok=%v success=%v reason=%q", ok, res.Success, reason)
 	}
@@ -90,8 +90,8 @@ func TestExecutor_ScopedEdit_NamedSymbol_PicksSmallestRange(t *testing.T) {
 
 	a := agent.New(fakeModel{
 		classifier: agent.TranscriptClassifierResult{Kind: agent.TranscriptInstruction},
-		scope: agent.ScopeIntentResult{ScopeKind: agent.ScopeNamedSymbol, SymbolName: "foo"},
-		edit:  agent.ScopedEditResult{ReplacementText: "X\n"},
+		scope:      agent.ScopeIntentResult{ScopeKind: agent.ScopeNamedSymbol, SymbolName: "foo"},
+		edit:       agent.ScopedEditResult{ReplacementText: "X\n"},
 	})
 	ex := executor.New(a, executor.Options{})
 	res, dirs, _, _, ok, reason := ex.Execute(protocol.VoiceTranscriptParams{
@@ -99,8 +99,8 @@ func TestExecutor_ScopedEdit_NamedSymbol_PicksSmallestRange(t *testing.T) {
 		ActiveFile:    active,
 		WorkspaceRoot: dir,
 		ActiveFileSymbols: []struct {
-			Name string `json:"name"`
-			Kind string `json:"kind"`
+			Name  string `json:"name"`
+			Kind  string `json:"kind"`
 			Range struct {
 				StartLine int64 `json:"startLine"`
 				StartChar int64 `json:"startChar"`
@@ -149,7 +149,7 @@ func TestExecutor_ScopedEdit_NamedSymbol_PicksSmallestRange(t *testing.T) {
 				}{StartLine: 2, StartChar: 0, EndLine: 2, EndChar: 1},
 			},
 		},
-	}, agentcontext.Gathered{})
+	}, agentcontext.Gathered{}, executor.ExecuteOptions{})
 	if !ok || !res.Success || reason != "" {
 		t.Fatalf("expected success, got ok=%v success=%v reason=%q", ok, res.Success, reason)
 	}
@@ -191,8 +191,8 @@ func TestExecutor_ScopedEdit_CurrentFunction_EndCharMatchesTargetEndLine(t *test
 			Character int64 `json:"character"`
 		}{Line: 2, Character: 2},
 		ActiveFileSymbols: []struct {
-			Name string `json:"name"`
-			Kind string `json:"kind"`
+			Name  string `json:"name"`
+			Kind  string `json:"kind"`
 			Range struct {
 				StartLine int64 `json:"startLine"`
 				StartChar int64 `json:"startChar"`
@@ -223,7 +223,7 @@ func TestExecutor_ScopedEdit_CurrentFunction_EndCharMatchesTargetEndLine(t *test
 				}{StartLine: 1, StartChar: 0, EndLine: 1, EndChar: 1},
 			},
 		},
-	}, agentcontext.Gathered{})
+	}, agentcontext.Gathered{}, executor.ExecuteOptions{})
 	if !ok || !res.Success || reason != "" {
 		t.Fatalf("expected success, got ok=%v success=%v reason=%q", ok, res.Success, reason)
 	}
@@ -248,8 +248,8 @@ func TestExecutor_RenameHeuristic_ProducesRenameDirective(t *testing.T) {
 	}
 	a := agent.New(fakeModel{
 		classifier: agent.TranscriptClassifierResult{Kind: agent.TranscriptInstruction},
-		scope: agent.ScopeIntentResult{ScopeKind: agent.ScopeCurrentFile},
-		edit:  agent.ScopedEditResult{ReplacementText: "x\n"},
+		scope:      agent.ScopeIntentResult{ScopeKind: agent.ScopeCurrentFile},
+		edit:       agent.ScopedEditResult{ReplacementText: "x\n"},
 	})
 	ex := executor.New(a, executor.Options{})
 	res, dirs, _, pending, ok, reason := ex.Execute(protocol.VoiceTranscriptParams{
@@ -260,7 +260,7 @@ func TestExecutor_RenameHeuristic_ProducesRenameDirective(t *testing.T) {
 			Line      int64 `json:"line"`
 			Character int64 `json:"character"`
 		}{Line: 0, Character: 0},
-	}, agentcontext.Gathered{})
+	}, agentcontext.Gathered{}, executor.ExecuteOptions{})
 	if !ok || !res.Success || reason != "" {
 		t.Fatalf("expected success, got ok=%v success=%v reason=%q", ok, res.Success, reason)
 	}
@@ -272,6 +272,29 @@ func TestExecutor_RenameHeuristic_ProducesRenameDirective(t *testing.T) {
 	}
 	if dirs[0].RenameDirective.NewName != "bar" {
 		t.Fatalf("expected newName=bar, got %q", dirs[0].RenameDirective.NewName)
+	}
+}
+
+func TestExecutor_FileSelection_RequiresWorkspaceFolder(t *testing.T) {
+	t.Parallel()
+	a := agent.New(fakeModel{
+		classifier: agent.TranscriptClassifierResult{Kind: agent.TranscriptFileSelection},
+	})
+	ex := executor.New(a, executor.Options{})
+	res, dirs, _, pending, ok, reason := ex.Execute(protocol.VoiceTranscriptParams{
+		Text:                "delete that file",
+		ActiveFile:          "c:\\fake\\file.ts",
+		WorkspaceRoot:       "c:\\fake",
+		WorkspaceFolderOpen: false,
+	}, agentcontext.Gathered{}, executor.ExecuteOptions{})
+	if !ok || !res.Success || reason != "" {
+		t.Fatalf("expected success gate, got ok=%v success=%v reason=%q", ok, res.Success, reason)
+	}
+	if len(dirs) != 0 || pending != nil {
+		t.Fatalf("expected no directives")
+	}
+	if res.TranscriptOutcome != "needs_workspace_folder" {
+		t.Fatalf("expected needs_workspace_folder, got %q", res.TranscriptOutcome)
 	}
 }
 
@@ -290,7 +313,7 @@ func TestExecutor_ClassifierQuestion_ReturnsAnswerOutcome(t *testing.T) {
 		Text:          "why",
 		ActiveFile:    "c:\\fake\\file.ts",
 		WorkspaceRoot: "c:\\fake",
-	}, agentcontext.Gathered{})
+	}, agentcontext.Gathered{}, executor.ExecuteOptions{})
 	if !ok || !res.Success || reason != "" {
 		t.Fatalf("expected success, got ok=%v success=%v reason=%q", ok, res.Success, reason)
 	}
@@ -301,4 +324,3 @@ func TestExecutor_ClassifierQuestion_ReturnsAnswerOutcome(t *testing.T) {
 		t.Fatalf("expected answer outcome, got outcome=%q answer=%q", res.TranscriptOutcome, res.AnswerText)
 	}
 }
-

@@ -2,10 +2,10 @@
 
 ## Goals
 
-- **Voice-first UX:** No user-facing “sessions” or “clear context”; internal keys and resets only.
+- **Voice-first UX:** No user-facing sessions or clear-context UX; internal keys and resets only.
 - **Thinner wire:** daemon sends directive batches via `host.applyDirectives`; host returns per-directive `{status, message}[]` only.
-- **Batching:** Multiple directives per `voice.transcript` remain allowed; extension stops on first failure and reports **one row per directive** (tail = “not attempted”).
-- **Long mic on:** **Idle reset** clears accumulated `Gathered` for a context key; **rolling cap** trims excerpts/notes/symbols while **never dropping the current `activeFile` excerpt**.
+- **Batching:** Multiple directives per `voice.transcript` remain allowed; extension stops on first failure and reports **one row per directive** (tail = skipped / not attempted).
+- **Long mic on:** **Idle reset** clears stored voice session for a context key; **rolling cap** trims gathered excerpts while **never dropping the current `activeFile` excerpt**.
 
 ## Phases
 
@@ -13,26 +13,23 @@
 
 - Daemon→host: `host.applyDirectives` with `applyBatchId`, `activeFile`, `directives[]`.
 - Host→daemon: `HostApplyResult.items[]` (`status`: `ok` | `failed` | `skipped`, optional `message`).
-- `voice.transcript` returns `VoiceTranscriptCompletion` (classification + UI disposition + optional search/Q&A payloads). It does not return directives.
-- `TranscriptService` (`transcript` package) holds `VoiceSessionStore`, `executeMu`, and `transcript/executor.Executor`; `Executor` returns a new `DirectiveApplyBatch` when the result includes directives. Session load/save + apply report stripping live in `transcript/voicesession`; env in `transcript/config`.
-- `Executor` collects parallel `[]intents.Intent` for each emitted directive; returns pending payload; rename helper to **source-intent** wording internally.
-- If a prior batch was pending and the next RPC has **no** report, **drop** pending (forward progress; extension should normally report).
+- `voice.transcript` returns `VoiceTranscriptCompletion` (classification + UI disposition + optional search/Q&A payloads). It does not return directives on the completion object; directives are applied via `host.applyDirectives` in the same RPC when needed.
+- `TranscriptService` (`internal/transcript`) holds `VoiceSessionStore`, `executeMu`, and `transcript/executor.Executor`; each utterance runs under the mutex via `transcript/run.Execute`. **Single-shot:** one executor pass and at most one host apply batch per utterance (no daemon-side repair loop).
+- Session load/save + apply report consumption live in `transcript/voicesession`; tuning defaults in `transcript/config`; per-RPC overrides via `daemonConfig` on `voice.transcript` (`sessionIdleResetMs`, `maxGatheredBytes`, `maxGatheredExcerpts`).
+- Flow stack + clarify targets: `internal/agentcontext` (`FlowStack`, `FlowFrame` carries clarify question + original utterance + target key, clarify registry). Utterance orchestration is `internal/transcript/run`; root `transcript` is RPC + queue. **`run` must not import `transcript`** (acyclic graph).
 
 ### B — `Gathered` policy (`agentcontext`)
 
 - **`ApplyGatheredRollingCap(g, activeFile, maxBytes, maxExcerpts)`:** never remove excerpt whose path equals cleaned `activeFile`; evict other excerpts by slice order (oldest first) until under caps.
-- **Idle reset:** `VoiceSessionStore` tracks last activity per `contextSessionId`; before `Get`, if idle > env threshold, delete stored session for that key (gathered + pending apply).
-- Env: `VOCODE_DAEMON_SESSION_IDLE_RESET_MS` (unset → 30m default, `0` → off), optional cap envs for excerpts/bytes.
+- **Idle reset:** `VoiceSessionStore` tracks last activity per `contextSessionId`; before `Get`, if idle elapsed, delete stored session for that key.
 
-### C — Docs + naming
+### C — Control RPC
 
-- `AGENTS.md` / `agentcontext` package docs: internal context session, no user session UX; batch apply rules.
-- Executor options: `MaxAgentTurns` (env `VOCODE_DAEMON_VOICE_MAX_AGENT_TURNS`).
+- `controlRequest`: `cancel_clarify` | `cancel_selection` (close code match list / selection session without spoken text).
 
 ## Extension
-- Apply directives immediately only when the daemon requests them via `host.applyDirectives`; the daemon owns the retry/repair loop.
-- Committed transcript handlers are serialized so no next user transcript can start until the current apply/repair sequence finishes.
-- The daemon owns the apply + repair loop: it calls `host.applyDirectives`, waits for per-directive outcomes, then continues planning in the same `voice.transcript` RPC.
-- Cap for the daemon-owned apply/repair loop: `VOCODE_DAEMON_VOICE_MAX_REPAIR_RPCS` (configured from `vocode.maxTranscriptRepairRpcs`).
-- Failure messages come from the specific directive dispatcher (command stderr/exit reason, edit/workspace.applyEdit failures, navigation/undo errors) and are surfaced via `lastBatchApply[i].message`.
-- `applyTranscriptResult` pads outcomes to **full directive count** after failure.
+
+- Code layout: `apps/vscode-extension/src/voice-transcript/` (RPC helpers, `apply-directives`, workspace root), `src/ui/panel/` (main webview provider + store).
+- Apply directives when the daemon requests them via `host.applyDirectives` during `voice.transcript`; return per-directive outcomes in one shot.
+- Committed transcript handlers are serialized so a new user transcript does not start until the current RPC finishes.
+- Failure messages come from directive dispatchers and are surfaced in `HostApplyResult.items[i].message`.

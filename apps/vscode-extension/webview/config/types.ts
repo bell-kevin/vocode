@@ -23,10 +23,5 @@ export type VocodeConfig = {
   daemonVoiceTranscriptCoalesceMs: number;
   daemonVoiceTranscriptMaxMergeJobs: number;
   daemonVoiceTranscriptMaxMergeChars: number;
-  maxPlannerTurns: number;
-  maxIntentDispatchRetries: number;
-  maxContextRounds: number;
-  maxContextBytes: number;
-  maxConsecutiveContextRequests: number;
   sessionIdleResetMs: number;
 };

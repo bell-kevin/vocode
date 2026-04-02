@@ -10,6 +10,7 @@ import (
 	"vocoding.net/vocode/v2/apps/daemon/internal/agentcontext"
 	"vocoding.net/vocode/v2/apps/daemon/internal/transcript/config"
 	"vocoding.net/vocode/v2/apps/daemon/internal/transcript/executor"
+	"vocoding.net/vocode/v2/apps/daemon/internal/transcript/run"
 	protocol "vocoding.net/vocode/v2/packages/protocol/go"
 )
 
@@ -121,4 +122,15 @@ func (s *TranscriptService) AcceptTranscript(
 
 	resp := <-respCh
 	return resp.result, resp.ok, resp.reason
+}
+
+func (s *TranscriptService) runExecute(params protocol.VoiceTranscriptParams) (protocol.VoiceTranscriptCompletion, bool, string) {
+	s.executeMu.Lock()
+	defer s.executeMu.Unlock()
+	return run.Execute(&run.Env{
+		Sessions:  s.sessions,
+		Ephemeral: &s.ephemeralVoiceSession,
+		Executor:  s.executor,
+		HostApply: s.hostApplyClient,
+	}, params)
 }

@@ -50,7 +50,11 @@ export type HandledRow = {
     | "clarify"
     | "clarify_control"
     | "search"
-    | "search_control"
+    | "selection"
+    | "selection_control"
+    | "file_selection"
+    | "file_selection_control"
+    | "needs_workspace_folder"
     | "answer";
   answerText?: string;
   errorMessage?: string;

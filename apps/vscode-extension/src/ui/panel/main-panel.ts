@@ -1,17 +1,17 @@
 import * as vscode from "vscode";
 
-import type { ExtensionServices } from "../commands/services";
+import type { ExtensionServices } from "../../commands/services";
 import {
   applyVocodePanelConfigPatch,
   buildVocodePanelConfigMessage,
-} from "../config/panel-settings";
+} from "../../config/panel-settings";
 import {
   ANTHROPIC_API_KEY_SECRET,
   ELEVENLABS_API_KEY_SECRET,
   elevenLabsApiKeyIsConfigured,
   OPENAI_API_KEY_SECRET,
-} from "../config/spawn-env";
-import { sendTranscriptControlRequest } from "../extension/transcript-control";
+} from "../../config/spawn-env";
+import { sendTranscriptControlRequest } from "../../voice-transcript/transcript-control";
 import type { MainPanelStore } from "./main-panel-store";
 
 /** VS Code contributed view id (package.json); stable for user layouts and commands. */
@@ -137,7 +137,7 @@ export class MainPanelViewProvider
         }
         if (m.type === "transcriptControl") {
           const c = m.control;
-          if (c !== "cancel_clarify" && c !== "cancel_search") {
+          if (c !== "cancel_clarify" && c !== "cancel_selection") {
             return;
           }
           void (async () => {

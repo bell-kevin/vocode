@@ -12,9 +12,13 @@ type VoiceSession struct {
 	PendingDirectiveApply *DirectiveApplyBatch
 	SearchResults         []SearchHit
 	ActiveSearchIndex     int
-	// Clarify flow: when non-empty, the daemon is awaiting a follow-up utterance.
-	ClarifyQuestion         string
-	ClarifyOriginalTranscript string
+	// FlowStack: top frame consumes the next utterance (main = empty stack).
+	// Clarify prompts live on the top FlowKindClarify frame (see [FlowFrame]).
+	FlowStack []FlowFrame
+	// File-selection flow: flat workspace file list + cursor (host sends focusedWorkspacePath each RPC when known).
+	FileSelectionPaths []string
+	FileSelectionIndex int
+	FileSelectionFocus string
 }
 
 type SearchHit struct {
@@ -90,12 +94,16 @@ func (s *VoiceSessionStore) Put(key string, session VoiceSession) {
 }
 
 func cloneVoiceSession(v VoiceSession) VoiceSession {
+	fs := make([]FlowFrame, len(v.FlowStack))
+	copy(fs, v.FlowStack)
 	return VoiceSession{
 		Gathered:              v.Gathered,
 		PendingDirectiveApply: v.PendingDirectiveApply,
 		SearchResults:         append([]SearchHit(nil), v.SearchResults...),
 		ActiveSearchIndex:     v.ActiveSearchIndex,
-		ClarifyQuestion:         v.ClarifyQuestion,
-		ClarifyOriginalTranscript: v.ClarifyOriginalTranscript,
+		FlowStack:             fs,
+		FileSelectionPaths:    append([]string(nil), v.FileSelectionPaths...),
+		FileSelectionIndex:    v.FileSelectionIndex,
+		FileSelectionFocus:    v.FileSelectionFocus,
 	}
 }

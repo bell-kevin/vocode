@@ -17,7 +17,7 @@ const (
 // Wire: [protocol.HostApplyParams.applyBatchId] is used to correlate the host's response
 // back to this batch during duplex apply inside the same voice.transcript RPC.
 type DirectiveApplyBatch struct {
-	ID           string
+	ID            string
 	NumDirectives int
 }
 

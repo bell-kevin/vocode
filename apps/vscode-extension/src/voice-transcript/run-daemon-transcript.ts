@@ -3,8 +3,11 @@ import * as vscode from "vscode";
 
 import type { ExtensionServices } from "../commands/services";
 import type { DaemonClient } from "../daemon/client";
-import { FAILED_TO_PROCESS_TRANSCRIPT } from "../transcript/messages";
-import { transcriptWorkspaceRoot } from "../transcript/workspace-root";
+import { FAILED_TO_PROCESS_TRANSCRIPT } from "./messages";
+import {
+  transcriptWorkspaceFolderOpen,
+  transcriptWorkspaceRoot,
+} from "./workspace-root";
 
 /**
  * Runs `voice.transcript` for a pending sidebar row: document symbols, same params as the
@@ -27,22 +30,6 @@ export async function runDaemonTranscriptForPendingId(
 
     const vocodeCfg = vscode.workspace.getConfiguration("vocode");
     const daemonConfig: NonNullable<VoiceTranscriptParams["daemonConfig"]> = {
-      maxPlannerTurns: vocodeCfg.get<number>("maxPlannerTurns", 8),
-      maxIntentsPerBatch: vocodeCfg.get<number>("maxIntentsPerBatch", 16),
-      maxIntentDispatchRetries: vocodeCfg.get<number>(
-        "maxIntentDispatchRetries",
-        2,
-      ),
-      maxContextRounds: vocodeCfg.get<number>("maxContextRounds", 2),
-      maxContextBytes: vocodeCfg.get<number>("maxContextBytes", 12000),
-      maxConsecutiveContextRequests: vocodeCfg.get<number>(
-        "maxConsecutiveContextRequests",
-        3,
-      ),
-      maxTranscriptRepairRpcs: vocodeCfg.get<number>(
-        "maxTranscriptRepairRpcs",
-        8,
-      ),
       sessionIdleResetMs: vocodeCfg.get<number>("sessionIdleResetMs", 1800000),
       maxGatheredBytes: 120_000,
       maxGatheredExcerpts: 12,
@@ -51,7 +38,9 @@ export async function runDaemonTranscriptForPendingId(
     const baseParams = {
       text: textForDaemon,
       activeFile,
+      focusedWorkspacePath: activeFile,
       workspaceRoot: transcriptWorkspaceRoot(activeFile),
+      workspaceFolderOpen: transcriptWorkspaceFolderOpen(),
       cursorPosition: {
         line: editor.selection.active.line,
         character: editor.selection.active.character,
@@ -107,6 +96,22 @@ export async function runDaemonTranscriptForPendingId(
     };
 
     const result = await client.transcript(paramsWithSymbols);
+
+    if (
+      result.success &&
+      result.transcriptOutcome === "needs_workspace_folder"
+    ) {
+      const open = "Open Folder";
+      const pick = await vscode.window.showInformationMessage(
+        result.summary?.trim() || "Open a folder to use voice file selection.",
+        open,
+      );
+      if (pick === open) {
+        await vscode.commands.executeCommand(
+          "workbench.action.files.openFolder",
+        );
+      }
+    }
 
     if (!result.success) {
       mainPanelStore.markError(pendingId, FAILED_TO_PROCESS_TRANSCRIPT);

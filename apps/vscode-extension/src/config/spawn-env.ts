@@ -120,51 +120,12 @@ const CONFIG_TO_ENV: readonly ConfigBinding[] = [
     envVar: "VOCODE_DAEMON_VOICE_TRANSCRIPT_MAX_MERGE_CHARS",
     kind: "number",
   },
-  {
-    configKey: "maxPlannerTurns",
-    envVar: "VOCODE_DAEMON_VOICE_MAX_AGENT_TURNS",
-    kind: "number",
-  },
-  {
-    configKey: "maxTranscriptRepairRpcs",
-    envVar: "VOCODE_DAEMON_VOICE_MAX_REPAIR_RPCS",
-    kind: "number",
-  },
-  {
-    configKey: "maxIntentsPerBatch",
-    envVar: "VOCODE_DAEMON_VOICE_MAX_INTENTS_PER_BATCH",
-    kind: "number",
-  },
-  {
-    configKey: "maxIntentDispatchRetries",
-    envVar: "VOCODE_DAEMON_VOICE_MAX_INTENT_RETRIES",
-    kind: "number",
-  },
-  {
-    configKey: "maxContextRounds",
-    envVar: "VOCODE_DAEMON_VOICE_MAX_CONTEXT_ROUNDS",
-    kind: "number",
-  },
-  {
-    configKey: "maxContextBytes",
-    envVar: "VOCODE_DAEMON_VOICE_MAX_CONTEXT_BYTES",
-    kind: "number",
-  },
-  {
-    configKey: "maxConsecutiveContextRequests",
-    envVar: "VOCODE_DAEMON_VOICE_MAX_CONSECUTIVE_CONTEXT_REQUESTS",
-    kind: "number",
-  },
-  {
-    configKey: "sessionIdleResetMs",
-    envVar: "VOCODE_DAEMON_SESSION_IDLE_RESET_MS",
-    kind: "number",
-  },
 ] as const;
 
 export const PANEL_CONFIG_KEYS = [
   "voiceVadDebug",
   "voiceSidecarLogProtocol",
+  "sessionIdleResetMs",
   ...CONFIG_TO_ENV.map((b) => b.configKey),
 ] as const;
 
@@ -235,22 +196,7 @@ export async function applyVocodeSpawnEnvironment(
   }
 
   const config = vscode.workspace.getConfiguration("vocode");
-  const capConfigKeysToSkipEnv = new Set<PanelConfigKey>([
-    "maxPlannerTurns",
-    "maxIntentsPerBatch",
-    "maxIntentDispatchRetries",
-    "maxContextRounds",
-    "maxContextBytes",
-    "maxConsecutiveContextRequests",
-    "maxTranscriptRepairRpcs",
-    "sessionIdleResetMs",
-  ]);
   for (const b of CONFIG_TO_ENV) {
-    // Daemon consumes these caps from `voice.transcript` params (`daemonConfig`),
-    // so we don't need env updates (no restart required).
-    if (capConfigKeysToSkipEnv.has(b.configKey as PanelConfigKey)) {
-      continue;
-    }
     applyBinding(config, env, b);
   }
 

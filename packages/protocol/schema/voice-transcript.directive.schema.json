@@ -14,7 +14,10 @@
         "undo",
         "rename",
         "code_action",
-        "format"
+        "format",
+        "delete_file",
+        "move_path",
+        "create_folder"
       ]
     },
     "editDirective": {
@@ -37,6 +40,15 @@
     },
     "formatDirective": {
       "$ref": "./format-directive.schema.json"
+    },
+    "deleteFileDirective": {
+      "$ref": "./delete-file-directive.schema.json"
+    },
+    "movePathDirective": {
+      "$ref": "./move-path-directive.schema.json"
+    },
+    "createFolderDirective": {
+      "$ref": "./create-folder-directive.schema.json"
     }
   },
   "required": ["kind"]

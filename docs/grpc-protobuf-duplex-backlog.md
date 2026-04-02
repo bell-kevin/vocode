@@ -23,9 +23,8 @@ Implement a duplex gRPC stream (one stream per committed transcript / `contextSe
 ## Mapping from current JSON-RPC
 - `host.applyDirectives` request.params becomes `DirectiveBatch`
 - `host.applyDirectives` result becomes `ApplyOutcomeBatch.items`
-- The daemon-owned internal apply/repair loop becomes the server-side stream loop
+- Each committed utterance still maps to **one** daemon planning pass and **at most one** host apply batch; a duplex stream would carry those batches in order, not re-run a daemon-side retry loop per utterance.
 
 ## Notes / constraints
-- Preserve the “no repeated successful directives” rule by feeding the cumulative `IntentApplyHistory` into the next planning iteration (same as today).
-- Keep a repair cap (current: `VOCODE_DAEMON_VOICE_MAX_REPAIR_RPCS`) to avoid infinite retry loops.
+- Preserve host feedback (per-directive outcomes) so the product can decide follow-up policy in the extension or a future multi-turn planner; the current `voice.transcript` path remains single-shot per RPC.
 

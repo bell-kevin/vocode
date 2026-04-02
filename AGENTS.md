@@ -18,16 +18,15 @@ One “turn” starts when the extension calls the daemon RPC:
 
 1. For `voice.transcript`, the daemon runs a **narrow-model** pipeline in `internal/transcript/executor` (classifier → scope intent → scoped edit / format / rename / search / …), not an iterative `intents[]` loop.
 2. **Single-shot apply per utterance**: at most one `executor.Execute` and one `host.applyDirectives` batch for that RPC. On `stale_range` or other apply failures, the daemon returns failure; the user re-speaks (99-like)—no daemon-side repair retries.
-3. Optional **gather** (`internal/gather`) enriches context for prompts; it does not participate in directive apply.
-4. The daemon returns a `VoiceTranscriptCompletion` containing:
+3. The daemon returns a `VoiceTranscriptCompletion` containing:
    - `success`
    - optional `summary`
-   - `transcriptOutcome` (e.g. `search`, `search_control`, `clarify`, `clarify_control`, `irrelevant`, `answer`)
+   - `transcriptOutcome` (e.g. `search`, `selection`, `selection_control`, `file_selection`, `file_selection_control`, `needs_workspace_folder`, `clarify`, `clarify_control`, `irrelevant`, `answer`, `completed`)
    - `uiDisposition` (`shown | skipped | hidden`) telling the host where to log the completion
    - optional `searchResults` + `activeSearchIndex` for search flows
    - optional `answerText` for Q/A  
    Per-`contextSessionId` state lives in `VoiceSessionStore`, subject to idle reset (`VOCODE_DAEMON_SESSION_IDLE_RESET_MS`: unset → 30m default, `0` → off) and a rolling byte/excerpt cap (active-file excerpt is retained).
-5. Each directive is exactly one of:
+4. Each directive is exactly one of:
    - `kind: "edit"` with an `editDirective` (a single explicit variant of `EditDirective`)
    - `kind: "command"` with `commandDirective` (daemon-validated command shape; extension executes)
    - `kind: "navigate"` with `navigationDirective` (extension applies deterministic UI navigation)
@@ -97,18 +96,26 @@ One rule should have one owner. Duplicating ownership is a regression risk.
 - Do not mix editor/transport policy decisions with agent/orchestration concerns.
 - Do not move native microphone or STT transport logic into the extension host; keep it in `apps/voice`.
 
+## Daemon package boundaries (voice transcript)
+
+- **`internal/agentcontext`:** session-shaped data (`VoiceSession`, `FlowStack`, `Gathered`, clarify-target rules). No RPC orchestration, no calls into `internal/transcript` or `internal/transcript/executor`.
+- **`internal/transcript` (root package):** `TranscriptService` — RPC entry, queue/worker, mutex; delegates each utterance to **`internal/transcript/run`**.
+- **`internal/transcript/run`:** one locked utterance (session load, control / clarify / selection / file-selection, executor, `host.applyDirectives`, persist). **Must not** import the parent `transcript` package (no cycles).
+- **`internal/transcript/executor`:** narrow model pipeline for a single execute call → directives.
+- Target dependency direction: `transcript` → `run` → `executor` → … → `agentcontext` / `agent`.
+
 ## Where to look (key files)
 
 ### Daemon
 
-- Agent/runtime: `apps/daemon/internal/agent` — transcript/scoped-edit model calls (`ModelClient`: `ClassifyTranscript`, `ScopeIntent`, `ScopedEdit`, …). Prompts: `apps/daemon/internal/agent/prompt`. Providers: `openai` (`VOCODE_AGENT_PROVIDER=openai`, `OPENAI_API_KEY`, optional `VOCODE_OPENAI_MODEL` / `VOCODE_OPENAI_BASE_URL`); `anthropic` (`VOCODE_AGENT_PROVIDER=anthropic`, `ANTHROPIC_API_KEY`, optional `VOCODE_ANTHROPIC_MODEL` / `VOCODE_ANTHROPIC_BASE_URL`). Transcript debug log line: `VOCODE_DAEMON_VOICE_LOG_TRANSCRIPT=1` (needs daemon logger). Context types: `apps/daemon/internal/agentcontext` (`Gathered`, sessions, apply batches). Context fulfillment: `apps/daemon/internal/gather` (`Provider`, `FulfillSpec`). Tree-sitter tag parsing + cursor containment: `apps/daemon/internal/symbols/tags`
-- Voice transcript (`apps/daemon/internal/transcript/`): root `service*.go` (RPC, run path, coalesce worker); `transcript/executor` (narrow pipeline → protocol directives); `transcript/voicesession` (session + apply report); `transcript/config` (env); see `transcript/doc.go`
+- Agent/runtime: `apps/daemon/internal/agent` — transcript/scoped-edit model calls (`ModelClient`: `ClassifyTranscript`, `ScopeIntent`, `ScopedEdit`, …). Prompts: `apps/daemon/internal/agent/prompt`. Providers: `openai` (`VOCODE_AGENT_PROVIDER=openai`, `OPENAI_API_KEY`, optional `VOCODE_OPENAI_MODEL` / `VOCODE_OPENAI_BASE_URL`); `anthropic` (`VOCODE_AGENT_PROVIDER=anthropic`, `ANTHROPIC_API_KEY`, optional `VOCODE_ANTHROPIC_MODEL` / `VOCODE_ANTHROPIC_BASE_URL`). Transcript debug log line: `VOCODE_DAEMON_VOICE_LOG_TRANSCRIPT=1` (needs daemon logger). Context types: `apps/daemon/internal/agentcontext` (`Gathered`, sessions, apply batches, model input structs). Tree-sitter tag parsing + cursor containment: `apps/daemon/internal/symbols/tags`
+- Voice transcript (`apps/daemon/internal/transcript/`): root `service*.go` (RPC, queue); `transcript/run` (per-utterance orchestration); `transcript/executor` (narrow pipeline → protocol directives); `transcript/voicesession`; `transcript/config`; see `transcript/doc.go`
 
 ### Extension
 
 - Send transcript: `apps/vscode-extension/src/commands/send-transcript.ts`
-- Apply daemon directive batches + return per-directive outcomes to daemon: `apps/vscode-extension/src/transcript/apply-directives.ts`, `apps/vscode-extension/src/daemon/rpc-transport.ts` (handler for `host.applyDirectives`)
-- Voice main sidebar (webview UI state): `apps/vscode-extension/src/ui/main-panel-store.ts` + `ui/main-panel.ts`
+- Apply daemon directive batches + return per-directive outcomes to daemon: `apps/vscode-extension/src/voice-transcript/apply-directives.ts`, `apps/vscode-extension/src/daemon/rpc-transport.ts` (handler for `host.applyDirectives`)
+- Voice main sidebar (webview UI state): `apps/vscode-extension/src/ui/panel/main-panel-store.ts` + `ui/panel/main-panel.ts`
 - Directive host layer (`apps/vscode-extension/src/directives/`): `command`, `edits`, `navigation`, `undo` (each has `dispatch.ts` exporting `dispatchCommand` / `dispatchEdit` / `dispatchNavigation` / `dispatchUndo`), plus root `dispatch.ts` (`dispatchTranscript`)
 - Daemon client: `apps/vscode-extension/src/daemon/client.ts`
 - Voice sidecar spawn/client: `apps/vscode-extension/src/voice` (`client`, `spawn`, `paths`)

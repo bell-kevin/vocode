@@ -1,7 +1,7 @@
 /**
  * Observable state for the main voice sidebar webview (Live / Applying / Recent / Skipped,
  * partial hypotheses, listening flag, audio meter). Daemon transcript application lives in
- * ../transcript/apply-directives — this store is UI-only.
+ * ../../voice-transcript/apply-directives — this store is UI-only.
  */
 const DEFAULT_MAX_HANDLED = 30;
 const WAVEFORM_SAMPLES = 64;
@@ -61,7 +61,11 @@ export type MainPanelSnapshot = {
       | "clarify"
       | "clarify_control"
       | "search"
-      | "search_control"
+      | "selection"
+      | "selection_control"
+      | "file_selection"
+      | "file_selection_control"
+      | "needs_workspace_folder"
       | "answer";
     readonly answerText?: string;
     readonly errorMessage?: string;
@@ -99,7 +103,11 @@ export class MainPanelStore {
       | "clarify"
       | "clarify_control"
       | "search"
-      | "search_control"
+      | "selection"
+      | "selection_control"
+      | "file_selection"
+      | "file_selection_control"
+      | "needs_workspace_folder"
       | "answer";
     answerText?: string;
     errorMessage?: string;
@@ -127,7 +135,7 @@ export class MainPanelStore {
           preview: string;
         }[];
         activeIndex: number;
-        /** Daemon session key for this hit list; used for cancel_search RPC after voice stops. */
+        /** Daemon session key for this hit list; used for cancel_selection RPC after voice stops. */
         contextSessionId?: string;
       }
     | undefined;
@@ -391,7 +399,11 @@ export class MainPanelStore {
         | "clarify"
         | "clarify_control"
         | "search"
-        | "search_control"
+        | "selection"
+        | "selection_control"
+        | "file_selection"
+        | "file_selection_control"
+        | "needs_workspace_folder"
         | "answer";
       uiDisposition?: "shown" | "skipped" | "hidden";
       searchResults?: readonly {
@@ -428,7 +440,10 @@ export class MainPanelStore {
       this.emit();
       return;
     }
-    if (options?.transcriptOutcome === "search") {
+    if (
+      options?.transcriptOutcome === "search" ||
+      options?.transcriptOutcome === "selection"
+    ) {
       if (options.searchResults && options.searchResults.length > 0) {
         const prevCtx = this.searchState?.contextSessionId;
         this.searchState = {
@@ -437,7 +452,7 @@ export class MainPanelStore {
           contextSessionId: options.contextSessionId ?? prevCtx,
         };
       }
-    } else if (options?.transcriptOutcome === "search_control") {
+    } else if (options?.transcriptOutcome === "selection_control") {
       if (options.searchResults && options.searchResults.length > 0) {
         const prevCtx = this.searchState?.contextSessionId;
         this.searchState = {
@@ -476,11 +491,16 @@ export class MainPanelStore {
         case "irrelevant":
           return "skipped";
         case "search":
-        case "search_control":
+        case "selection":
+        case "selection_control":
+        case "file_selection":
+        case "file_selection_control":
         case "clarify":
         case "clarify_control":
         case "answer":
           return "hidden";
+        case "needs_workspace_folder":
+          return "shown";
         default:
           return "shown";
       }
@@ -523,7 +543,11 @@ export class MainPanelStore {
         | "clarify"
         | "clarify_control"
         | "search"
-        | "search_control"
+        | "selection"
+        | "selection_control"
+        | "file_selection"
+        | "file_selection_control"
+        | "needs_workspace_folder"
         | "answer";
       uiDisposition?: "shown" | "skipped" | "hidden";
       searchResults?: readonly {
@@ -549,7 +573,10 @@ export class MainPanelStore {
         : options?.transcriptOutcome === "irrelevant"
           ? (true as const)
           : undefined;
-    if (options?.transcriptOutcome === "search") {
+    if (
+      options?.transcriptOutcome === "search" ||
+      options?.transcriptOutcome === "selection"
+    ) {
       if (options.searchResults && options.searchResults.length > 0) {
         const prevCtx = this.searchState?.contextSessionId;
         this.searchState = {
@@ -558,7 +585,7 @@ export class MainPanelStore {
           contextSessionId: options.contextSessionId ?? prevCtx,
         };
       }
-    } else if (options?.transcriptOutcome === "search_control") {
+    } else if (options?.transcriptOutcome === "selection_control") {
       if (options.searchResults && options.searchResults.length > 0) {
         const prevCtx = this.searchState?.contextSessionId;
         this.searchState = {
@@ -594,11 +621,16 @@ export class MainPanelStore {
         case "irrelevant":
           return "skipped";
         case "search":
-        case "search_control":
+        case "selection":
+        case "selection_control":
+        case "file_selection":
+        case "file_selection_control":
         case "clarify":
         case "clarify_control":
         case "answer":
           return "hidden";
+        case "needs_workspace_folder":
+          return "shown";
         default:
           return "shown";
       }

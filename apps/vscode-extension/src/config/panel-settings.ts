@@ -33,12 +33,6 @@ export type VocodePanelConfigMessage = {
   daemonVoiceTranscriptCoalesceMs: number;
   daemonVoiceTranscriptMaxMergeJobs: number;
   daemonVoiceTranscriptMaxMergeChars: number;
-  maxPlannerTurns: number;
-  maxTranscriptRepairRpcs: number;
-  maxIntentDispatchRetries: number;
-  maxContextRounds: number;
-  maxContextBytes: number;
-  maxConsecutiveContextRequests: number;
   sessionIdleResetMs: number;
 };
 
@@ -114,15 +108,6 @@ export async function buildVocodePanelConfigMessage(
     daemonVoiceTranscriptMaxMergeChars: c.get<number>(
       "daemonVoiceTranscriptMaxMergeChars",
       6000,
-    ),
-    maxPlannerTurns: c.get<number>("maxPlannerTurns", 8),
-    maxTranscriptRepairRpcs: c.get<number>("maxTranscriptRepairRpcs", 8),
-    maxIntentDispatchRetries: c.get<number>("maxIntentDispatchRetries", 2),
-    maxContextRounds: c.get<number>("maxContextRounds", 2),
-    maxContextBytes: c.get<number>("maxContextBytes", 12000),
-    maxConsecutiveContextRequests: c.get<number>(
-      "maxConsecutiveContextRequests",
-      3,
     ),
     sessionIdleResetMs: c.get<number>("sessionIdleResetMs", 1800000),
   };

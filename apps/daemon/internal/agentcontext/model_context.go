@@ -27,8 +27,8 @@ type ScopedEditContext struct {
 
 // ScopeIntentContext is everything the model sees for one scope-intent call.
 type ScopeIntentContext struct {
-	Instruction      string
-	Editor           EditorSnapshot
+	Instruction       string
+	Editor            EditorSnapshot
 	ActiveFileSymbols []struct {
 		Name string `json:"name"`
 		Kind string `json:"kind"`

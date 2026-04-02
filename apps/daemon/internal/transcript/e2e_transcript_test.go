@@ -177,7 +177,7 @@ func (h *flakyApplyHost) ApplyDirectives(params protocol.HostApplyParams) (proto
 	}, nil
 }
 
-func TestVoiceTranscript_DuplexApply_RepairsAndEditsBubbleSort(t *testing.T) {
+func TestVoiceTranscript_SingleShotScopedEditBubbleSort(t *testing.T) {
 	t.Parallel()
 
 	dir := t.TempDir()
@@ -210,18 +210,7 @@ func TestVoiceTranscript_DuplexApply_RepairsAndEditsBubbleSort(t *testing.T) {
 		Text:          "Fix the bug in the bubble sort function",
 		ActiveFile:    active,
 		WorkspaceRoot: dir,
-		DaemonConfig: &struct {
-			MaxPlannerTurns                *int64 `json:"maxPlannerTurns,omitempty"`
-			MaxIntentsPerBatch             *int64 `json:"maxIntentsPerBatch,omitempty"`
-			MaxIntentDispatchRetries       *int64 `json:"maxIntentDispatchRetries,omitempty"`
-			MaxContextRounds               *int64 `json:"maxContextRounds,omitempty"`
-			MaxContextBytes                *int64 `json:"maxContextBytes,omitempty"`
-			MaxConsecutiveContextRequests  *int64 `json:"maxConsecutiveContextRequests,omitempty"`
-			MaxTranscriptRepairRpcs        *int64 `json:"maxTranscriptRepairRpcs,omitempty"`
-			SessionIdleResetMs             *int64 `json:"sessionIdleResetMs,omitempty"`
-			MaxGatheredBytes               *int64 `json:"maxGatheredBytes,omitempty"`
-			MaxGatheredExcerpts            *int64 `json:"maxGatheredExcerpts,omitempty"`
-		}{},
+		DaemonConfig:  nil,
 		// A non-empty session id exercises the normal session store path.
 		ContextSessionId: "e2e-bubble-sort",
 		// Cursor optional for this stub path.
@@ -264,9 +253,9 @@ func TestVoiceTranscript_StaleRangeFailsSingleShot(t *testing.T) {
 	svc.SetHostApplyClient(host)
 
 	params := protocol.VoiceTranscriptParams{
-		Text:          "Fix f",
-		ActiveFile:    active,
-		WorkspaceRoot: dir,
+		Text:             "Fix f",
+		ActiveFile:       active,
+		WorkspaceRoot:    dir,
 		ContextSessionId: "stale-range-single-shot",
 		CursorPosition: &struct {
 			Line      int64 `json:"line"`
@@ -285,4 +274,3 @@ func TestVoiceTranscript_StaleRangeFailsSingleShot(t *testing.T) {
 		t.Fatalf("expected exactly 1 host apply call (no retries), got %d", host.calls)
 	}
 }
-

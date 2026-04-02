@@ -215,7 +215,9 @@ Plan:
 
 ---
 
-### 5. Gather‑Context (`GatherContextSpec`)
+### 5. Gather‑Context (`GatherContextSpec`) — design reference
+
+**Not in the current daemon:** the shipped `voice.transcript` path does not import a separate gather package or wire `GatherContextSpec`; `Gathered` is seeded and capped inside transcript/executor only. The shapes below describe a planner-style extension if reintroduced.
 
 Kinds:
 
@@ -253,15 +255,17 @@ For the DSL:
 
 - Tooling / environment failures (missing rg, missing tree‑sitter, etc.) should:
   - Return empty results (symbols/notes) and optionally add a note to `gathered.notes`, and
-  - **Not** cause `FulfillSpec` to return an error that aborts the turn.
+  - **Not** cause a hard gather failure that aborts the turn (when a `FulfillSpec`-style helper exists).
 
 Only truly invalid requests (like empty query or unparseable symbolId) should be hard errors, and those constraints must be stated in `System()` examples + text.
 
 ---
 
-### 6. Repair Loop Semantics
+### 6. Multi-turn recovery semantics (planner / `attemptHistory`)
 
-The repair loop is driven by:
+**Note:** The shipped `voice.transcript` daemon path is **single-shot** per utterance (one executor pass, at most one `host.applyDirectives` batch). The following describes **planner-style** flows that maintain an `attemptHistory` across model turns—not the current voice transcript RPC loop.
+
+When such a flow exists, recovery is driven by:
 
 - `attemptHistory[]`:
   - `status` (`ok` | `failed` | `skipped`),
@@ -283,18 +287,18 @@ Examples (to encode in `System()` explicitly):
 
 - **Ambiguous target**:
   - Message: “the active file contains multiple candidate functions, so the current function is ambiguous. Fix: target a specific symbol_id (with a name), or use an anchor/range target; retry with corrected intent.”
-  - **Expected repair**:
+  - **Expected follow-up turn**:
     - New `edit` with `target.kind:"symbol_id"` using one of the IDs from `gathered.symbols`, or a `range`/`anchor` as suggested.
     - No additional `request_context`.
 
 - **Disallowed command**:
   - Message: “command is not allowed.”
-  - **Expected repair**:
+  - **Expected follow-up turn**:
     - New `command` intent using one of the allowed executables with a safe arg pattern.
 
 - **Missing path / unreadable file**:
   - Message indicates invalid path.
-  - **Expected repair**:
+  - **Expected follow-up turn**:
     - Either emit a corrected path or avoid that edit entirely; not keep retrying the same invalid target.
 
 These patterns should be backed by:
@@ -321,9 +325,9 @@ These patterns should be backed by:
    - Do not show `current_file` full‑file replaces as the “normal” path.
 
 3. **Make navigation and gather tooling‑failures soft**:
-   - Confirm that rg / tree‑sitter failures result in empty results + notes, not transcript aborts. (Implemented: `gather.FulfillSpec` now treats symbol resolver / rg failures as notes in `gathered.notes`, and `TreeSitterResolver.candidateFiles` returns an empty slice on rg failure.)
+   - Confirm that rg / tree‑sitter failures result in empty results + notes, not transcript aborts. (For reference, a dedicated gather helper would mirror that policy; the current narrow transcript path uses resolver/rg only where wired, e.g. cursor symbol resolution.)
 
-4. **Expand repair examples in `System()`**:
+4. **Expand recovery examples in `System()`**:
    - For ambiguous target, invalid command, invalid path, etc., add:
      - an example failure message,
      - an example corrected intent,
@@ -336,7 +340,7 @@ These patterns should be backed by:
      - Executor outcomes.
    - Verify:
      - No unexpected validator/dispatch failures for allowed shapes,
-     - Repair steps follow the DSL guidance instead of spamming `request_context`.
+     - Follow-up intents follow the DSL guidance instead of spamming `request_context`.
 
 ---
 

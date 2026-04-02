@@ -16,11 +16,11 @@ Expected daemon flow:
 `cmd/vocoded/main.go`  
 → `internal/app` (composition root)  
 → `internal/rpc` (transport/routing only)  
-→ `internal/transcript` — `voice.transcript` handling, session state (search/clarify), **single-shot** host apply per utterance (no daemon repair loop)
+→ `internal/transcript` — `voice.transcript` RPC service, queue, session store (orchestration shell)
+→ `internal/transcript/run` — one locked utterance: flows (clarify / selection / file list), **single-shot** executor + optional `host.applyDirectives`
 → `internal/transcript/executor` — narrow model pipeline: classifier → scope intent → scoped edit / format / rename / search / etc., producing protocol `directives`
 → `internal/agent` — model adapter for those prompts (`ClassifyTranscript`, `ScopeIntent`, `ScopedEdit`, …)
-→ `internal/agentcontext` — gathered IDE state (`Gathered`, sessions, apply batches)
-→ `internal/gather` — fulfills context specs (symbols, excerpts, usages); not part of directive apply
+→ `internal/agentcontext` — gathered IDE state (`Gathered`, sessions, apply batches, model-facing context structs)
 
 ### Extension (`apps/vscode-extension`)
 

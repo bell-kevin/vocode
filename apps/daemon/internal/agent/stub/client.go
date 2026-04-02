@@ -38,6 +38,7 @@ func (*Client) ClassifyTranscript(ctx context.Context, in agentcontext.Transcrip
 		return agent.TranscriptClassifierResult{Kind: agent.TranscriptSearch, SearchQuery: q}, nil
 	}
 	if strings.HasSuffix(t, "?") || strings.HasPrefix(t, "what ") || strings.HasPrefix(t, "why ") || strings.HasPrefix(t, "how ") {
+		// Default stub: answer; tests can use a real provider for routing.
 		return agent.TranscriptClassifierResult{Kind: agent.TranscriptQuestion, AnswerText: "Stub answer."}, nil
 	}
 	return agent.TranscriptClassifierResult{Kind: agent.TranscriptInstruction}, nil

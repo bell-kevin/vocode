@@ -8,9 +8,9 @@ type FileExcerpt struct {
 	Content string
 }
 
-// Gathered holds file excerpts, symbols, and notes assembled for TurnContext.
-// The executor seeds the active file each RPC, loads prior state from [VoiceSessionStore] when
-// contextSessionId is set, and grows entries across request_context turns; duplicate paths refresh in place.
+// Gathered holds file excerpts, symbols, and notes carried in [VoiceSession] between RPCs.
+// The executor seeds the active file from disk each utterance; [ApplyGatheredRollingCap] trims
+// excerpts (never evicting the current active file) under daemon caps.
 type Gathered struct {
 	Symbols  []symbols.SymbolRef
 	Excerpts []FileExcerpt

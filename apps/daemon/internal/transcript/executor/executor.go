@@ -1,23 +1,17 @@
 package executor
 
 import (
-	"bufio"
-	"bytes"
 	"context"
 	"crypto/sha256"
-	"errors"
 	"encoding/hex"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
-	"regexp"
 	"strings"
 
 	"vocoding.net/vocode/v2/apps/daemon/internal/agent"
 	"vocoding.net/vocode/v2/apps/daemon/internal/agentcontext"
 	"vocoding.net/vocode/v2/apps/daemon/internal/hostcaps"
-	"vocoding.net/vocode/v2/apps/daemon/internal/workspace"
 	protocol "vocoding.net/vocode/v2/packages/protocol/go"
 )
 
@@ -43,17 +37,37 @@ func New(a *agent.Agent, opts Options) *Executor {
 	}
 }
 
-// Execute runs one scoped edit operation and returns directives for the host to apply.
+// FlowMode selects routing before the instruction pipeline ([ExecuteOptions.Mode]).
+type FlowMode string
+
+const (
+	// FlowModeMain runs the classifier then instruction heuristics / scoped edit.
+	FlowModeMain FlowMode = ""
+	// FlowModeSelection skips classifier; utterances apply to the locked code match (selection flow).
+	FlowModeSelection FlowMode = "selection"
+)
+
+// ExecuteOptions configures [Executor.Execute].
+type ExecuteOptions struct {
+	Mode FlowMode
+}
+
+// Execute runs one voice.transcript through the operation pipeline.
 func (e *Executor) Execute(
 	params protocol.VoiceTranscriptParams,
 	gatheredIn agentcontext.Gathered,
+	opt ExecuteOptions,
 ) (protocol.VoiceTranscriptCompletion, []protocol.VoiceTranscriptDirective, agentcontext.Gathered, *agentcontext.DirectiveApplyBatch, bool, string) {
 	text := strings.TrimSpace(params.Text)
 	if text == "" {
 		return protocol.VoiceTranscriptCompletion{}, nil, gatheredIn, nil, false, "empty transcript text"
 	}
 
-	// First-pass classifier: route transcript intent (instruction/search/question/irrelevant).
+	if opt.Mode == FlowModeSelection {
+		return e.executeInstructionPath(params, gatheredIn, text, agentcontext.FlowKindSelection)
+	}
+
+	// First-pass classifier: route transcript intent (instruction/search/question/file_selection/irrelevant).
 	clsIn := agentcontext.TranscriptClassifierContext{
 		Instruction: text,
 		Editor:      agentcontext.EditorSnapshotFromParams(params, resolveHostCursorSymbol(e.symbolProvider, params)),
@@ -81,15 +95,38 @@ func (e *Executor) Execute(
 			return protocol.VoiceTranscriptCompletion{Success: false}, nil, gatheredIn, nil, true, "search classification missing searchQuery"
 		}
 		return workspaceSearch(params, gatheredIn, query)
+	case agent.TranscriptFileSelection:
+		if !params.WorkspaceFolderOpen {
+			return protocol.VoiceTranscriptCompletion{
+				Success:           true,
+				Summary:           "Open a folder in VS Code to browse and change files by voice.",
+				TranscriptOutcome: "needs_workspace_folder",
+				UiDisposition:     "shown",
+			}, nil, gatheredIn, nil, true, ""
+		}
+		return protocol.VoiceTranscriptCompletion{
+			Success:           true,
+			Summary:           "File selection",
+			TranscriptOutcome: "file_selection",
+			UiDisposition:     "hidden",
+		}, nil, gatheredIn, nil, true, ""
 	default:
 		// Model may pick "instruction" when the user clearly asked to find something in the repo
 		// (e.g. cursor already on a match). Still run ripgrep + search UI so other files show up.
 		if q, ok := searchLikeQueryFromText(text); ok {
 			return workspaceSearch(params, gatheredIn, q)
 		}
-		// continue as instruction
 	}
 
+	return e.executeInstructionPath(params, gatheredIn, text, agentcontext.FlowKindMain)
+}
+
+func (e *Executor) executeInstructionPath(
+	params protocol.VoiceTranscriptParams,
+	gatheredIn agentcontext.Gathered,
+	text string,
+	clarifyParentFlow string,
+) (protocol.VoiceTranscriptCompletion, []protocol.VoiceTranscriptDirective, agentcontext.Gathered, *agentcontext.DirectiveApplyBatch, bool, string) {
 	// Heuristic: host code actions for deterministic refactors and fixes.
 	if cad, ok := parseCodeAction(text, params); ok {
 		batchID, err := newDirectiveApplyBatchID()
@@ -99,19 +136,19 @@ func (e *Executor) Execute(
 		dir := protocol.VoiceTranscriptDirective{
 			Kind: "code_action",
 			CodeActionDirective: &struct {
-				Path string `json:"path"`
+				Path  string `json:"path"`
 				Range *struct {
 					StartLine int64 `json:"startLine"`
 					StartChar int64 `json:"startChar"`
 					EndLine   int64 `json:"endLine"`
 					EndChar   int64 `json:"endChar"`
 				} `json:"range,omitempty"`
-				ActionKind string `json:"actionKind"`
+				ActionKind             string `json:"actionKind"`
 				PreferredTitleIncludes string `json:"preferredTitleIncludes,omitempty"`
 			}{
-				Path: cad.path,
-				Range: cad.rng,
-				ActionKind: cad.kind,
+				Path:                   cad.path,
+				Range:                  cad.rng,
+				ActionKind:             cad.kind,
 				PreferredTitleIncludes: cad.pref,
 			},
 		}
@@ -157,16 +194,16 @@ func (e *Executor) Execute(
 		dir := protocol.VoiceTranscriptDirective{
 			Kind: "rename",
 			RenameDirective: &struct {
-				Path string `json:"path"`
+				Path     string `json:"path"`
 				Position struct {
-					Line int64 `json:"line"`
+					Line      int64 `json:"line"`
 					Character int64 `json:"character"`
 				} `json:"position"`
 				NewName string `json:"newName"`
 			}{
 				Path: filepath.Clean(active),
 				Position: struct {
-					Line int64 `json:"line"`
+					Line      int64 `json:"line"`
 					Character int64 `json:"character"`
 				}{Line: params.CursorPosition.Line, Character: params.CursorPosition.Character},
 				NewName: newName,
@@ -215,7 +252,20 @@ func (e *Executor) Execute(
 		if q == "" {
 			q = "Which function or file should I edit?"
 		}
-		return protocol.VoiceTranscriptCompletion{Success: true, Summary: q, TranscriptOutcome: "clarify", UiDisposition: "hidden"}, nil, g, nil, true, ""
+		targetRes := agentcontext.ClarifyTargetInstruction
+		if clarifyParentFlow == agentcontext.FlowKindSelection {
+			targetRes = agentcontext.ClarifyTargetEdit
+		}
+		if err := agentcontext.ValidateClarifyTargetResolution(clarifyParentFlow, targetRes); err != nil {
+			return protocol.VoiceTranscriptCompletion{Success: false}, nil, g, nil, true, err.Error()
+		}
+		return protocol.VoiceTranscriptCompletion{
+			Success:                 true,
+			Summary:                 q,
+			TranscriptOutcome:       "clarify",
+			UiDisposition:           "hidden",
+			ClarifyTargetResolution: targetRes,
+		}, nil, g, nil, true, ""
 	}
 
 	target, targetText, err := resolveScopedTarget(params, fileText, scopeRes)
@@ -255,7 +305,7 @@ func (e *Executor) Execute(
 						EndLine:   int64(target.Range.EndLine),
 						EndChar:   int64(target.Range.EndChar),
 					},
-					NewText: out.ReplacementText,
+					NewText:        out.ReplacementText,
 					ExpectedSha256: target.Fingerprint,
 				},
 			},
@@ -268,444 +318,4 @@ func (e *Executor) Execute(
 	}
 	pending := &agentcontext.DirectiveApplyBatch{ID: batchID, NumDirectives: 1}
 	return protocol.VoiceTranscriptCompletion{Success: true, Summary: "scoped edit", UiDisposition: "shown"}, []protocol.VoiceTranscriptDirective{dir}, g, pending, true, ""
-}
-
-// searchLikeQueryFromText extracts a literal ripgrep query when the utterance is clearly workspace search.
-// Prefix match is case-insensitive; the returned string keeps the original spelling after the prefix.
-func searchLikeQueryFromText(text string) (string, bool) {
-	t := strings.TrimSpace(text)
-	if t == "" {
-		return "", false
-	}
-	lower := strings.ToLower(t)
-	// Longer prefixes first ("search for" before "search").
-	prefixes := []string{
-		"search for ",
-		"find ",
-		"search ",
-		"where is ",
-		"where's ",
-		"locate ",
-	}
-	for _, p := range prefixes {
-		if strings.HasPrefix(lower, p) {
-			q := strings.TrimSpace(t[len(p):])
-			if q == "" {
-				return "", false
-			}
-			return q, true
-		}
-	}
-	return "", false
-}
-
-func workspaceSearch(
-	params protocol.VoiceTranscriptParams,
-	gatheredIn agentcontext.Gathered,
-	query string,
-) (protocol.VoiceTranscriptCompletion, []protocol.VoiceTranscriptDirective, agentcontext.Gathered, *agentcontext.DirectiveApplyBatch, bool, string) {
-	query = strings.TrimSpace(query)
-	if query == "" {
-		return protocol.VoiceTranscriptCompletion{Success: false}, nil, gatheredIn, nil, true, "empty search query"
-	}
-	root := workspace.EffectiveWorkspaceRoot(params.WorkspaceRoot, params.ActiveFile)
-	if strings.TrimSpace(root) == "" {
-		return protocol.VoiceTranscriptCompletion{Success: false}, nil, gatheredIn, nil, true, "search requires workspaceRoot or activeFile"
-	}
-	hits, err := rgSearch(root, query, 20)
-	if err != nil {
-		return protocol.VoiceTranscriptCompletion{Success: false}, nil, gatheredIn, nil, true, fmt.Sprintf("search failed: %v", err)
-	}
-	if len(hits) == 0 {
-		return protocol.VoiceTranscriptCompletion{Success: true, Summary: fmt.Sprintf("no matches for %q", query), TranscriptOutcome: "search", UiDisposition: "hidden"}, nil, gatheredIn, nil, true, ""
-	}
-
-	first := hits[0]
-	wireHits := make([]struct {
-		Path      string `json:"path"`
-		Line      int64  `json:"line"`
-		Character int64  `json:"character"`
-		Preview   string `json:"preview"`
-	}, 0, len(hits))
-	for _, h := range hits {
-		wireHits = append(wireHits, struct {
-			Path      string `json:"path"`
-			Line      int64  `json:"line"`
-			Character int64  `json:"character"`
-			Preview   string `json:"preview"`
-		}{
-			Path:      h.Path,
-			Line:      int64(h.Line0),
-			Character: int64(h.Char0),
-			Preview:   h.Preview,
-		})
-	}
-
-	open := protocol.VoiceTranscriptDirective{
-		Kind: "navigate",
-		NavigationDirective: &protocol.NavigationDirective{
-			Kind: "success",
-			Action: &protocol.NavigationAction{
-				Kind: "open_file",
-				OpenFile: &struct {
-					Path string `json:"path"`
-				}{Path: first.Path},
-			},
-		},
-	}
-	sel := protocol.VoiceTranscriptDirective{
-		Kind: "navigate",
-		NavigationDirective: &protocol.NavigationDirective{
-			Kind: "success",
-			Action: &protocol.NavigationAction{
-				Kind: "select_range",
-				SelectRange: &struct {
-					Target struct {
-						Path      string `json:"path,omitempty"`
-						StartLine int64  `json:"startLine"`
-						StartChar int64  `json:"startChar"`
-						EndLine   int64  `json:"endLine"`
-						EndChar   int64  `json:"endChar"`
-					} `json:"target"`
-				}{
-					Target: struct {
-						Path      string `json:"path,omitempty"`
-						StartLine int64  `json:"startLine"`
-						StartChar int64  `json:"startChar"`
-						EndLine   int64  `json:"endLine"`
-						EndChar   int64  `json:"endChar"`
-					}{
-						Path:      first.Path,
-						StartLine: int64(first.Line0),
-						StartChar: int64(first.Char0),
-						EndLine:   int64(first.Line0),
-						EndChar:   int64(first.Char0 + first.Len),
-					},
-				},
-			},
-		},
-	}
-	batchID, err := newDirectiveApplyBatchID()
-	if err != nil {
-		return protocol.VoiceTranscriptCompletion{Success: false}, nil, gatheredIn, nil, true, fmt.Sprintf("failed to create applyBatchId: %v", err)
-	}
-	pending := &agentcontext.DirectiveApplyBatch{ID: batchID, NumDirectives: 2}
-	z := int64(0)
-	return protocol.VoiceTranscriptCompletion{
-		Success:           true,
-		Summary:           fmt.Sprintf("found %d matches for %q; opened first", len(hits), query),
-		TranscriptOutcome: "search",
-		UiDisposition:     "hidden",
-		SearchResults:     wireHits,
-		ActiveSearchIndex: &z,
-	}, []protocol.VoiceTranscriptDirective{open, sel}, gatheredIn, pending, true, ""
-}
-
-type rgHit struct {
-	Path  string
-	Line0 int
-	Char0 int
-	Len   int
-	Preview string
-}
-
-func rgBinary() string {
-	if p := strings.TrimSpace(os.Getenv("VOCODE_RG_BIN")); p != "" {
-		return p
-	}
-	return "rg"
-}
-
-var rgLineRe = regexp.MustCompile(`^(.*):(\d+):(\d+):(.*)$`)
-
-func rgSearch(root, query string, maxHits int) ([]rgHit, error) {
-	query = strings.TrimSpace(query)
-	if query == "" {
-		return nil, nil
-	}
-	if maxHits <= 0 {
-		maxHits = 10
-	}
-	// Use fixed-string search (ripgrep supports -F / --fixed-strings).
-	cmd := exec.Command(rgBinary(), "--column", "-n", "--fixed-strings", query, root)
-	var stdout bytes.Buffer
-	var stderr bytes.Buffer
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
-	if err := cmd.Run(); err != nil && stdout.Len() == 0 {
-		// ripgrep exit code 1 means "no matches", not an execution error.
-		var ee *exec.ExitError
-		if errors.As(err, &ee) && ee.ExitCode() == 1 {
-			return nil, nil
-		}
-		msg := strings.TrimSpace(stderr.String())
-		if msg == "" {
-			msg = err.Error()
-		}
-		return nil, fmt.Errorf("%s", msg)
-	}
-	out := make([]rgHit, 0, maxHits)
-	sc := bufio.NewScanner(bytes.NewReader(stdout.Bytes()))
-	for sc.Scan() {
-		line := strings.TrimSpace(sc.Text())
-		if line == "" {
-			continue
-		}
-		m := rgLineRe.FindStringSubmatch(line)
-		if len(m) != 5 {
-			continue
-		}
-		path := filepath.Clean(strings.TrimSpace(m[1]))
-		ln1 := atoiSafe(m[2])
-		col1 := atoiSafe(m[3])
-		if ln1 <= 0 || col1 <= 0 {
-			continue
-		}
-		out = append(out, rgHit{
-			Path:  path,
-			Line0: ln1 - 1,
-			Char0: col1 - 1,
-			Len:   len(query),
-			Preview: strings.TrimSpace(m[4]),
-		})
-		if len(out) >= maxHits {
-			break
-		}
-	}
-	return out, nil
-}
-
-func atoiSafe(s string) int {
-	n := 0
-	for _, r := range s {
-		if r < '0' || r > '9' {
-			return 0
-		}
-		n = n*10 + int(r-'0')
-	}
-	return n
-}
-
-
-type parsedCodeAction struct {
-	path    string
-	rng     *struct {
-		StartLine int64 `json:"startLine"`
-		StartChar int64 `json:"startChar"`
-		EndLine   int64 `json:"endLine"`
-		EndChar   int64 `json:"endChar"`
-	}
-	kind    string
-	pref    string
-	summary string
-}
-
-func parseCodeAction(text string, params protocol.VoiceTranscriptParams) (parsedCodeAction, bool) {
-	l := strings.ToLower(strings.TrimSpace(text))
-	active := filepath.Clean(strings.TrimSpace(params.ActiveFile))
-	if active == "" {
-		return parsedCodeAction{}, false
-	}
-	sel := params.ActiveSelection
-	var rng *struct {
-		StartLine int64 `json:"startLine"`
-		StartChar int64 `json:"startChar"`
-		EndLine   int64 `json:"endLine"`
-		EndChar   int64 `json:"endChar"`
-	}
-	if sel != nil {
-		rng = &struct {
-			StartLine int64 `json:"startLine"`
-			StartChar int64 `json:"startChar"`
-			EndLine   int64 `json:"endLine"`
-			EndChar   int64 `json:"endChar"`
-		}{StartLine: sel.StartLine, StartChar: sel.StartChar, EndLine: sel.EndLine, EndChar: sel.EndChar}
-	}
-
-	switch {
-	case strings.Contains(l, "extract function"):
-		if rng == nil || (rng.StartLine == rng.EndLine && rng.StartChar == rng.EndChar) {
-			return parsedCodeAction{summary: "extract function requires a selection"}, false
-		}
-		return parsedCodeAction{path: active, rng: rng, kind: "refactor.extract.function", summary: "extract function"}, true
-	case strings.Contains(l, "extract variable"):
-		if rng == nil || (rng.StartLine == rng.EndLine && rng.StartChar == rng.EndChar) {
-			return parsedCodeAction{summary: "extract variable requires a selection"}, false
-		}
-		return parsedCodeAction{path: active, rng: rng, kind: "refactor.extract.variable", summary: "extract variable"}, true
-	case strings.Contains(l, "extract constant"):
-		if rng == nil || (rng.StartLine == rng.EndLine && rng.StartChar == rng.EndChar) {
-			return parsedCodeAction{summary: "extract constant requires a selection"}, false
-		}
-		return parsedCodeAction{path: active, rng: rng, kind: "refactor.extract.constant", summary: "extract constant"}, true
-	case strings.Contains(l, "inline"):
-		return parsedCodeAction{path: active, rng: rng, kind: "refactor.inline", summary: "inline"}, true
-	case strings.Contains(l, "organize imports"):
-		return parsedCodeAction{path: active, kind: "source.organizeImports", summary: "organize imports"}, true
-	case strings.Contains(l, "fix all"):
-		return parsedCodeAction{path: active, kind: "source.fixAll", summary: "fix all"}, true
-	case strings.Contains(l, "quick fix") || strings.Contains(l, "quickfix"):
-		return parsedCodeAction{path: active, rng: rng, kind: "quickfix", summary: "quick fix"}, true
-	default:
-		return parsedCodeAction{}, false
-	}
-}
-
-type parsedFormat struct {
-	path    string
-	scope   string
-	rng     *struct {
-		StartLine int64 `json:"startLine"`
-		StartChar int64 `json:"startChar"`
-		EndLine   int64 `json:"endLine"`
-		EndChar   int64 `json:"endChar"`
-	}
-	summary string
-}
-
-func parseFormat(text string, params protocol.VoiceTranscriptParams) (parsedFormat, bool) {
-	l := strings.ToLower(strings.TrimSpace(text))
-	if !strings.Contains(l, "format") {
-		return parsedFormat{}, false
-	}
-	active := filepath.Clean(strings.TrimSpace(params.ActiveFile))
-	if active == "" {
-		return parsedFormat{}, false
-	}
-	// Prefer selection if user says selection/range, else document.
-	if strings.Contains(l, "selection") || strings.Contains(l, "selected") {
-		sel := params.ActiveSelection
-		if sel == nil {
-			return parsedFormat{}, false
-		}
-		return parsedFormat{
-			path:  active,
-			scope: "selection",
-			rng: &struct {
-				StartLine int64 `json:"startLine"`
-				StartChar int64 `json:"startChar"`
-				EndLine   int64 `json:"endLine"`
-				EndChar   int64 `json:"endChar"`
-			}{StartLine: sel.StartLine, StartChar: sel.StartChar, EndLine: sel.EndLine, EndChar: sel.EndChar},
-			summary: "format selection",
-		}, true
-	}
-	return parsedFormat{path: active, scope: "document", summary: "format document"}, true
-}
-
-func parseRenameNewName(text string) (string, bool) {
-	t := strings.ToLower(text)
-	if !strings.Contains(t, "rename") {
-		return "", false
-	}
-	// Very small heuristic: find the last " to " and use the suffix as new name.
-	idx := strings.LastIndex(t, " to ")
-	if idx < 0 {
-		return "", false
-	}
-	newName := strings.TrimSpace(text[idx+4:])
-	newName = strings.Trim(newName, "\"'`")
-	if newName == "" {
-		return "", false
-	}
-	// Avoid multi-word names.
-	if strings.ContainsAny(newName, " \t\r\n") {
-		return "", false
-	}
-	return newName, true
-}
-
-func resolveScopedTarget(params protocol.VoiceTranscriptParams, fileText string, scope agent.ScopeIntentResult) (agentcontext.ResolvedTarget, string, error) {
-	active := filepath.Clean(strings.TrimSpace(params.ActiveFile))
-	if active == "" {
-		return agentcontext.ResolvedTarget{}, "", fmt.Errorf("activeFile is required")
-	}
-	lines := strings.Split(fileText, "\n")
-	lastLine := len(lines) - 1
-	// Default: whole file.
-	startLine, endLine := 0, lastLine
-
-	if scope.ScopeKind == agent.ScopeCurrentFile {
-		startLine, endLine = 0, lastLine
-	} else if scope.ScopeKind == agent.ScopeNamedSymbol && len(params.ActiveFileSymbols) > 0 {
-		want := strings.ToLower(strings.TrimSpace(scope.SymbolName))
-		bestIdx := -1
-		bestSize := 0
-		for i := range params.ActiveFileSymbols {
-			s := params.ActiveFileSymbols[i]
-			if strings.ToLower(strings.TrimSpace(s.Name)) != want {
-				continue
-			}
-			r := s.Range
-			sz := (int(r.EndLine)-int(r.StartLine))*100000 + (int(r.EndChar) - int(r.StartChar))
-			if bestIdx == -1 || sz < bestSize {
-				bestIdx = i
-				bestSize = sz
-			}
-		}
-		if bestIdx != -1 {
-			r := params.ActiveFileSymbols[bestIdx].Range
-			startLine = int(r.StartLine)
-			endLine = int(r.EndLine)
-		}
-	} else if scope.ScopeKind == agent.ScopeCurrentFunction && len(params.ActiveFileSymbols) > 0 {
-		if cp := params.CursorPosition; cp != nil {
-			line := int(cp.Line)
-			char := int(cp.Character)
-			bestIdx := -1
-			bestSize := 0
-			for i := range params.ActiveFileSymbols {
-				s := params.ActiveFileSymbols[i]
-				r := s.Range
-				if line < int(r.StartLine) || line > int(r.EndLine) {
-					continue
-				}
-				if line == int(r.StartLine) && char < int(r.StartChar) {
-					continue
-				}
-				if line == int(r.EndLine) && char > int(r.EndChar) {
-					continue
-				}
-				sz := (int(r.EndLine)-int(r.StartLine))*100000 + (int(r.EndChar) - int(r.StartChar))
-				if bestIdx == -1 || sz < bestSize {
-					bestIdx = i
-					bestSize = sz
-				}
-			}
-			if bestIdx != -1 {
-				r := params.ActiveFileSymbols[bestIdx].Range
-				startLine = int(r.StartLine)
-				endLine = int(r.EndLine)
-			}
-		}
-	}
-	if startLine < 0 {
-		startLine = 0
-	}
-	if endLine < startLine {
-		endLine = startLine
-	}
-	if endLine > lastLine {
-		endLine = lastLine
-	}
-
-	// Normalize to whole lines to avoid UTF-16 slicing issues in Go.
-	text := ""
-	if lastLine >= 0 && startLine <= endLine {
-		text = strings.Join(lines[startLine:endLine+1], "\n")
-	}
-	endChar := 0
-	if endLine >= 0 && endLine < len(lines) {
-		endChar = len(lines[endLine])
-	}
-	t := agentcontext.ResolvedTarget{
-		Path: filepath.Clean(active),
-		Range: agentcontext.Range{
-			StartLine: startLine,
-			StartChar: 0,
-			EndLine:   endLine,
-			EndChar:   endChar,
-		},
-	}
-	return t, text, nil
 }

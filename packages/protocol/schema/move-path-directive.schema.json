@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vocoding.net/schemas/move-path-directive.schema.json",
+  "title": "MovePathDirective",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "from": {
+      "type": "string",
+      "description": "Absolute source path under workspace root."
+    },
+    "to": {
+      "type": "string",
+      "description": "Absolute destination path under workspace root."
+    }
+  },
+  "required": ["from", "to"]
+}

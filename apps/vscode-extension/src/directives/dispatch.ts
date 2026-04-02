@@ -1,6 +1,6 @@
 import type { VoiceTranscriptDirective } from "@vocode/protocol";
 
-import type { TranscriptApplyContext } from "../transcript/context";
+import type { TranscriptApplyContext } from "../voice-transcript/context";
 import { dispatchCodeAction } from "./code-action/dispatch";
 import { dispatchCommand } from "./command/dispatch";
 import { dispatchEdit } from "./edit/dispatch";
@@ -8,6 +8,7 @@ import { dispatchFormat } from "./format/dispatch";
 import { dispatchNavigation } from "./navigation/dispatch";
 import { dispatchRename } from "./rename/dispatch";
 import { dispatchUndo } from "./undo/dispatch";
+import { dispatchWorkspacePath } from "./workspace-path/dispatch";
 
 export type DirectiveDispatchOutcome = {
   ok: boolean;
@@ -36,5 +37,9 @@ export function dispatchTranscript(
       return dispatchCodeAction(transcriptDirective.codeActionDirective);
     case "format":
       return dispatchFormat(transcriptDirective.formatDirective);
+    case "delete_file":
+    case "move_path":
+    case "create_folder":
+      return dispatchWorkspacePath(transcriptDirective);
   }
 }

@@ -43,8 +43,8 @@ func TestAcceptTranscript_searchControl_returnsSearchControlHiddenAndUpdatesInde
 	if !ok || !res.Success || reason != "" {
 		t.Fatalf("got ok=%v success=%v reason=%q res=%+v", ok, res.Success, reason, res)
 	}
-	if res.TranscriptOutcome != "search_control" {
-		t.Fatalf("expected outcome=search_control, got %q", res.TranscriptOutcome)
+	if res.TranscriptOutcome != "selection_control" {
+		t.Fatalf("expected outcome=selection_control, got %q", res.TranscriptOutcome)
 	}
 	if res.UiDisposition != "hidden" {
 		t.Fatalf("expected uiDisposition=hidden, got %q", res.UiDisposition)
@@ -58,4 +58,3 @@ func TestAcceptTranscript_searchControl_returnsSearchControlHiddenAndUpdatesInde
 		t.Fatalf("expected stored activeSearchIndex=1, got %d", loaded.ActiveSearchIndex)
 	}
 }
-

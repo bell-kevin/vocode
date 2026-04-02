@@ -30,7 +30,7 @@ func TestAcceptTranscript_controlCancelSearch_clearsKeyedSession(t *testing.T) {
 
 	res, ok, reason := svc.AcceptTranscript(protocol.VoiceTranscriptParams{
 		ContextSessionId: key,
-		ControlRequest:   "cancel_search",
+		ControlRequest:   "cancel_selection",
 	})
 	if !ok || !res.Success || reason != "" {
 		t.Fatalf("got ok=%v success=%v reason=%q res=%+v", ok, res.Success, reason, res)
@@ -60,7 +60,7 @@ func TestAcceptTranscript_controlCancelSearch_clearsEphemeralSession(t *testing.
 	voicesession.StoreEphemeralVoiceSession(&svc.ephemeralVoiceSession, ephemeral)
 
 	res, ok, reason := svc.AcceptTranscript(protocol.VoiceTranscriptParams{
-		ControlRequest: "cancel_search",
+		ControlRequest: "cancel_selection",
 	})
 	if !ok || !res.Success {
 		t.Fatalf("got ok=%v success=%v reason=%q", ok, res.Success, reason)

@@ -22,7 +22,11 @@
         "clarify",
         "clarify_control",
         "search",
-        "search_control",
+        "selection",
+        "selection_control",
+        "file_selection",
+        "file_selection_control",
+        "needs_workspace_folder",
         "answer"
       ],
       "description": "Daemon classification of this transcript. Omitted means completed (back-compat)."
@@ -44,10 +48,20 @@
         "type": "object",
         "additionalProperties": false,
         "properties": {
-          "path": { "type": "string" },
-          "line": { "type": "integer", "minimum": 0 },
-          "character": { "type": "integer", "minimum": 0 },
-          "preview": { "type": "string" }
+          "path": {
+            "type": "string"
+          },
+          "line": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "character": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "preview": {
+            "type": "string"
+          }
         },
         "required": ["path", "line", "character", "preview"]
       }
@@ -56,6 +70,14 @@
       "type": "integer",
       "minimum": 0,
       "description": "0-based active index into searchResults for next/back navigation."
+    },
+    "clarifyTargetResolution": {
+      "type": "string",
+      "description": "When entering clarify, which parent-flow resolution will run after the user answers (e.g. instruction, edit, question)."
+    },
+    "fileSelectionFocusPath": {
+      "type": "string",
+      "description": "After file_selection_control navigation, the workspace-jailed absolute path the host should focus in the file-selection UI."
     }
   },
   "required": ["success"]

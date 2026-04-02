@@ -17,9 +17,8 @@ type CursorSymbol struct {
 }
 
 // EditorSnapshot is the IDE view from this voice.transcript RPC params (active path, caret symbol).
-// The host sends fresh activeFile/cursor on every RPC; buffer text for that file lives under
-// [Gathered.Excerpts] (seeded from disk plus request_context).
-// Within a single Execute loop the params snapshot is fixed until the host sends another transcript.
+// The host sends fresh activeFile/cursor on every RPC; file text for prompts is loaded from disk
+// into [Gathered.Excerpts] via [SeedGatheredActiveFile] for that path.
 type EditorSnapshot struct {
 	WorkspaceRoot  string
 	ActiveFilePath string

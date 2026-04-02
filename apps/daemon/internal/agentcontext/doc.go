@@ -1,20 +1,12 @@
-// Package agentcontext holds the structured input the [agent.ModelClient] sees each turn
-// (one voice.transcript / one [agent.Agent.NextTurn] call): transcript, editor snapshot, gathered extras, intent history.
+// Package agentcontext holds session-shaped state and structured values passed into the agent
+// for voice.transcript: [Gathered] rolling context, [VoiceSession] / [VoiceSessionStore], flow stack
+// and clarify rules, host apply batches, and the small context structs in model_context.go
+// ([TranscriptClassifierContext], [ScopeIntentContext], [ScopedEditContext]) plus [EditorSnapshot].
 //
-// It lives beside package [agent] so the boundary is clear: [agent] runs the model client; agentcontext
-// is the value passed into [agent.Agent.NextTurn]. The name avoids a top-level type called just
-// "Context", which collides mentally with [context.Context].
+// It sits beside package agent so the split is obvious: agent runs [agent.ModelClient]; agentcontext
+// is the data those calls consume. The name avoids a top-level type called "Context", which collides
+// mentally with [context.Context].
 //
-// Turn shape:
-//   - [TurnContext.TranscriptText]: user utterance for this RPC (stable across turns in one Execute).
-//   - [TurnContext.SucceededIntents]: intents the host reported as applied ok, plus intents fulfilled in the current Execute
-//     (executable → directive, or request_context → fulfilled).
-//   - [TurnContext.FailedIntents]: pre-execute, dispatch, or extension apply failures ([PhaseExtension]).
-//   - [TurnContext.SkippedIntents]: intents in a reported batch that were not attempted because a prior directive failed.
-//   - [TurnContext.IntentApplyHistory]: cumulative per-intent outcomes across host batches for this context session.
-//   - [TurnContext.Editor]: active path and caret symbol from this RPC’s params (host refreshes each transcript).
-//   - [TurnContext.Gathered]: excerpts (active file + request_context), symbols, notes; retained in the daemon
-//     between transcripts when the host sends the same contextSessionId ([VoiceSessionStore]).
-//
-// The extension sends cursorPosition; the daemon resolves [EditorSnapshot.CursorSymbol] via symbols/tags.
+// The extension sends cursorPosition each RPC; the daemon may resolve [EditorSnapshot.CursorSymbol]
+// via symbols/tags when wiring classifier / scope prompts.
 package agentcontext

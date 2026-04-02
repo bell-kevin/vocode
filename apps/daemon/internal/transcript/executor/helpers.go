@@ -20,6 +20,11 @@ func newDirectiveApplyBatchID() (string, error) {
 	return hex.EncodeToString(b[:]), nil
 }
 
+// NewDirectiveApplyBatchID returns a unique id for a host apply batch (same generator as the executor).
+func NewDirectiveApplyBatchID() (string, error) {
+	return newDirectiveApplyBatchID()
+}
+
 func resolveHostCursorSymbol(symProvider hostcaps.SymbolProvider, params protocol.VoiceTranscriptParams) *agentcontext.CursorSymbol {
 	cp := params.CursorPosition
 	if cp == nil {

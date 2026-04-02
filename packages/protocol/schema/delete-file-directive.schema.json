@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vocoding.net/schemas/delete-file-directive.schema.json",
+  "title": "DeleteFileDirective",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "path": {
+      "type": "string",
+      "description": "Absolute path to a file or empty directory under the workspace root; host must jail."
+    }
+  },
+  "required": ["path"]
+}

@@ -1,6 +1,6 @@
 import type { VoiceTranscriptDirective } from "@vocode/protocol";
 
-import type { TranscriptApplyContext } from "../../transcript/context";
+import type { TranscriptApplyContext } from "../../voice-transcript/context";
 import type { DirectiveDispatchOutcome } from "../dispatch";
 import { executeNavigationDirective } from "./execute-navigation-intent";
 

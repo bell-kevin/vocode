@@ -175,41 +175,6 @@
           "default": 6000,
           "description": "Max chars when merging transcript lines."
         },
-        "vocode.maxPlannerTurns": {
-          "type": "number",
-          "default": 8,
-          "description": "Max agent planner turns per `voice.transcript` RPC."
-        },
-        "vocode.maxTranscriptRepairRpcs": {
-          "type": "number",
-          "default": 8,
-          "description": "Max internal daemon apply/repair iterations per committed transcript after directive failures."
-        },
-        "vocode.maxIntentsPerBatch": {
-          "type": "number",
-          "default": 16,
-          "description": "Max executable intents per model batch; 0 = no cap."
-        },
-        "vocode.maxIntentDispatchRetries": {
-          "type": "number",
-          "default": 2,
-          "description": "Max dispatch-time intent retries per `voice.transcript` RPC."
-        },
-        "vocode.maxContextRounds": {
-          "type": "number",
-          "default": 2,
-          "description": "Max request_context rounds per transcript."
-        },
-        "vocode.maxContextBytes": {
-          "type": "number",
-          "default": 12000,
-          "description": "Max context payload bytes per round."
-        },
-        "vocode.maxConsecutiveContextRequests": {
-          "type": "number",
-          "default": 3,
-          "description": "Max consecutive context requests without executable progress."
-        },
         "vocode.sessionIdleResetMs": {
           "type": "number",
           "default": 1800000,

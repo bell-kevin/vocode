@@ -559,45 +559,6 @@ export function SettingsPanel(props: { config: VocodeConfig | null }) {
                   patchConfig({ daemonVoiceTranscriptMaxMergeChars: n })
                 }
               />
-              <SliderRow
-                label="Max agent turns"
-                value={config.maxPlannerTurns}
-                spec={SLIDER_SPECS.maxPlannerTurns}
-                disabled={disabled}
-                onCommit={(n) => patchConfig({ maxPlannerTurns: n })}
-              />
-              <SliderRow
-                label="Max intent retries"
-                value={config.maxIntentDispatchRetries}
-                spec={SLIDER_SPECS.maxIntentDispatchRetries}
-                disabled={disabled}
-                onCommit={(n) => patchConfig({ maxIntentDispatchRetries: n })}
-              />
-              <SliderRow
-                label="Max context rounds"
-                value={config.maxContextRounds}
-                spec={SLIDER_SPECS.maxContextRounds}
-                disabled={disabled}
-                onCommit={(n) => patchConfig({ maxContextRounds: n })}
-              />
-              <SliderRow
-                label="Max context bytes"
-                value={config.maxContextBytes}
-                spec={SLIDER_SPECS.maxContextBytes}
-                disabled={disabled}
-                onCommit={(n) => patchConfig({ maxContextBytes: n })}
-              />
-              <SliderRow
-                label="Max consecutive context requests"
-                value={config.maxConsecutiveContextRequests}
-                spec={SLIDER_SPECS.maxConsecutiveContextRequests}
-                disabled={disabled}
-                onCommit={(n) =>
-                  patchConfig({
-                    maxConsecutiveContextRequests: n,
-                  })
-                }
-              />
               <OptionalZeroSliderRow
                 label="Session idle reset"
                 hint="When off, voice sessions are not dropped after idle"

@@ -54,7 +54,7 @@ export function SearchPanel({ state }: { state: PanelState }) {
           onClick={() =>
             getVsCodeApi()?.postMessage({
               type: "transcriptControl",
-              control: "cancel_search",
+              control: "cancel_selection",
             })
           }
         >

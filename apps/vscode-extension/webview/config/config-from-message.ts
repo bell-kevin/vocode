@@ -44,13 +44,6 @@ export function vocodeConfigFromMessage(
     daemonVoiceTranscriptMaxMergeChars: Number(
       msg.daemonVoiceTranscriptMaxMergeChars ?? 6000,
     ),
-    maxPlannerTurns: Number(msg.maxPlannerTurns ?? 8),
-    maxIntentDispatchRetries: Number(msg.maxIntentDispatchRetries ?? 2),
-    maxContextRounds: Number(msg.maxContextRounds ?? 2),
-    maxContextBytes: Number(msg.maxContextBytes ?? 12000),
-    maxConsecutiveContextRequests: Number(
-      msg.maxConsecutiveContextRequests ?? 3,
-    ),
     sessionIdleResetMs: Number(msg.sessionIdleResetMs ?? 1800000),
   };
 }

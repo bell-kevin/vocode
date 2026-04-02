@@ -8,10 +8,11 @@ import (
 type TranscriptKind string
 
 const (
-	TranscriptInstruction TranscriptKind = "instruction"
-	TranscriptSearch      TranscriptKind = "search"
-	TranscriptQuestion    TranscriptKind = "question"
-	TranscriptIrrelevant  TranscriptKind = "irrelevant"
+	TranscriptInstruction   TranscriptKind = "instruction"
+	TranscriptSearch        TranscriptKind = "search"
+	TranscriptQuestion      TranscriptKind = "question"
+	TranscriptIrrelevant    TranscriptKind = "irrelevant"
+	TranscriptFileSelection TranscriptKind = "file_selection"
 )
 
 type TranscriptClassifierResult struct {
@@ -22,7 +23,7 @@ type TranscriptClassifierResult struct {
 
 func (r TranscriptClassifierResult) Validate() error {
 	switch r.Kind {
-	case TranscriptInstruction, TranscriptIrrelevant:
+	case TranscriptInstruction, TranscriptIrrelevant, TranscriptFileSelection:
 		if strings.TrimSpace(r.SearchQuery) != "" || strings.TrimSpace(r.AnswerText) != "" {
 			return fmt.Errorf("classifier: %s must not set searchQuery/answerText", r.Kind)
 		}

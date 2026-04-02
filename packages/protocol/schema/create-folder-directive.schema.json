@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vocoding.net/schemas/create-folder-directive.schema.json",
+  "title": "CreateFolderDirective",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "path": {
+      "type": "string",
+      "description": "Absolute path of the new directory under workspace root (host creates parents as needed)."
+    }
+  },
+  "required": ["path"]
+}

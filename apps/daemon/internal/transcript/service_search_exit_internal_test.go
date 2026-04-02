@@ -16,7 +16,7 @@ import (
 )
 
 // Verifies that after an active search session, an utterance that matches the exit
-// heuristic (whole word cancel|done|close|…) returns search_control and clears hits.
+// heuristic (whole word cancel|done|close|…) returns selection_control and clears hits.
 // Phrase shape is not fixed — see TestParseSearchControl_exitDetectsKeywordInUtterance.
 func TestAcceptTranscript_searchControl_exitClearsSession(t *testing.T) {
 	t.Helper()
@@ -63,8 +63,8 @@ func TestAcceptTranscript_searchControl_exitClearsSession(t *testing.T) {
 			if !ok || !res.Success || reason != "" {
 				t.Fatalf("got ok=%v success=%v reason=%q res=%+v", ok, res.Success, reason, res)
 			}
-			if res.TranscriptOutcome != "search_control" {
-				t.Fatalf("expected outcome=search_control (search exit), got %q", res.TranscriptOutcome)
+			if res.TranscriptOutcome != "selection_control" {
+				t.Fatalf("expected outcome=selection_control (search exit), got %q", res.TranscriptOutcome)
 			}
 			if res.UiDisposition != "hidden" {
 				t.Fatalf("expected uiDisposition=hidden, got %q", res.UiDisposition)
