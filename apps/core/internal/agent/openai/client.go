@@ -44,7 +44,7 @@ func NewFromEnv() (*Client, error) {
 	}, nil
 }
 
-func (c *Client) Complete(ctx context.Context, req agent.CompletionRequest) (string, error) {
+func (c *Client) Call(ctx context.Context, req agent.CompletionRequest) (string, error) {
 	if strings.TrimSpace(c.APIKey) == "" {
 		return "", fmt.Errorf("openai: missing API key")
 	}
