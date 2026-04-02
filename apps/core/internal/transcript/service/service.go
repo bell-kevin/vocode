@@ -320,13 +320,6 @@ func (s *Service) persist(key string, vs session.VoiceSession) {
 
 func ptrInt64(v int64) *int64 { return &v }
 
-func editorSnapshotFromParams(params protocol.VoiceTranscriptParams) router.EditorSnapshot {
-	return router.EditorSnapshot{
-		ActiveFilePath: strings.TrimSpace(params.ActiveFile),
-		WorkspaceRoot:  strings.TrimSpace(params.WorkspaceRoot),
-	}
-}
-
 func wireHitsToProtocol(in []session.SearchHit) []struct {
 	Path      string `json:"path"`
 	Line      int64  `json:"line"`
@@ -392,7 +385,6 @@ func (s *Service) executeStub(
 	fr, err := s.flowRouter.ClassifyFlow(context.Background(), router.Context{
 		Flow:        flows.Root,
 		Instruction: text,
-		Editor:      editorSnapshotFromParams(params),
 	})
 	if err == nil {
 		switch fr.Route {

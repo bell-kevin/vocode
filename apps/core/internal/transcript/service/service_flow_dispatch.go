@@ -88,9 +88,6 @@ func (s *Service) dispatchSelectionFlow(
 	fr, err := s.flowRouter.ClassifyFlow(context.Background(), router.Context{
 		Flow:        flows.Select,
 		Instruction: text,
-		Editor:      editorSnapshotFromParams(params),
-		HitCount:    len(vs.SearchResults),
-		ActiveIndex: vs.ActiveSearchIndex,
 	})
 	if err != nil {
 		return protocol.VoiceTranscriptCompletion{
@@ -313,12 +310,8 @@ func (s *Service) dispatchSelectFileFlow(
 	text string,
 ) (protocol.VoiceTranscriptCompletion, string) {
 	fr, err := s.flowRouter.ClassifyFlow(context.Background(), router.Context{
-		Flow:            flows.SelectFile,
-		Instruction:     text,
-		Editor:          editorSnapshotFromParams(params),
-		FocusPath:       vs.FileSelectionFocus,
-		ListCount:       len(vs.FileSelectionPaths),
-		ListActiveIndex: vs.FileSelectionIndex,
+		Flow:        flows.SelectFile,
+		Instruction: text,
 	})
 	if err != nil {
 		return protocol.VoiceTranscriptCompletion{}, err.Error()

@@ -29,52 +29,15 @@ Rules:
 	return strings.TrimSpace(b.String())
 }
 
-// ClassifierUserJSON builds user context for flow route classification.
+// ClassifierUserJSON is the minimal user payload for route classification (flow + utterance).
 func ClassifierUserJSON(in Context) ([]byte, error) {
-	activeFile := strings.TrimSpace(in.Editor.ActiveFilePath)
-	workspaceRoot := strings.TrimSpace(in.Editor.WorkspaceRoot)
-	var cursor *struct {
-		Name string `json:"name,omitempty"`
-		Kind string `json:"kind,omitempty"`
-	}
-	if in.Editor.CursorSymbol != nil {
-		cursor = &struct {
-			Name string `json:"name,omitempty"`
-			Kind string `json:"kind,omitempty"`
-		}{Name: strings.TrimSpace(in.Editor.CursorSymbol.Name), Kind: strings.TrimSpace(in.Editor.CursorSymbol.Kind)}
-	}
-
 	type payload struct {
-		Flow          flows.ID `json:"flow"`
-		Instruction   string   `json:"instruction"`
-		ActiveFile    string   `json:"activeFile"`
-		WorkspaceRoot string   `json:"workspaceRoot"`
-		CursorSymbol  *struct {
-			Name string `json:"name,omitempty"`
-			Kind string `json:"kind,omitempty"`
-		} `json:"cursorSymbol,omitempty"`
-		HitCount        int    `json:"hitCount,omitempty"`
-		ActiveIndex     int    `json:"activeIndex,omitempty"`
-		FocusPath       string `json:"focusPath,omitempty"`
-		ListCount       int    `json:"listCount,omitempty"`
-		ListActiveIndex int    `json:"listActiveIndex,omitempty"`
+		Flow        flows.ID `json:"flow"`
+		Instruction string   `json:"instruction"`
 	}
-
 	p := payload{
-		Flow:          in.Flow,
-		Instruction:   strings.TrimSpace(in.Instruction),
-		ActiveFile:    activeFile,
-		WorkspaceRoot: workspaceRoot,
-		CursorSymbol:  cursor,
-	}
-	switch in.Flow {
-	case flows.Select:
-		p.HitCount = in.HitCount
-		p.ActiveIndex = in.ActiveIndex
-	case flows.SelectFile:
-		p.FocusPath = strings.TrimSpace(in.FocusPath)
-		p.ListCount = in.ListCount
-		p.ListActiveIndex = in.ListActiveIndex
+		Flow:        in.Flow,
+		Instruction: strings.TrimSpace(in.Instruction),
 	}
 	return json.MarshalIndent(p, "", "  ")
 }
