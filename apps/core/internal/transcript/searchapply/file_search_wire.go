@@ -7,7 +7,7 @@ import (
 	protocol "vocoding.net/vocode/v2/packages/protocol/go"
 )
 
-// FileSearchStateFromPaths builds wire file-selection state for a numbered path list.
+// FileSearchStateFromPaths builds protocol fileSelection state for a numbered path list.
 func FileSearchStateFromPaths(paths []string, activeIndex int) *protocol.VoiceTranscriptFileSearchState {
 	if len(paths) == 0 {
 		return nil
@@ -30,7 +30,7 @@ func FileSearchStateFromPaths(paths []string, activeIndex int) *protocol.VoiceTr
 	}
 }
 
-// FileSearchStateFromSinglePath is one hit at index 0 (replaces legacy focusPath-only completions).
+// FileSearchStateFromSinglePath is one hit at index 0.
 func FileSearchStateFromSinglePath(path string) *protocol.VoiceTranscriptFileSearchState {
 	path = strings.TrimSpace(path)
 	if path == "" {
