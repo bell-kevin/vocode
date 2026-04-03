@@ -12,7 +12,6 @@ import (
 
 const (
 	contentSearchMaxHits     = 20
-	fileSearchCollectMaxHits = 120
 	fileSearchMaxUniquePaths = 20
 )
 
@@ -25,7 +24,7 @@ type HostApplyClient interface {
 type TranscriptSearch struct {
 	HostApply             HostApplyClient
 	NewBatchID            func() string
-	NavigateHitDirectives func(path string, line0, char0, length int) []protocol.VoiceTranscriptDirective
+	NavigateHitDirectives func(params protocol.VoiceTranscriptParams, path string, line0, char0, length int) []protocol.VoiceTranscriptDirective
 }
 
 // SearchFromQuery runs fixed-string workspace content search and returns a completion with Search hits.
@@ -54,13 +53,13 @@ func (e *TranscriptSearch) SearchFromQuery(params protocol.VoiceTranscriptParams
 	res := completionWorkspaceSearchWithHits(hits, q)
 
 	if e.HostApply == nil {
-		return protocol.VoiceTranscriptCompletion{Success: false}, true, "daemon has directives but no host apply client is configured"
+		return protocol.VoiceTranscriptCompletion{Success: false}, true, "host apply client not configured"
 	}
 	if e.NavigateHitDirectives == nil || e.NewBatchID == nil {
 		return protocol.VoiceTranscriptCompletion{Success: false}, true, "search engine not fully configured"
 	}
 	first := hits[0]
-	dirs := e.NavigateHitDirectives(first.Path, first.Line0, first.Char0, first.Len)
+	dirs := e.NavigateHitDirectives(params, first.Path, first.Line0, first.Char0, first.Len)
 	batchID := e.NewBatchID()
 	if vs != nil {
 		vs.PendingDirectiveApply = &session.DirectiveApplyBatch{ID: batchID, NumDirectives: len(dirs)}

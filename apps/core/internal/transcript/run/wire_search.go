@@ -18,7 +18,7 @@ func WireSearchEngine(e *Env) {
 	}
 	e.Search.HostApply = e.HostApply
 	e.Search.NewBatchID = hostdirectives.NewApplyBatchID
-	e.Search.NavigateHitDirectives = hostdirectives.HitNavigateDirectives
+	e.Search.NavigateHitDirectives = hostdirectives.HitNavigateDirectivesExpand
 }
 
 // IdleResetForParams mirrors session idle eviction tuning from RPC params.

@@ -16,7 +16,7 @@ export async function sendTranscriptControlRequest(
   const { client } = services;
   if (!client) {
     void vscode.window.showWarningMessage(
-      "Vocode daemon is not connected; cannot cancel.",
+      "Vocode core is not connected; cannot cancel.",
     );
     return false;
   }

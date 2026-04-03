@@ -52,7 +52,7 @@ func selectApplyHostForActiveHit(deps *SelectionDeps, params protocol.VoiceTrans
 		}, ""
 	}
 	if deps.HostApply == nil {
-		return protocol.VoiceTranscriptCompletion{Success: false}, "daemon has directives but no host apply client is configured"
+		return protocol.VoiceTranscriptCompletion{Success: false}, "host apply client not configured"
 	}
 	if deps.HitNavigateDirectives == nil || deps.NewBatchID == nil {
 		return protocol.VoiceTranscriptCompletion{Success: false}, "select flow not fully configured"

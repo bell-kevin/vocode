@@ -36,7 +36,7 @@ export class DaemonClient {
           ? JSON.stringify(result)
           : String(result);
       throw new Error(
-        `Invalid ${method} response from daemon. result=${preview.slice(0, 2000)}`,
+        `Invalid ${method} response from vocode-cored. result=${preview.slice(0, 2000)}`,
       );
     }
 

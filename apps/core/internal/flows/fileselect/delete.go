@@ -20,7 +20,7 @@ func fileSelectionDeletePath(deps *SelectFileDeps, params protocol.VoiceTranscri
 		return protocol.VoiceTranscriptCompletion{Success: false}, "delete: no file path"
 	}
 	if deps.HostApply == nil {
-		return protocol.VoiceTranscriptCompletion{Success: false}, "daemon has directives but no host apply client is configured"
+		return protocol.VoiceTranscriptCompletion{Success: false}, "host apply client not configured"
 	}
 	st, err := os.Stat(path)
 	if err != nil {

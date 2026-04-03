@@ -20,7 +20,7 @@ func fileSelectionOpenPath(deps *SelectFileDeps, params protocol.VoiceTranscript
 		return protocol.VoiceTranscriptCompletion{Success: false}, "open: no file path"
 	}
 	if deps.HostApply == nil {
-		return protocol.VoiceTranscriptCompletion{Success: false}, "daemon has directives but no host apply client is configured"
+		return protocol.VoiceTranscriptCompletion{Success: false}, "host apply client not configured"
 	}
 	dirs := []protocol.VoiceTranscriptDirective{
 		{

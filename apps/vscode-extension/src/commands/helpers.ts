@@ -12,9 +12,7 @@ export function registerCommands(
       try {
         if (definition.requiresDaemon) {
           if (!services.client) {
-            void vscode.window.showErrorMessage(
-              "Vocode daemon is not running.",
-            );
+            void vscode.window.showErrorMessage("Vocode core is not running.");
             return;
           }
 

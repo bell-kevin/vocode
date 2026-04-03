@@ -8,7 +8,7 @@ export const pingCommand: CommandDefinition = {
   run: async (client) => {
     const result = await client.ping({});
     void vscode.window.showInformationMessage(
-      `Vocode daemon says: ${result.message}`,
+      `Vocode core says: ${result.message}`,
     );
   },
 };

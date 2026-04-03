@@ -17,7 +17,7 @@ async function sendTranscript(
 ): Promise<void> {
   const text = await vscode.window.showInputBox({
     title: "Vocode Voice Transcript",
-    prompt: "Enter transcript text to send to the daemon",
+    prompt: "Enter transcript text to send to vocode-cored",
     placeHolder: "Refactor this function to handle empty input safely",
     ignoreFocusOut: true,
   });

@@ -10,8 +10,9 @@ import (
 	protocol "vocoding.net/vocode/v2/packages/protocol/go"
 )
 
-// FileSearchFromQuery runs fixed-string search, collapses to unique paths, updates optional session
-// file-list fields, and returns a completion with FileSelection plus host open of the first path.
+// FileSearchFromQuery walks the workspace for paths whose relative path or basename contains the
+// query fragment (case-insensitive), updates optional session file-list fields, and returns a
+// completion with FileSelection plus host open of the first path.
 func (e *TranscriptSearch) FileSearchFromQuery(params protocol.VoiceTranscriptParams, q string, vs *session.VoiceSession) (protocol.VoiceTranscriptCompletion, bool, string) {
 	q = strings.TrimSpace(q)
 	if q == "" {
@@ -25,12 +26,10 @@ func (e *TranscriptSearch) FileSearchFromQuery(params protocol.VoiceTranscriptPa
 		}, true, "search requires workspaceRoot or activeFile"
 	}
 
-	hits, err := search.FixedStringSearch(root, q, fileSearchCollectMaxHits)
+	paths, err := search.PathFragmentSearch(root, q, fileSearchMaxUniquePaths)
 	if err != nil {
 		return protocol.VoiceTranscriptCompletion{Success: false}, true, "file search failed: " + err.Error()
 	}
-
-	paths := search.UniqueSortedPaths(hits, fileSearchMaxUniquePaths)
 	mutateSessionFilePathSearchResults(vs, paths)
 
 	if len(paths) == 0 {
@@ -38,7 +37,7 @@ func (e *TranscriptSearch) FileSearchFromQuery(params protocol.VoiceTranscriptPa
 	}
 
 	if e.HostApply == nil {
-		return protocol.VoiceTranscriptCompletion{Success: false}, true, "daemon has directives but no host apply client is configured"
+		return protocol.VoiceTranscriptCompletion{Success: false}, true, "host apply client not configured"
 	}
 	if e.NewBatchID == nil {
 		return protocol.VoiceTranscriptCompletion{Success: false}, true, "search engine not fully configured"

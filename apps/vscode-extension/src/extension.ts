@@ -44,7 +44,7 @@ async function wireVocodeBackend(
 ): Promise<void> {
   try {
     const daemon = await spawnDaemon(context);
-    console.log(`Vocode daemon started from ${daemon.binaryPath}`);
+    console.log(`Vocode core (vocode-cored) started from ${daemon.binaryPath}`);
 
     const voice = await spawnVoiceSidecar(context);
     console.log(`Vocode voice sidecar started from ${voice.binaryPath}`);
@@ -91,11 +91,11 @@ async function wireVocodeBackend(
       attachTranscriptPipeline(services).dispose;
   } catch (error) {
     const message =
-      error instanceof Error ? error.message : "Unknown daemon startup error";
+      error instanceof Error ? error.message : "Unknown backend startup error";
 
     console.error(message);
     void vscode.window.showErrorMessage(
-      `Failed to start Vocode daemon: ${message}`,
+      `Failed to start Vocode backend (core + voice): ${message}`,
     );
 
     services.client = null;
@@ -164,7 +164,7 @@ export async function activate(context: vscode.ExtensionContext) {
 
       if (services.client) {
         void vscode.window.showInformationMessage(
-          "Vocode daemon and voice sidecar restarted.",
+          "Vocode backend (core + voice) restarted.",
         );
       }
     } finally {
