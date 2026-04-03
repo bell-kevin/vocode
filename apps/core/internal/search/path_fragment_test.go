@@ -30,6 +30,29 @@ func TestPathFragmentSearch_findsByFileName(t *testing.T) {
 	}
 }
 
+func TestPathFragmentSearch_folderMatchDoesNotListAllDescendants(t *testing.T) {
+	root := t.TempDir()
+	resDir := filepath.Join(root, "Res")
+	if err := os.MkdirAll(resDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range []string{"a.ogg", "b.png", "test.js"} {
+		if err := os.WriteFile(filepath.Join(resDir, name), []byte("x"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	got, err := PathFragmentMatches(root, "Res", 20)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 1 {
+		t.Fatalf("got %d matches, want 1 (folder only): %#v", len(got), got)
+	}
+	if !got[0].IsDir || filepath.Clean(got[0].Path) != filepath.Clean(resDir) {
+		t.Fatalf("want only dir %s, got %#v", resDir, got[0])
+	}
+}
+
 func TestPathFragmentSearch_skipsNodeModules(t *testing.T) {
 	root := t.TempDir()
 	nm := filepath.Join(root, "node_modules", "pkg")
