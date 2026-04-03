@@ -11,17 +11,17 @@ import (
 )
 
 // FlowRouter maps a transcript to a route for the active flow. When Model is nil, it uses
-// built-in heuristics (tests / offline dev).
+// built-in stubs for tests / offline dev (still returns a structured search_query for rg routes).
 type FlowRouter struct {
 	Model agent.ModelClient
 }
 
-// NewFlowRouter returns a router. Pass model=nil for heuristic-only routing.
+// NewFlowRouter returns a router. Pass model=nil for stub routing.
 func NewFlowRouter(model agent.ModelClient) *FlowRouter {
 	return &FlowRouter{Model: model}
 }
 
-// ClassifyFlow returns the route id for the given flow context.
+// ClassifyFlow returns route classification and structured fields (e.g. search_query for rg).
 func (r *FlowRouter) ClassifyFlow(ctx context.Context, in Context) (Result, error) {
 	if r == nil {
 		return Result{}, fmt.Errorf("router: nil FlowRouter")
@@ -51,14 +51,16 @@ func classifyWithModel(ctx context.Context, m agent.ModelClient, in Context) (Re
 		return Result{}, ErrEmptyModelContent
 	}
 	var raw struct {
-		Route string `json:"route"`
+		Route       string `json:"route"`
+		SearchQuery string `json:"search_query"`
 	}
 	if err := json.Unmarshal([]byte(content), &raw); err != nil {
 		return Result{}, fmt.Errorf("router: decode classifier json: %w", err)
 	}
 	res := Result{
-		Flow:  in.Flow,
-		Route: strings.TrimSpace(raw.Route),
+		Flow:        in.Flow,
+		Route:       strings.TrimSpace(raw.Route),
+		SearchQuery: strings.TrimSpace(raw.SearchQuery),
 	}
 	if err := res.Validate(); err != nil {
 		return Result{}, err
@@ -68,27 +70,33 @@ func classifyWithModel(ctx context.Context, m agent.ModelClient, in Context) (Re
 
 func classifyWithStub(in Context) Result {
 	t := strings.TrimSpace(strings.ToLower(in.Instruction))
+	raw := strings.TrimSpace(in.Instruction)
+	var res Result
 	switch in.Flow {
 	case flows.Select:
-		return stubSelect(t)
+		res = stubSelect(t, raw)
 	case flows.SelectFile:
-		return stubSelectFile(t)
+		res = stubSelectFile(t, raw)
 	default:
-		return stubRoot(t)
+		res = stubRoot(t, raw)
 	}
+	if err := res.Validate(); err != nil {
+		return Result{Flow: in.Flow, Route: "irrelevant"}
+	}
+	return res
 }
 
-func stubRoot(t string) Result {
+func stubRoot(t, raw string) Result {
 	if t == "" {
 		return Result{Flow: flows.Root, Route: "irrelevant"}
 	}
 	if strings.HasPrefix(t, "find file ") || strings.HasPrefix(t, "find files ") ||
 		strings.HasPrefix(t, "open file ") || strings.HasPrefix(t, "show file ") ||
 		strings.HasPrefix(t, "file named ") || strings.HasPrefix(t, "locate file ") {
-		return Result{Flow: flows.Root, Route: "select_file"}
+		return Result{Flow: flows.Root, Route: "select_file", SearchQuery: raw}
 	}
 	if strings.HasPrefix(t, "find ") || strings.HasPrefix(t, "search ") || strings.HasPrefix(t, "where is ") || strings.HasPrefix(t, "locate ") {
-		return Result{Flow: flows.Root, Route: "select"}
+		return Result{Flow: flows.Root, Route: "select", SearchQuery: raw}
 	}
 	if strings.HasSuffix(t, "?") || strings.HasPrefix(t, "what ") || strings.HasPrefix(t, "why ") || strings.HasPrefix(t, "how ") {
 		return Result{Flow: flows.Root, Route: "question"}
@@ -99,7 +107,7 @@ func stubRoot(t string) Result {
 	return Result{Flow: flows.Root, Route: "irrelevant"}
 }
 
-func stubSelect(t string) Result {
+func stubSelect(t, raw string) Result {
 	if t == "" {
 		return Result{Flow: flows.Select, Route: "irrelevant"}
 	}
@@ -107,10 +115,10 @@ func stubSelect(t string) Result {
 		return Result{Flow: flows.Select, Route: "control"}
 	}
 	if strings.Contains(t, "find file ") || strings.Contains(t, "open file ") || strings.Contains(t, "show file ") {
-		return Result{Flow: flows.Select, Route: "select_file"}
+		return Result{Flow: flows.Select, Route: "select_file", SearchQuery: raw}
 	}
 	if strings.Contains(t, "find ") || strings.Contains(t, "search ") {
-		return Result{Flow: flows.Select, Route: "select"}
+		return Result{Flow: flows.Select, Route: "select", SearchQuery: raw}
 	}
 	if strings.Contains(t, "next") || strings.Contains(t, "forward") ||
 		strings.Contains(t, "back") || strings.Contains(t, "prev") {
@@ -130,7 +138,7 @@ func stubSelect(t string) Result {
 	return Result{Flow: flows.Select, Route: "irrelevant"}
 }
 
-func stubSelectFile(t string) Result {
+func stubSelectFile(t, raw string) Result {
 	if t == "" {
 		return Result{Flow: flows.SelectFile, Route: "irrelevant"}
 	}

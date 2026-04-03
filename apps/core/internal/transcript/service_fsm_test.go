@@ -1,4 +1,4 @@
-package service
+package transcript
 
 import (
 	"os"
@@ -14,7 +14,7 @@ import (
 
 func TestCancelSelection_clearsSelectionAndDismissesClarify(t *testing.T) {
 	s := NewService(router.NewFlowRouter(nil))
-	s.ephemeral = session.VoiceSession{
+	*s.env.Ephemeral = session.VoiceSession{
 		BasePhase:             session.BasePhaseSelection,
 		SearchResults:         []session.SearchHit{{Path: "x.go", Line: 0, Character: 0, Preview: ""}},
 		ActiveSearchIndex:     0,
@@ -36,23 +36,23 @@ func TestCancelSelection_clearsSelectionAndDismissesClarify(t *testing.T) {
 		t.Fatalf("expected TranscriptOutcome=completed, got %q", res.TranscriptOutcome)
 	}
 
-	if s.ephemeral.BasePhase != session.BasePhaseMain {
-		t.Fatalf("expected base phase main after cancel_selection, got %q", s.ephemeral.BasePhase)
+	if s.env.Ephemeral.BasePhase != session.BasePhaseMain {
+		t.Fatalf("expected base phase main after cancel_selection, got %q", s.env.Ephemeral.BasePhase)
 	}
-	if s.ephemeral.Clarify != nil {
+	if s.env.Ephemeral.Clarify != nil {
 		t.Fatalf("expected clarify overlay dismissed")
 	}
-	if s.ephemeral.SearchResults != nil {
+	if s.env.Ephemeral.SearchResults != nil {
 		t.Fatalf("expected SearchResults cleared")
 	}
-	if s.ephemeral.ActiveSearchIndex != 0 {
-		t.Fatalf("expected ActiveSearchIndex=0 after cancel_selection, got %d", s.ephemeral.ActiveSearchIndex)
+	if s.env.Ephemeral.ActiveSearchIndex != 0 {
+		t.Fatalf("expected ActiveSearchIndex=0 after cancel_selection, got %d", s.env.Ephemeral.ActiveSearchIndex)
 	}
 }
 
 func TestClarifyAnswer_editWhileSelection_closesSelection(t *testing.T) {
 	s := NewService(router.NewFlowRouter(nil))
-	s.ephemeral = session.VoiceSession{
+	*s.env.Ephemeral = session.VoiceSession{
 		BasePhase:         session.BasePhaseSelection,
 		SearchResults:     []session.SearchHit{{Path: "x.go", Line: 0, Character: 0, Preview: ""}},
 		ActiveSearchIndex: 0,
@@ -73,13 +73,13 @@ func TestClarifyAnswer_editWhileSelection_closesSelection(t *testing.T) {
 		t.Fatalf("expected TranscriptOutcome=completed, got %q", res.TranscriptOutcome)
 	}
 
-	if s.ephemeral.BasePhase != session.BasePhaseMain {
-		t.Fatalf("expected base phase main after clarify(edit), got %q", s.ephemeral.BasePhase)
+	if s.env.Ephemeral.BasePhase != session.BasePhaseMain {
+		t.Fatalf("expected base phase main after clarify(edit), got %q", s.env.Ephemeral.BasePhase)
 	}
-	if s.ephemeral.Clarify != nil {
+	if s.env.Ephemeral.Clarify != nil {
 		t.Fatalf("expected clarify overlay dismissed")
 	}
-	if s.ephemeral.SearchResults != nil {
+	if s.env.Ephemeral.SearchResults != nil {
 		t.Fatalf("expected SearchResults cleared after edit while in selection")
 	}
 }
@@ -105,7 +105,7 @@ func TestFileSelectionNavigation_nextUpdatesFocus(t *testing.T) {
 	expected := paths[1]
 
 	s := NewService(router.NewFlowRouter(nil))
-	s.ephemeral = session.VoiceSession{
+	*s.env.Ephemeral = session.VoiceSession{
 		BasePhase:          session.BasePhaseFileSelection,
 		FileSelectionPaths: paths,
 		FileSelectionIndex: 0,
@@ -134,7 +134,7 @@ func TestFileSelectionExit_doneReturnsMain(t *testing.T) {
 	}
 
 	s := NewService(router.NewFlowRouter(nil))
-	s.ephemeral = session.VoiceSession{
+	*s.env.Ephemeral = session.VoiceSession{
 		BasePhase: session.BasePhaseFileSelection,
 	}
 
@@ -148,10 +148,10 @@ func TestFileSelectionExit_doneReturnsMain(t *testing.T) {
 	if res.TranscriptOutcome != "completed" {
 		t.Fatalf("expected TranscriptOutcome=completed, got %q", res.TranscriptOutcome)
 	}
-	if s.ephemeral.BasePhase != session.BasePhaseMain {
-		t.Fatalf("expected base phase main after exit, got %q", s.ephemeral.BasePhase)
+	if s.env.Ephemeral.BasePhase != session.BasePhaseMain {
+		t.Fatalf("expected base phase main after exit, got %q", s.env.Ephemeral.BasePhase)
 	}
-	if s.ephemeral.FileSelectionPaths != nil {
+	if s.env.Ephemeral.FileSelectionPaths != nil {
 		t.Fatalf("expected FileSelectionPaths cleared")
 	}
 }

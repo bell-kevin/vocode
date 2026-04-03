@@ -1,123 +1,69 @@
 package selectfileflow
 
 import (
-	"regexp"
 	"strings"
+
+	"vocoding.net/vocode/v2/apps/core/internal/flows/helpers"
+	"vocoding.net/vocode/v2/apps/core/internal/transcript/session"
+	protocol "vocoding.net/vocode/v2/packages/protocol/go"
 )
 
-var (
-	selectionNavNextRe = regexp.MustCompile(`\b(next|forward)\b`)
-	selectionNavBackRe = regexp.MustCompile(`\b(back|prev|previous)\b`)
-	selectionNavGotoRe = regexp.MustCompile(`\b(goto|jump|show)\b`)
-	navIntRe           = regexp.MustCompile(`\b\d+\b`)
-)
-
-// Heuristic-based determination of control intent.
-func parseControl(transcript string) (kind string, ok bool) {
-	t := strings.TrimSpace(strings.ToLower(transcript))
-	if selectionNavNextRe.MatchString(t) {
-		return "next", true
-	}
-	if selectionNavBackRe.MatchString(t) {
-		return "back", true
-	}
-	if selectionNavGotoRe.MatchString(t) {
-		return "goto", true
-	}
-	return "", false
-}
-
-// HandleControl determines a control intent and handles it.
-func HandleControl(transcript string) {
-	intent, ok := parseControl(transcript)
+// HandleSelectFileControl handles the select-file flow "select_file_control" route only (path-list navigation via [selection.ParseNav]).
+func HandleSelectFileControl(_ *SelectFileDeps, _ protocol.VoiceTranscriptParams, vs *session.VoiceSession, text string) (protocol.VoiceTranscriptCompletion, string) {
+	op, pick, ok := listNavOp(text)
 	if !ok {
-		return
+		return protocol.VoiceTranscriptCompletion{
+			Success:                true,
+			TranscriptOutcome:      "irrelevant",
+			UiDisposition:          "skipped",
+			FileSelectionFocusPath: vs.FileSelectionFocus,
+		}, ""
 	}
+	applyFileSelectionControlOp(vs, op, pick)
+	return protocol.VoiceTranscriptCompletion{
+		Success:                true,
+		Summary:                "file focus updated",
+		TranscriptOutcome:      "file_selection_control",
+		UiDisposition:          "hidden",
+		FileSelectionFocusPath: vs.FileSelectionFocus,
+	}, ""
+}
 
-	switch intent {
+func applyFileSelectionControlOp(vs *session.VoiceSession, op string, pick1Based int) {
+	op = strings.ToLower(strings.TrimSpace(op))
+	n := len(vs.FileSelectionPaths)
+	switch op {
 	case "next":
-		// Handle next
+		if n > 0 && vs.FileSelectionIndex < n-1 {
+			vs.FileSelectionIndex++
+		}
 	case "back":
-		// Handle back
-	case "goto":
-		// Handle goto by number (extract ordinal / cardinal from text)
+		if vs.FileSelectionIndex > 0 {
+			vs.FileSelectionIndex--
+		}
+	case "pick":
+		if pick1Based >= 1 && pick1Based <= n {
+			vs.FileSelectionIndex = pick1Based - 1
+		}
+	}
+	if n > 0 && vs.FileSelectionIndex >= 0 && vs.FileSelectionIndex < n {
+		vs.FileSelectionFocus = vs.FileSelectionPaths[vs.FileSelectionIndex]
+	}
+}
+
+func listNavOp(text string) (op string, pick1Based int, ok bool) {
+	k, ord, ok := helpers.ParseNav(text)
+	if !ok {
+		return "", 0, false
+	}
+	switch k {
+	case "next":
+		return "next", 0, true
+	case "back":
+		return "back", 0, true
+	case "pick":
+		return "pick", ord, true
 	default:
-		return
+		return "", 0, false
 	}
-}
-
-// Helpers
-func parseAnyOrdinal(s string) int {
-	if n := parseAnyIntToken(s); n > 0 {
-		return n
-	}
-	for _, w := range strings.Fields(s) {
-		switch strings.Trim(w, ".,;:!?") {
-		case "one", "1st", "first":
-			return 1
-		case "two", "2nd", "second":
-			return 2
-		case "three", "3rd", "third":
-			return 3
-		case "four", "4th", "fourth":
-			return 4
-		case "five", "5th", "fifth":
-			return 5
-		case "six", "6th", "sixth":
-			return 6
-		case "seven", "7th", "seventh":
-			return 7
-		case "eight", "8th", "eighth":
-			return 8
-		case "nine", "9th", "ninth":
-			return 9
-		case "ten", "10th", "tenth":
-			return 10
-		}
-	}
-	return 0
-}
-
-func isBareOrdinalUtterance(t string) bool {
-	t = strings.TrimSpace(strings.ToLower(t))
-	if t == "" {
-		return false
-	}
-	if navIntRe.MatchString(t) && len(strings.Fields(t)) == 1 {
-		return true
-	}
-	switch strings.Trim(t, ".,;:!?") {
-	case "one", "first", "1st",
-		"two", "second", "2nd",
-		"three", "third", "3rd",
-		"four", "fourth", "4th",
-		"five", "fifth", "5th",
-		"six", "sixth", "6th",
-		"seven", "seventh", "7th",
-		"eight", "eighth", "8th",
-		"nine", "ninth", "9th",
-		"ten", "tenth", "10th":
-		return true
-	}
-	return false
-}
-
-func parseAnyIntToken(s string) int {
-	n := 0
-	inDigits := false
-	for i := 0; i < len(s); i++ {
-		c := s[i]
-		if c >= '0' && c <= '9' {
-			inDigits = true
-			n = n*10 + int(c-'0')
-			continue
-		}
-		if inDigits {
-			return n
-		}
-	}
-	if inDigits {
-		return n
-	}
-	return 0
 }

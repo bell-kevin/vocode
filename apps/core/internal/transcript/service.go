@@ -1,24 +1,78 @@
 package transcript
 
 import (
-	protocol "vocoding.net/vocode/v2/packages/protocol/go"
+	"context"
+	"strings"
+	"sync"
 
+	"vocoding.net/vocode/v2/apps/core/internal/flows"
 	"vocoding.net/vocode/v2/apps/core/internal/flows/router"
-	transcriptservice "vocoding.net/vocode/v2/apps/core/internal/transcript/service"
+	"vocoding.net/vocode/v2/apps/core/internal/transcript/run"
+	"vocoding.net/vocode/v2/apps/core/internal/transcript/session"
+	protocol "vocoding.net/vocode/v2/packages/protocol/go"
 )
 
-// Service adapts `internal/transcript/service` to the JSON-RPC handler interface.
+// defaultTranscriptQueueSize caps concurrent serialized handler work; when full, AcceptTranscript returns a failureReason.
+const defaultTranscriptQueueSize = 64
+
+// Service is the RPC-facing transcript facade: nil-safe, bounded queue for spoken transcripts, and
+// a fast path for protocol ControlRequest (cancel_clarify, cancel_selection, …) that bypasses the queue.
+//
+// ControlRequest is a separate JSON-RPC field, not a router route — it is handled inside [run.Execute]
+// before any FlowRouter classification and intentionally skips the job queue so UI cancel stays ordered
+// relative to queued speech jobs.
 type Service struct {
-	inner *transcriptservice.Service
+	env *run.Env
+
+	executeMu sync.Mutex
+	queue     chan transcriptJob
+	startOnce sync.Once
 }
 
+type transcriptJob struct {
+	params protocol.VoiceTranscriptParams
+	resp   chan transcriptAcceptResp
+}
+
+type transcriptAcceptResp struct {
+	result protocol.VoiceTranscriptCompletion
+	ok     bool
+	reason string
+}
+
+// NewService constructs the voice.transcript handler implementation.
 func NewService(flowRouter *router.FlowRouter) *Service {
-	return &Service{inner: transcriptservice.NewService(flowRouter)}
+	if flowRouter == nil {
+		flowRouter = router.NewFlowRouter(nil)
+	}
+	ephemeral := session.VoiceSession{}
+	env := &run.Env{
+		Sessions:   session.NewVoiceSessionStore(),
+		Ephemeral:  &ephemeral,
+		FlowRouter: flowRouter,
+	}
+	run.WireSearchEngine(env)
+	return &Service{env: env}
 }
 
+// SetHostApplyClient wires the extension callback for host.applyDirectives.
+func (s *Service) SetHostApplyClient(
+	client interface {
+		ApplyDirectives(protocol.HostApplyParams) (protocol.HostApplyResult, error)
+	},
+) {
+	if s == nil || s.env == nil {
+		return
+	}
+	s.env.HostApply = client
+	if s.env.Search != nil {
+		s.env.Search.HostApply = client
+	}
+}
+
+// AcceptTranscript implements voice.transcript.
 func (s *Service) AcceptTranscript(params protocol.VoiceTranscriptParams) (protocol.VoiceTranscriptCompletion, bool, string) {
-	if s == nil || s.inner == nil {
-		// Fail-safe: accept but return a non-breaking completion.
+	if s == nil || s.env == nil {
 		return protocol.VoiceTranscriptCompletion{
 			Success:           true,
 			Summary:           "core daemon not initialized yet",
@@ -26,17 +80,110 @@ func (s *Service) AcceptTranscript(params protocol.VoiceTranscriptParams) (proto
 			UiDisposition:     "hidden",
 		}, true, ""
 	}
-	return s.inner.AcceptTranscript(params)
+
+	s.startOnce.Do(func() {
+		s.queue = make(chan transcriptJob, defaultTranscriptQueueSize)
+		go s.runWorker()
+	})
+
+	cr := strings.TrimSpace(params.ControlRequest)
+	if cr != "" {
+		params.Text = strings.TrimSpace(params.Text)
+		params.ControlRequest = cr
+		s.executeMu.Lock()
+		defer s.executeMu.Unlock()
+		return run.Execute(s.env, params, nil)
+	}
+
+	params.Text = strings.TrimSpace(params.Text)
+	if params.Text == "" {
+		return protocol.VoiceTranscriptCompletion{}, false, ""
+	}
+
+	if handled, res, ok, reason := s.tryImmediateAfterClassify(params); handled {
+		return res, ok, reason
+	}
+
+	respCh := make(chan transcriptAcceptResp, 1)
+	job := transcriptJob{params: params, resp: respCh}
+	select {
+	case s.queue <- job:
+	default:
+		return protocol.VoiceTranscriptCompletion{
+			Success:           false,
+			UiDisposition:     "hidden",
+			TranscriptOutcome: "completed",
+		}, true, "voice.transcript queue is full"
+	}
+	resp := <-respCh
+	return resp.result, resp.ok, resp.reason
 }
 
-// SetHostApplyClient wires the extension callback for `host.applyDirectives`.
-func (s *Service) SetHostApplyClient(
-	client interface {
-		ApplyDirectives(protocol.HostApplyParams) (protocol.HostApplyResult, error)
-	},
-) {
-	if s == nil || s.inner == nil {
-		return
+// tryImmediateAfterClassify applies classify-then-queue: ExecutionImmediate routes run under the mutex
+// without entering the bounded queue; ExecutionSerialized routes fall through to enqueue (full [run.Execute]).
+func (s *Service) tryImmediateAfterClassify(params protocol.VoiceTranscriptParams) (handled bool, res protocol.VoiceTranscriptCompletion, ok bool, reason string) {
+	s.executeMu.Lock()
+	defer s.executeMu.Unlock()
+
+	key := strings.TrimSpace(params.ContextSessionId)
+	var vs session.VoiceSession
+	if key == "" {
+		vs = session.CloneVoiceSession(*s.env.Ephemeral)
+	} else {
+		vs = s.env.Sessions.Get(key, run.IdleResetForParams(params))
 	}
-	s.inner.SetHostApplyClient(client)
+
+	if vs.Clarify != nil {
+		return false, protocol.VoiceTranscriptCompletion{}, true, ""
+	}
+
+	if vs.BasePhase == "" {
+		vs.BasePhase = session.BasePhaseMain
+	}
+
+	flowID := basePhaseToFlow(vs.BasePhase)
+	fr, clsErr := classifySpoken(s.env.FlowRouter, flowID, params.Text)
+	if clsErr != nil || strings.TrimSpace(fr.Route) == "" {
+		return false, protocol.VoiceTranscriptCompletion{}, true, ""
+	}
+
+	if flows.RouteExecution(flowID, fr.Route) != flows.ExecutionImmediate {
+		return false, protocol.VoiceTranscriptCompletion{}, true, ""
+	}
+
+	opts := &run.ExecuteOpts{
+		HasPreclassified:         true,
+		PreclassifiedFlow:        flowID,
+		PreclassifiedRoute:       fr.Route,
+		PreclassifiedSearchQuery: fr.SearchQuery,
+	}
+	r, execOK, rea := run.Execute(s.env, params, opts)
+	return true, r, execOK, rea
+}
+
+func basePhaseToFlow(phase session.BasePhase) flows.ID {
+	switch phase {
+	case session.BasePhaseSelection:
+		return flows.Select
+	case session.BasePhaseFileSelection:
+		return flows.SelectFile
+	default:
+		return flows.Root
+	}
+}
+
+func classifySpoken(r *router.FlowRouter, flow flows.ID, text string) (router.Result, error) {
+	if r == nil {
+		return router.Result{}, nil
+	}
+	return r.ClassifyFlow(context.Background(), router.Context{Flow: flow, Instruction: text})
+}
+
+func (s *Service) runWorker() {
+	for job := range s.queue {
+		s.executeMu.Lock()
+		res, ok, reason := run.Execute(s.env, job.params, nil)
+		s.executeMu.Unlock()
+		job.resp <- transcriptAcceptResp{result: res, ok: ok, reason: reason}
+	}
 }

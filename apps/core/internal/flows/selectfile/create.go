@@ -1,6 +1,16 @@
 package selectfileflow
 
-func HandleCreate(transcript string) {
-	// Call AI to determine the new file or folder name to create.
-	// Create the file or folder under the currently selected folder.
+import (
+	"vocoding.net/vocode/v2/apps/core/internal/transcript/session"
+	protocol "vocoding.net/vocode/v2/packages/protocol/go"
+)
+
+// HandleCreate handles the "create" route (stub until executor is ported).
+func HandleCreate(_ *SelectFileDeps, _ protocol.VoiceTranscriptParams, _ *session.VoiceSession, _ string) (protocol.VoiceTranscriptCompletion, string) {
+	return protocol.VoiceTranscriptCompletion{
+		Success:           true,
+		Summary:           "core transcript (stub)",
+		TranscriptOutcome: "completed",
+		UiDisposition:     "hidden",
+	}, ""
 }

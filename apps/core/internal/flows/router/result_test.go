@@ -8,8 +8,11 @@ import (
 
 func TestResultValidate(t *testing.T) {
 	t.Parallel()
-	if err := (Result{Flow: flows.Root, Route: "select"}).Validate(); err != nil {
+	if err := (Result{Flow: flows.Root, Route: "select", SearchQuery: "foo"}).Validate(); err != nil {
 		t.Fatal(err)
+	}
+	if err := (Result{Flow: flows.Root, Route: "select"}).Validate(); err == nil {
+		t.Fatal("expected error: select requires search_query")
 	}
 	if err := (Result{Flow: flows.Root, Route: "bogus"}).Validate(); err == nil {
 		t.Fatal("expected error")

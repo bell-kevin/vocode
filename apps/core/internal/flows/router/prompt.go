@@ -9,6 +9,7 @@ import (
 )
 
 // ClassifierSystem builds the system prompt for flow route classification.
+// flows.Execution policy is host metadata only; it must never appear here (or in user JSON / schema).
 func ClassifierSystem(flow flows.ID) string {
 	spec := flows.SpecFor(flow)
 	var b strings.Builder
@@ -19,11 +20,11 @@ func ClassifierSystem(flow flows.ID) string {
 	}
 	b.WriteString(`
 Return exactly ONE JSON object:
-{ "route": "<one of the route ids above>" }
+{ "route": "<one of the route ids above>", "search_query": "<string or empty>" }
 
 Rules:
-- Output only the route id. Do not extract search strings, paths, numbers, or questions here — handlers do that after routing.
-- Ambiguity and follow-up questions are handled by route handlers (not a separate "clarify" route).
+- For routes "select" and "select_file" you MUST set "search_query" to the exact literal string to pass to ripgrep (workspace content search for "select", path/name fragment for "select_file"). Do not leave it empty for those routes.
+- For all other routes, set "search_query" to "".
 - No extra keys. No markdown.
 `)
 	return strings.TrimSpace(b.String())
@@ -42,7 +43,7 @@ func ClassifierUserJSON(in Context) ([]byte, error) {
 	return json.MarshalIndent(p, "", "  ")
 }
 
-// ClassifierResponseJSONSchema is the JSON Schema for route-only classification (passed to the model client).
+// ClassifierResponseJSONSchema is the JSON Schema for classification (passed to the model client).
 func ClassifierResponseJSONSchema(flow flows.ID) map[string]any {
 	routes := flows.SpecFor(flow).RouteIDs()
 	return map[string]any{
@@ -52,8 +53,12 @@ func ClassifierResponseJSONSchema(flow flows.ID) map[string]any {
 				"type": "string",
 				"enum": routes,
 			},
+			"search_query": map[string]any{
+				"type":        "string",
+				"description": "For routes select and select_file: ripgrep query. Otherwise empty.",
+			},
 		},
-		"required":             []string{"route"},
+		"required":             []string{"route", "search_query"},
 		"additionalProperties": false,
 	}
 }
