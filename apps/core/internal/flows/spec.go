@@ -36,10 +36,10 @@ func (s Spec) RouteIDs() []string {
 }
 
 var globalRoutes = []Route{
-	{ID: "workspace_select", Description: "Find a symbol or literal in workspace code (LSP workspace symbols when available, else ripgrep). Prefer search_query = symbol/identifier name; optional search_symbol_kind = function, class, variable, etc.", Execution: ExecutionSerialized},
-	{ID: "select_file", Description: "Find files or folders by path or filename fragment (not by searching inside file bodies).", Execution: ExecutionSerialized},
-	{ID: "control", Description: "Flow navigation (such as exit)", Execution: ExecutionImmediate},
-	{ID: "irrelevant", Description: "Not actionable in this flow.", Execution: ExecutionImmediate},
+	{ID: "workspace_select", Description: "User wants to find or select a symbol, identifier, or text in the codebase (by name or contents), not by file path alone. Prefer search_query = that name; optional search_symbol_kind = function, class, variable, etc.", Execution: ExecutionSerialized},
+	{ID: "select_file", Description: "User wants to find or select files or folders by path or filename fragment, not by searching inside file contents.", Execution: ExecutionSerialized},
+	{ID: "control", Description: "User wants to exit or steer the flow (cancel, go back, stop, etc.).", Execution: ExecutionImmediate},
+	{ID: "irrelevant", Description: "Nothing here matches what the user is trying to do in this flow.", Execution: ExecutionImmediate},
 }
 
 func rootSpec() Spec {
@@ -54,9 +54,10 @@ func rootSpec() Spec {
 
 func workspaceSelectSpec() Spec {
 	wsRoutes := []Route{
-		{ID: "workspace_select_control", Description: "Navigate the workspace hit list (next/previous, jump/goto by number).", Execution: ExecutionImmediate},
-		{ID: "edit", Description: "They want to edit or change code in the editor (scoped edit), e.g. pass an argument, refactor the selection — not start a new workspace_select search for words they mention.", Execution: ExecutionSerialized},
-		{ID: "delete", Description: "They want to delete this selection.", Execution: ExecutionSerialized},
+		{ID: "workspace_select_control", Description: "User wants to move through the workspace hit list or pick a hit by position or number (next, previous, first, third, go to N, etc.).", Execution: ExecutionImmediate},
+		{ID: "edit", Description: "User wants to change code at the current focus or selection (e.g. pass an argument, refactor wording), not to start a new workspace search for a name they mention.", Execution: ExecutionSerialized},
+		{ID: "rename", Description: "User wants to rename the thing at the current hit or selection to a new name (e.g. \"rename X to Y\", \"call it Z\").", Execution: ExecutionSerialized},
+		{ID: "delete", Description: "User wants to delete the current selection or hit.", Execution: ExecutionSerialized},
 	}
 	return Spec{
 		Intro:  "You are Vocode's classifier for the WORKSPACE SELECT flow.\nThe user already has a list of workspace text/symbol search hits. They also have the editor focused with a text selection.\n\nChoose exactly one route id. You only classify — details are resolved later.",
@@ -66,12 +67,11 @@ func workspaceSelectSpec() Spec {
 
 func fileSelectSpec() Spec {
 	fsRoutes := []Route{
-		{ID: "file_select_control", Description: "Navigate the file hit list (next/previous, jump/goto by number).", Execution: ExecutionImmediate},
-		{ID: "open", Description: "Open the selected file.", Execution: ExecutionSerialized},
-		{ID: "move", Description: "Move selected file or folder to a new location.", Execution: ExecutionSerialized},
-		{ID: "rename", Description: "Rename selected file or folder.", Execution: ExecutionSerialized},
-		{ID: "create", Description: "Create a new file or folder in the selected folder.", Execution: ExecutionSerialized},
-		{ID: "delete", Description: "Delete the selected file or folder.", Execution: ExecutionSerialized},
+		{ID: "file_select_control", Description: "User wants to move through the file hit list or pick a hit by position or number (next, previous, first, third, go to N, etc.).", Execution: ExecutionImmediate},
+		{ID: "move", Description: "User wants to move the selected file or folder to a different path.", Execution: ExecutionSerialized},
+		{ID: "rename", Description: "User wants to rename the selected file or folder (path/name).", Execution: ExecutionSerialized},
+		{ID: "create", Description: "User wants to add a new file or folder.", Execution: ExecutionSerialized},
+		{ID: "delete", Description: "User wants to delete the selected file or folder.", Execution: ExecutionSerialized},
 	}
 	return Spec{
 		Intro: "You are Vocode's classifier for the SELECT FILE result flow.\nThe user already has a list of search hits (files and folders). Choose exactly one route id. You only classify — details are resolved later.\n\n" +

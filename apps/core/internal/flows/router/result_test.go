@@ -20,7 +20,10 @@ func TestResultValidate(t *testing.T) {
 	if err := (Result{Flow: flows.WorkspaceSelect, Route: "workspace_select_control"}).Validate(); err != nil {
 		t.Fatal(err)
 	}
-	if err := (Result{Flow: flows.SelectFile, Route: "open"}).Validate(); err != nil {
+	if err := (Result{Flow: flows.SelectFile, Route: "rename"}).Validate(); err != nil {
+		t.Fatal(err)
+	}
+	if err := (Result{Flow: flows.WorkspaceSelect, Route: "rename"}).Validate(); err != nil {
 		t.Fatal(err)
 	}
 }

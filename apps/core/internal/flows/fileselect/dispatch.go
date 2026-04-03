@@ -45,8 +45,6 @@ func DispatchRoute(
 		return global.HandleWorkspaceSelect(rd, params, vs, flows.SelectFile, searchQuery, searchSymbolKind)
 	case "select_file":
 		return global.HandleSelectFile(rd, params, vs, flows.SelectFile, searchQuery, searchSymbolKind)
-	case "open":
-		return HandleOpen(deps, params, vs, text)
 	case "delete":
 		return HandleDelete(deps, params, vs, text)
 	case "move":

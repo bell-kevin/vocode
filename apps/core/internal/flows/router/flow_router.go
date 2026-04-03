@@ -132,6 +132,9 @@ func stubWorkspaceSelect(in Context, t, raw string) Result {
 	if strings.Contains(t, "find file ") || strings.Contains(t, "open file ") || strings.Contains(t, "show file ") {
 		return Result{Flow: flows.WorkspaceSelect, Route: "select_file", SearchQuery: raw}
 	}
+	if strings.Contains(t, "rename") && strings.Contains(t, " to ") {
+		return Result{Flow: flows.WorkspaceSelect, Route: "rename"}
+	}
 	if in.HasNonemptySelection && stubImperativeEditLike(t) {
 		return Result{Flow: flows.WorkspaceSelect, Route: "edit"}
 	}
@@ -176,7 +179,7 @@ func stubSelectFile(t, raw string) Result {
 		return Result{Flow: flows.SelectFile, Route: "delete"}
 	}
 	if strings.Contains(t, "open") || strings.Contains(t, "show") || strings.Contains(t, "reveal") {
-		return Result{Flow: flows.SelectFile, Route: "open"}
+		return Result{Flow: flows.SelectFile, Route: "irrelevant"}
 	}
 	if strings.Contains(t, "rename") {
 		return Result{Flow: flows.SelectFile, Route: "rename"}
