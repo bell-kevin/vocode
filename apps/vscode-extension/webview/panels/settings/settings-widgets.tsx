@@ -56,7 +56,7 @@ export const SLIDER_SPECS: Record<
   daemonVoiceTranscriptMaxMergeJobs: { min: 1, max: 20, step: 1 },
   daemonVoiceTranscriptMaxMergeChars: { min: 500, max: 50_000, step: 100 },
   sessionIdleResetMs: { min: 60_000, max: 14_400_000, step: 60_000 },
-  voiceSttCommitResponseTimeoutMs: { min: 1000, max: 120_000, step: 500 },
+  voiceSttCommitResponseTimeoutMs: { min: 1000, max: 180_000, step: 500 },
 };
 
 function clamp(n: number, min: number, max: number): number {

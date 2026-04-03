@@ -37,6 +37,7 @@ Core model selection:
 - `ELEVENLABS_STT_MODEL_ID` (default: `scribe_v2`)
 
 Streaming VAD/segmentation knobs:
+- `VOCODE_VOICE_STT_COMMIT_RESPONSE_TIMEOUT_MS` (default: `5000`; sidecar commit-hold timeout, max `180000` ms / 180s; also mapped to WS `inactivity_timeout` in rounded-up seconds with provider cap; `0` disables both)
 - `VOCODE_VOICE_VAD_THRESHOLD_MULTIPLIER` (default: `2.0`)
 - `VOCODE_VOICE_VAD_START_MS` (default: `60`)
 - `VOCODE_VOICE_VAD_END_MS` (default: `500`)
