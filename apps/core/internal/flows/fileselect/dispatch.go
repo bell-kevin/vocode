@@ -3,6 +3,7 @@ package fileselectflow
 import (
 	"vocoding.net/vocode/v2/apps/core/internal/flows"
 	global "vocoding.net/vocode/v2/apps/core/internal/flows/global"
+	workspaceselectflow "vocoding.net/vocode/v2/apps/core/internal/flows/workspaceselect"
 	"vocoding.net/vocode/v2/apps/core/internal/transcript/session"
 	protocol "vocoding.net/vocode/v2/packages/protocol/go"
 )
@@ -12,6 +13,8 @@ type SelectFileDeps struct {
 	HostApply  protocolHostApply
 	NewBatchID func() string
 	Search     global.WorkspaceSearchApply
+	// Editor supplies host/model deps for global route "create" (mutate active file).
+	Editor *workspaceselectflow.SelectionDeps
 }
 
 type protocolHostApply interface {
@@ -52,7 +55,12 @@ func DispatchRoute(
 	case "rename":
 		return HandleRename(deps, params, vs, text)
 	case "create":
-		return HandleCreate(deps, params, vs, text)
+		if deps == nil || deps.Editor == nil {
+			return global.HandleIrrelevant(vs, flows.SelectFile)
+		}
+		return workspaceselectflow.HandleCreate(deps.Editor, params, vs, text)
+	case "create_entry":
+		return HandleCreateEntry(deps, params, vs, text)
 	case "irrelevant":
 		return global.HandleIrrelevant(vs, flows.SelectFile)
 	default:

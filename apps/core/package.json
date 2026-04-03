@@ -9,4 +9,3 @@
     "typecheck": "node ../../scripts/dev/go-test.mjs"
   }
 }
-

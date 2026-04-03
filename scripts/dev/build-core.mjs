@@ -3,7 +3,8 @@ import { mkdirSync } from "node:fs";
 import path from "node:path";
 
 const target = `${process.platform}-${process.arch}`;
-const binary = process.platform === "win32" ? "vocode-cored.exe" : "vocode-cored";
+const binary =
+  process.platform === "win32" ? "vocode-cored.exe" : "vocode-cored";
 
 mkdirSync(path.join("bin", target), { recursive: true });
 
@@ -34,4 +35,3 @@ const result = spawnSync(
 if (result.status !== 0) {
   process.exit(result.status ?? 1);
 }
-

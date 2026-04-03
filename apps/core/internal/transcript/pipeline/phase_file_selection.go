@@ -50,7 +50,7 @@ func runFileSelectionPhase(
 		}
 	}
 
-	route, searchQuery, searchSymbolKind, rOK, clsErrMsg := resolveSelectFileRoute(e, text, pre)
+	route, searchQuery, searchSymbolKind, rOK, clsErrMsg := resolveSelectFileRoute(e, params, text, pre)
 	if !rOK {
 		persist(e, key, *vs)
 		if strings.TrimSpace(clsErrMsg) != "" {

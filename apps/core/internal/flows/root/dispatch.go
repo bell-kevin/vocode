@@ -7,6 +7,7 @@ import (
 	"vocoding.net/vocode/v2/apps/core/internal/flows"
 	global "vocoding.net/vocode/v2/apps/core/internal/flows/global"
 	"vocoding.net/vocode/v2/apps/core/internal/flows/router"
+	workspaceselectflow "vocoding.net/vocode/v2/apps/core/internal/flows/workspaceselect"
 	"vocoding.net/vocode/v2/apps/core/internal/transcript/session"
 	protocol "vocoding.net/vocode/v2/packages/protocol/go"
 )
@@ -15,6 +16,8 @@ import (
 type RootDeps struct {
 	FlowRouter *router.FlowRouter
 	Search     global.WorkspaceSearchApply
+	// Editor supplies host/model deps for routes that mutate the active file (e.g. create).
+	Editor *workspaceselectflow.SelectionDeps
 }
 
 // IrrelevantSkipped is the completion when root has nothing actionable (no heuristic search).
@@ -51,6 +54,12 @@ func DispatchRoute(
 			return r, fail
 		}
 		return IrrelevantSkipped()
+
+	case "create":
+		if deps == nil || deps.Editor == nil {
+			return IrrelevantSkipped()
+		}
+		return workspaceselectflow.HandleCreate(deps.Editor, params, vs, text)
 
 	case "question":
 		ans := stubQuestionAnswer()
@@ -93,10 +102,7 @@ func ExecuteMainPhase(
 		return IrrelevantSkipped()
 	}
 
-	fr, err := deps.FlowRouter.ClassifyFlow(context.Background(), router.Context{
-		Flow:        flows.Root,
-		Instruction: text,
-	})
+	fr, err := deps.FlowRouter.ClassifyFlow(context.Background(), router.ContextForClassification(flows.Root, text, params))
 	if err != nil {
 		return IrrelevantSkipped()
 	}

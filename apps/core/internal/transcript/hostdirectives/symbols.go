@@ -118,7 +118,8 @@ func SmallestSymbolContainingRange(symbols []DocumentSymbol, line0, char0 int) (
 	return smallestSymbolContainingPointSyms(symbols, line0, char0)
 }
 
-func smallestSymbolContainingPointSyms(symbols []DocumentSymbol, line0, char0 int) (startLine, startChar, endLine, endChar int, ok bool) {
+// SmallestDocumentSymbolAtPoint returns the tightest flattened document symbol whose LSP range contains (line0, char0).
+func SmallestDocumentSymbolAtPoint(symbols []DocumentSymbol, line0, char0 int) (sym DocumentSymbol, startLine, startChar, endLine, endChar int, ok bool) {
 	line := int64(line0)
 	char := int64(char0)
 	bestIdx := -1
@@ -141,10 +142,53 @@ func smallestSymbolContainingPointSyms(symbols []DocumentSymbol, line0, char0 in
 		}
 	}
 	if bestIdx == -1 {
+		return DocumentSymbol{}, 0, 0, 0, 0, false
+	}
+	s := symbols[bestIdx]
+	r := s.Range
+	return s, int(r.StartLine), int(r.StartChar), int(r.EndLine), int(r.EndChar), true
+}
+
+func smallestSymbolContainingPointSyms(symbols []DocumentSymbol, line0, char0 int) (startLine, startChar, endLine, endChar int, ok bool) {
+	_, sl, sc, el, ec, ok := SmallestDocumentSymbolAtPoint(symbols, line0, char0)
+	if !ok {
 		return 0, 0, 0, 0, false
 	}
-	r := symbols[bestIdx].Range
-	return int(r.StartLine), int(r.StartChar), int(r.EndLine), int(r.EndChar), true
+	return sl, sc, el, ec, true
+}
+
+// WorkspaceSearchStylePreviewFromSymbol formats a sidebar preview similar to workspace symbol hits (e.g. "function pong()").
+func WorkspaceSearchStylePreviewFromSymbol(s DocumentSymbol) string {
+	name := strings.TrimSpace(s.Name)
+	name = strings.TrimSuffix(name, "()")
+	k := strings.ToLower(s.Kind)
+	switch {
+	case strings.Contains(k, "function"):
+		return "function " + name + "()"
+	case strings.Contains(k, "method"):
+		return "method " + name + "()"
+	case strings.Contains(k, "class"):
+		return "class " + name
+	case strings.Contains(k, "interface"):
+		return "interface " + name
+	default:
+		if t := strings.TrimSpace(s.Name); t != "" {
+			return t
+		}
+		return name
+	}
+}
+
+// CreateFlowHitPreview picks an LSP-style preview when the anchor lies inside a document symbol; otherwise returns fallback.
+func CreateFlowHitPreview(syms []DocumentSymbol, line0, char0 int, fallback string) string {
+	if len(syms) == 0 {
+		return fallback
+	}
+	sym, _, _, _, _, ok := SmallestDocumentSymbolAtPoint(syms, line0, char0)
+	if !ok {
+		return fallback
+	}
+	return WorkspaceSearchStylePreviewFromSymbol(sym)
 }
 
 // HitNavigateDirectivesExpand uses active-file symbols only (legacy helper for tests).

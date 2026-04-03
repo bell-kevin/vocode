@@ -9,6 +9,8 @@ import (
 )
 
 // ClassifierSystem builds the system prompt for flow route classification.
+// It starts from flows.Spec (intro + per-route descriptions), then appends shared JSON output Rules.
+// Workspace-only tie-break bullets that reference classifier user JSON (hasNonemptySelection) are appended below; other flows rely on spec + user JSON only.
 // flows.Execution policy is host metadata only; it must never appear here (or in user JSON / schema).
 func ClassifierSystem(flow flows.ID) string {
 	spec := flows.SpecFor(flow)
@@ -34,11 +36,9 @@ Rules:
 	if flow == flows.WorkspaceSelect {
 		b.WriteString(`
 
-Workspace select flow (user JSON may include activeFile and hasNonemptySelection):
-- If they want to rename the current hit or selection to a new name (typical phrasing: "rename … to <newName>", "call it <newName>"), choose route "rename" with empty search_query — not "edit" and not a new "workspace_select".
-- The editor may have a non-empty selection while this flow is active. If the user is giving an imperative to modify code (e.g. "make it pass X into Y", "add a parameter", "rename this variable's implementation") and is not starting a new workspace search or a clear rename-to-new-name request, choose route "edit" with empty search_query. Words that sound like symbol names in that case describe what to change, not a new search_query for "workspace_select".
-- When hasNonemptySelection is true and the utterance is clearly a code change (not "find"/"search for"/"where is"), prefer "edit" over "workspace_select".
-- Use "workspace_select" only when they explicitly want a new search (find, search for, locate, another symbol, etc.).
+Workspace select — user JSON may include hasNonemptySelection (true when the editor selection is non-empty) and activeFile:
+- When hasNonemptySelection is true, a selection does not by itself mean "edit": if the utterance matches global "create" or "rename" per the route list, prefer those when appropriate.
+- When hasNonemptySelection is true, the utterance is an imperative to change existing code, and they are not asking to find or search the workspace, prefer "edit" over "workspace_select".
 `)
 	}
 	return strings.TrimSpace(b.String())
@@ -72,11 +72,11 @@ func ClassifierResponseJSONSchema(flow flows.ID) map[string]any {
 				"enum": routes,
 			},
 			"search_query": map[string]any{
-				"type": "string",
+				"type":        "string",
 				"description": "workspace_select: symbol/identifier name or exact literal substring to find in file contents. select_file: path/filename fragment. Otherwise empty.",
 			},
 			"search_symbol_kind": map[string]any{
-				"type": "string",
+				"type":        "string",
 				"description": "workspace_select only: optional kind of symbol they mean — function, method, class, variable, constant, interface, enum, property, field, constructor, module, struct, or type. Empty when unknown or for select_file.",
 			},
 		},

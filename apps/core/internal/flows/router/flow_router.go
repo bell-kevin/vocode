@@ -8,6 +8,7 @@ import (
 
 	"vocoding.net/vocode/v2/apps/core/internal/agent"
 	"vocoding.net/vocode/v2/apps/core/internal/flows"
+	workspaceselectflow "vocoding.net/vocode/v2/apps/core/internal/flows/workspaceselect"
 )
 
 // FlowRouter maps a transcript to a route for the active flow. When Model is nil, it uses
@@ -100,6 +101,9 @@ func stubRoot(t, raw string) Result {
 	if strings.HasPrefix(t, "find ") || strings.HasPrefix(t, "search ") || strings.HasPrefix(t, "where is ") || strings.HasPrefix(t, "locate ") {
 		return Result{Flow: flows.Root, Route: "workspace_select", SearchQuery: raw}
 	}
+	if workspaceselectflow.StubMatchesWorkspaceCreate(t, raw) {
+		return Result{Flow: flows.Root, Route: "create"}
+	}
 	if strings.HasSuffix(t, "?") || strings.HasPrefix(t, "what ") || strings.HasPrefix(t, "why ") || strings.HasPrefix(t, "how ") {
 		return Result{Flow: flows.Root, Route: "question"}
 	}
@@ -134,6 +138,9 @@ func stubWorkspaceSelect(in Context, t, raw string) Result {
 	}
 	if strings.Contains(t, "rename") && strings.Contains(t, " to ") {
 		return Result{Flow: flows.WorkspaceSelect, Route: "rename"}
+	}
+	if workspaceselectflow.StubMatchesWorkspaceCreate(t, raw) {
+		return Result{Flow: flows.WorkspaceSelect, Route: "create"}
 	}
 	if in.HasNonemptySelection && stubImperativeEditLike(t) {
 		return Result{Flow: flows.WorkspaceSelect, Route: "edit"}
@@ -187,10 +194,27 @@ func stubSelectFile(t, raw string) Result {
 	if strings.Contains(t, "move") {
 		return Result{Flow: flows.SelectFile, Route: "move"}
 	}
-	if strings.Contains(t, "create") || strings.Contains(t, "new file") || strings.Contains(t, "new folder") {
+	if workspaceselectflow.StubMatchesWorkspaceCreate(t, raw) {
 		return Result{Flow: flows.SelectFile, Route: "create"}
 	}
+	if stubSelectFileDiskCreate(t) {
+		return Result{Flow: flows.SelectFile, Route: "create_entry"}
+	}
 	return Result{Flow: flows.SelectFile, Route: "irrelevant"}
+}
+
+// stubSelectFileDiskCreate matches spoken intent for a new path on disk (route create_entry), not editor create.
+func stubSelectFileDiskCreate(t string) bool {
+	if strings.Contains(t, "new file") || strings.Contains(t, "new folder") {
+		return true
+	}
+	if strings.Contains(t, "create file") || strings.Contains(t, "create folder") {
+		return true
+	}
+	if strings.HasPrefix(t, "create ") && (strings.Contains(t, ".") || strings.Contains(t, "/") || strings.Contains(t, `\`)) {
+		return true
+	}
+	return false
 }
 
 func globalExitLike(t string) bool {

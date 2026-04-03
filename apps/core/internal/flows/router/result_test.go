@@ -26,4 +26,16 @@ func TestResultValidate(t *testing.T) {
 	if err := (Result{Flow: flows.WorkspaceSelect, Route: "rename"}).Validate(); err != nil {
 		t.Fatal(err)
 	}
+	if err := (Result{Flow: flows.WorkspaceSelect, Route: "create"}).Validate(); err != nil {
+		t.Fatal(err)
+	}
+	if err := (Result{Flow: flows.Root, Route: "create"}).Validate(); err != nil {
+		t.Fatal(err)
+	}
+	if err := (Result{Flow: flows.SelectFile, Route: "create"}).Validate(); err != nil {
+		t.Fatal(err)
+	}
+	if err := (Result{Flow: flows.SelectFile, Route: "create_entry"}).Validate(); err != nil {
+		t.Fatal(err)
+	}
 }

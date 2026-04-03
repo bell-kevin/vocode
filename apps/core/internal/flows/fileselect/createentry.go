@@ -10,12 +10,12 @@ import (
 	protocol "vocoding.net/vocode/v2/packages/protocol/go"
 )
 
-// HandleCreate creates a new file under the focused file-selection row: sibling of a file,
+// HandleCreateEntry creates a new file under the focused file-selection row: sibling of a file,
 // or inside a selected directory.
-func HandleCreate(deps *SelectFileDeps, params protocol.VoiceTranscriptParams, vs *session.VoiceSession, text string) (protocol.VoiceTranscriptCompletion, string) {
+func HandleCreateEntry(deps *SelectFileDeps, params protocol.VoiceTranscriptParams, vs *session.VoiceSession, text string) (protocol.VoiceTranscriptCompletion, string) {
 	focus := strings.TrimSpace(vs.FileSelectionFocus)
 	if focus == "" {
-		return protocol.VoiceTranscriptCompletion{Success: false}, "create: no file or folder selected"
+		return protocol.VoiceTranscriptCompletion{Success: false}, "create_entry: no file or folder selected"
 	}
 	parent := focus
 	if !vs.FileFocusIsDir() {
@@ -23,7 +23,7 @@ func HandleCreate(deps *SelectFileDeps, params protocol.VoiceTranscriptParams, v
 	}
 	name := sanitizeNewFileName(text)
 	if name == "" {
-		return protocol.VoiceTranscriptCompletion{Success: false}, "create: could not derive a file name from the transcript"
+		return protocol.VoiceTranscriptCompletion{Success: false}, "create_entry: could not derive a file name from the transcript"
 	}
 	newPath := filepath.Join(parent, name)
 

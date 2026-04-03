@@ -136,7 +136,11 @@
         },
         "controlRequest": {
           "type": "string",
-          "enum": ["cancel_clarify", "cancel_selection", "cancel_file_selection"],
+          "enum": [
+            "cancel_clarify",
+            "cancel_selection",
+            "cancel_file_selection"
+          ],
           "description": "Host UI control: cancel clarification, close workspace hit list, or close file hit list without spoken text."
         },
         "daemonConfig": {
@@ -172,7 +176,11 @@
           "properties": {
             "controlRequest": {
               "type": "string",
-              "enum": ["cancel_clarify", "cancel_selection", "cancel_file_selection"]
+              "enum": [
+                "cancel_clarify",
+                "cancel_selection",
+                "cancel_file_selection"
+              ]
             }
           }
         }

@@ -16,11 +16,11 @@ import (
 )
 
 type preOpts struct {
-	has               bool
-	flow              flows.ID
-	route             string
-	searchQuery       string
-	searchSymbolKind  string
+	has              bool
+	flow             flows.ID
+	route            string
+	searchQuery      string
+	searchSymbolKind string
 }
 
 func preFromOpts(opts *Opts) preOpts {
@@ -63,6 +63,7 @@ func selectFileDeps(e *run.Env) *fileselectflow.SelectFileDeps {
 		HostApply:  e.ExtensionHost,
 		NewBatchID: hostdirectives.NewApplyBatchID,
 		Search:     e.Search,
+		Editor:     selectionDeps(e),
 	}
 }
 
@@ -70,6 +71,7 @@ func rootDeps(e *run.Env) *rootflow.RootDeps {
 	return &rootflow.RootDeps{
 		FlowRouter: e.FlowRouter,
 		Search:     e.Search,
+		Editor:     selectionDeps(e),
 	}
 }
 
@@ -87,17 +89,14 @@ func resolveWorkspaceSelectRoute(e *run.Env, params protocol.VoiceTranscriptPara
 	return fr.Route, fr.SearchQuery, fr.SearchSymbolKind, true
 }
 
-func resolveSelectFileRoute(e *run.Env, text string, pre preOpts) (route, searchQuery, searchSymbolKind string, ok bool, clsErr string) {
+func resolveSelectFileRoute(e *run.Env, params protocol.VoiceTranscriptParams, text string, pre preOpts) (route, searchQuery, searchSymbolKind string, ok bool, clsErr string) {
 	if pre.has && pre.flow == flows.SelectFile {
 		return pre.route, pre.searchQuery, pre.searchSymbolKind, true, ""
 	}
 	if e.FlowRouter == nil {
 		return "", "", "", false, ""
 	}
-	fr, err := e.FlowRouter.ClassifyFlow(context.Background(), router.Context{
-		Flow:        flows.SelectFile,
-		Instruction: text,
-	})
+	fr, err := e.FlowRouter.ClassifyFlow(context.Background(), router.ContextForClassification(flows.SelectFile, text, params))
 	if err != nil {
 		return "", "", "", false, err.Error()
 	}

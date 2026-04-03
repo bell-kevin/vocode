@@ -52,6 +52,8 @@ func DispatchRoute(
 		return global.HandleSelectFile(rd, params, vs, flows.WorkspaceSelect, searchQuery, searchSymbolKind)
 	case "edit":
 		return HandleEdit(deps, params, vs, text)
+	case "create":
+		return HandleCreate(deps, params, vs, text)
 	case "rename":
 		return HandleRename(deps, params, vs, text)
 	case "delete":
