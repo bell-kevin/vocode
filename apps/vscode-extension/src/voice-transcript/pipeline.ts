@@ -109,6 +109,14 @@ export function attachTranscriptPipeline(
     voiceSession.stop();
     voiceStatus.setIdle();
     mainPanelStore.setVoiceListening(false);
+    // User-initiated stop clears the session before the sidecar echoes stopped, so we only toast
+    // when the sidecar ended listening while the extension still thought it was active (avoids
+    // duplicating stop-voice / onError messages).
+    void vscode.window.showInformationMessage(
+      evt.state === "shutdown"
+        ? "Vocode voice sidecar shut down."
+        : "Vocode stopped listening (voice session ended).",
+    );
   });
 
   voiceSidecar.onTranscript((evt) => {

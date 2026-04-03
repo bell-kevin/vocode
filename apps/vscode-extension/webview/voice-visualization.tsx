@@ -67,9 +67,9 @@ export function VoiceVisualization(props: Props) {
               <span>Live draft</span>
               <span
                 className="voice-viz-draft-hint"
-                title="Not final until the utterance commits"
+                title="Preview only—text is finalized after you pause or finish the phrase"
               >
-                STT stream
+                Live transcription
               </span>
             </div>
             {partial !== null ? (

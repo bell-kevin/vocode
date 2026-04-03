@@ -63,122 +63,122 @@
         "vocode.voiceVadDebug": {
           "type": "boolean",
           "default": false,
-          "description": "Forward VOCODE_VOICE_VAD_DEBUG=1 to the voice sidecar ([vocode-vad] lines on stderr)."
+          "description": "Print detailed voice-activity (speech detection) logs from the voice helper process. Use when tuning the mic or reporting an issue."
         },
         "vocode.voiceSidecarLogProtocol": {
           "type": "boolean",
           "default": false,
-          "description": "Log every JSON line from the voice sidecar to Developer Tools (very noisy). Leave off to see stderr debug lines ([vocode-vad], [vocode-stt]) clearly."
+          "description": "Log every message between VS Code and the voice helper in Developer Tools. Very noisy; leave off unless you are debugging the voice protocol."
         },
         "vocode.elevenLabsSttLanguage": {
           "type": "string",
           "default": "en",
-          "description": "ElevenLabs realtime language_code (ISO 639-1). Use \"auto\" for server auto-detect."
+          "description": "Language you speak for transcription (e.g. en, es). Use \"auto\" to let the service pick the language."
         },
         "vocode.elevenLabsSttModelId": {
           "type": "string",
           "default": "scribe_v2_realtime",
-          "description": "ElevenLabs realtime STT model id (ELEVENLABS_STT_MODEL_ID)."
+          "description": "Which ElevenLabs speech-to-text model to use. The default is the recommended realtime model; change only if you know a specific model id."
         },
         "vocode.voiceSttCommitResponseTimeoutMs": {
           "type": "number",
           "default": 5000,
-          "description": "After commit:true, flush deferred PCM if committed_transcript never arrives (ms, max 180000 / 180s). Also mapped to ElevenLabs realtime inactivity_timeout (rounded up to seconds; provider cap applies). 0 = disabled for both behaviors."
+          "description": "After you finish a phrase, how long to wait for the final transcript before continuing (milliseconds, up to 180 s). 0 = wait as long as needed. Long pauses without speech do not end the session; that limit is separate (about 3 minutes)."
         },
         "vocode.voiceVadThresholdMultiplier": {
           "type": "number",
           "default": 1.65,
-          "description": "VAD threshold multiplier (VOCODE_VOICE_VAD_THRESHOLD_MULTIPLIER)."
+          "description": "How loud speech must be compared to background noise before it counts as talking. Higher = stricter (good for noisy rooms); lower = more sensitive."
         },
         "vocode.voiceVadMinEnergyFloor": {
           "type": "number",
           "default": 100,
-          "description": "PCM16 RMS floor for speech vs noise per 20ms frame (VOCODE_VOICE_VAD_MIN_ENERGY_FLOOR)."
+          "description": "Quietest level that still counts as possible speech. Raise if the mic picks up hum or fan noise; lower if your voice is very soft."
         },
         "vocode.voiceVadStartMs": {
           "type": "number",
           "default": 60,
-          "description": "VAD speech start debounce (ms)."
+          "description": "How long you must speak before Vocode treats it as the start of a phrase (milliseconds). Higher reduces false starts."
         },
         "vocode.voiceVadEndMs": {
           "type": "number",
           "default": 750,
-          "description": "VAD trailing silence before end-of-utterance (ms)."
+          "description": "How long you must pause before a phrase is treated as finished (milliseconds). Higher waits for longer pauses between sentences."
         },
         "vocode.voiceVadPrerollMs": {
           "type": "number",
           "default": 320,
-          "description": "Audio kept before declared speech start (ms)."
+          "description": "How much audio before detected speech is kept (milliseconds). Helps avoid clipping the first syllable."
         },
         "vocode.voiceStreamMinChunkMs": {
           "type": "number",
           "default": 200,
-          "description": "Minimum streaming chunk interval (ms)."
+          "description": "Smallest slice of audio sent for recognition at once (milliseconds). Affects how quickly partial results can update."
         },
         "vocode.voiceStreamMaxChunkMs": {
           "type": "number",
           "default": 500,
-          "description": "Maximum streaming chunk interval (ms)."
+          "description": "Largest slice of audio before it must be sent (milliseconds)."
         },
         "vocode.voiceStreamMaxUtteranceMs": {
           "type": "number",
           "default": 0,
-          "description": "Force commit every N ms during one utterance; 0 = off (silence/EOF only)."
+          "description": "During one long stretch of talking, finalize text at least this often (milliseconds). 0 = only finalize on pause or when you stop voice."
         },
         "vocode.daemonAgentProvider": {
           "type": "string",
           "default": "stub",
-          "description": "Daemon transcript model: stub, openai (OPENAI_API_KEY), or anthropic (ANTHROPIC_API_KEY). Sets VOCODE_AGENT_PROVIDER."
+          "description": "Which AI runs your voice commands: built-in (no cloud), OpenAI, or Anthropic. OpenAI and Anthropic need API keys under Vocode settings."
         },
         "vocode.daemonVoiceLogTranscript": {
           "type": "number",
           "default": 0,
-          "description": "Non-zero: log one line per voice.transcript (apply counts, directive count, success). Sets VOCODE_DAEMON_VOICE_LOG_TRANSCRIPT."
+          "description": "When non-zero, write a short summary line to the backend log for each voice command (useful for debugging). 0 = off."
         },
         "vocode.daemonOpenaiModel": {
           "type": "string",
           "default": "gpt-4o-mini",
-          "description": "OpenAI chat model when daemonAgentProvider is openai. Sets VOCODE_OPENAI_MODEL."
+          "description": "OpenAI model used when the agent provider is OpenAI."
         },
         "vocode.daemonOpenaiBaseUrl": {
           "type": "string",
           "default": "",
-          "description": "Optional OpenAI-compatible API base URL (no trailing slash). Empty = https://api.openai.com/v1. Sets VOCODE_OPENAI_BASE_URL."
+          "description": "Custom OpenAI-compatible API URL (no trailing slash), if you use a proxy or another host. Leave empty for OpenAI’s default servers."
         },
         "vocode.daemonAnthropicModel": {
           "type": "string",
           "default": "claude-3-5-haiku-latest",
-          "description": "Anthropic model id when daemonAgentProvider is anthropic. Sets VOCODE_ANTHROPIC_MODEL."
+          "description": "Anthropic model used when the agent provider is Anthropic."
         },
         "vocode.daemonAnthropicBaseUrl": {
           "type": "string",
           "default": "",
-          "description": "Optional Anthropic API base URL (no trailing slash). Empty = https://api.anthropic.com/v1. Sets VOCODE_ANTHROPIC_BASE_URL."
+          "description": "Custom Anthropic API URL (no trailing slash). Leave empty for Anthropic’s default servers."
         },
         "vocode.daemonVoiceTranscriptQueueSize": {
           "type": "number",
           "default": 10,
-          "description": "Daemon voice transcript FIFO queue size."
+          "description": "How many spoken commands can wait in line to run at once."
         },
         "vocode.daemonVoiceTranscriptCoalesceMs": {
           "type": "number",
           "default": 750,
-          "description": "Daemon transcript coalesce window (ms)."
+          "description": "Speech that arrives within this window (milliseconds) may be combined into one command."
         },
         "vocode.daemonVoiceTranscriptMaxMergeJobs": {
           "type": "number",
           "default": 5,
-          "description": "Max merged transcript jobs per coalesce."
+          "description": "Maximum number of separate spoken lines merged into one batch when combining commands."
         },
         "vocode.daemonVoiceTranscriptMaxMergeChars": {
           "type": "number",
           "default": 6000,
-          "description": "Max chars when merging transcript lines."
+          "description": "Maximum total characters when merging spoken lines into one batch."
         },
         "vocode.sessionIdleResetMs": {
           "type": "number",
           "default": 1800000,
-          "description": "Drop voice session state after this idle time (ms). 0 = off."
+          "description": "If you go this long without a voice command, Vocode forgets in-progress conversation context (follow-ups, file-picker steps, etc.). Default 30 minutes. Does not affect the microphone. 0 = never clear from idle time alone."
         }
       }
     }

@@ -72,7 +72,7 @@ config/
 
 0. **VS Code workflow:** open **Vocode → Settings** (sidebar) and save your **ElevenLabs API key** (secret storage). Other knobs live under **Settings → Vocode**; defaults are defined in `apps/vscode-extension/package.json`. There is **no** committed `.env` — the extension does not load one for spawned core / voice processes.
 
-   **Shell / `go run`:** export the same variable names yourself (see `apps/voice/internal/app/config.go` and core transcript env usage; many vars still use a `VOCODE_DAEMON_*` prefix for historical reasons); match defaults from `package.json` where you need parity.
+   **Contributors / shell parity:** see [`docs/vscode-settings-env.md`](docs/vscode-settings-env.md) for how each `vocode.*` setting maps to environment variables when spawning processes. For `go run` or manual binaries, export those names yourself and align values with `package.json` defaults where needed.
 
 1. Install dependencies
 

@@ -57,6 +57,11 @@ packages/
 docs/                # architecture + specs
 ```
 
+### VS Code settings vs env vars
+
+- **Settings UI copy** (`apps/vscode-extension/package.json` `description` fields) should stay user-oriented.
+- **Technical mapping** (which `vocode.*` key becomes which `VOCODE_*` / `ELEVENLABS_*` env var, secrets, RPC-only knobs) lives in [`docs/vscode-settings-env.md`](docs/vscode-settings-env.md) and is implemented in `apps/vscode-extension/src/config/spawn-env.ts`. When you add a setting that affects spawned processes, update both the array and that doc.
+
 ## 🔑 Core Rules
 
 1. Keep boundaries clean

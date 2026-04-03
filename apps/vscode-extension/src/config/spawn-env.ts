@@ -1,3 +1,9 @@
+/**
+ * Maps VS Code `vocode.*` configuration into environment variables for spawned `vocode-cored` /
+ * `vocode-voiced` processes. User-facing explanations belong in `package.json`; the authoritative
+ * binding list is `CONFIG_TO_ENV` below. Contributor reference (tables, RPC-only settings):
+ * `docs/vscode-settings-env.md`.
+ */
 import * as vscode from "vscode";
 
 import { readWorkspaceSttKeywords } from "./workspace-vocode";

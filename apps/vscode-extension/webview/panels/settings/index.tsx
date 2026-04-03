@@ -30,35 +30,35 @@ function LlmWarnings({ config }: { config: VocodeConfig | null }) {
   const items: string[] = [];
   if (!config.elevenLabsApiKeyConfigured) {
     items.push(
-      "ElevenLabs STT is not configured yet. Add an API key under API Keys to enable voice.",
+      "Speech-to-text is not set up yet. Add an ElevenLabs API key under API keys to use voice.",
     );
   }
   if (!config.daemonAgentProvider) {
     items.push(
-      "No LLM provider is selected. Choose one under LLM Agent or leave it on Stub to run without a cloud model.",
+      "No AI provider is selected. Choose one under AI for voice commands, or use Built-in to run without a cloud model.",
     );
   }
   if (config.daemonAgentProvider === "openai") {
     if (!config.openaiApiKeyConfigured) {
       items.push(
-        "OpenAI provider is selected, but no OpenAI API key is configured. Add one under API Keys for the agent to use OpenAI; otherwise it will fall back to a stub model.",
+        "OpenAI is selected, but no OpenAI API key is saved. Add one under API keys so commands use OpenAI; otherwise Vocode uses the built-in agent.",
       );
     }
     if (!config.daemonOpenaiModel) {
       items.push(
-        "OpenAI is selected, but no model is set. Pick a model under LLM Agent so the agent knows which OpenAI model to call.",
+        "OpenAI is selected, but no model is chosen. Pick a model under AI for voice commands.",
       );
     }
   }
   if (config.daemonAgentProvider === "anthropic") {
     if (!config.anthropicApiKeyConfigured) {
       items.push(
-        "Anthropic provider is selected, but no Anthropic API key is configured. Add one under API Keys for the agent to use Anthropic; otherwise it will fall back to a stub model.",
+        "Anthropic is selected, but no Anthropic API key is saved. Add one under API keys so commands use Anthropic; otherwise Vocode uses the built-in agent.",
       );
     }
     if (!config.daemonAnthropicModel) {
       items.push(
-        "Anthropic is selected, but no model is set. Pick a model under LLM Agent so the agent knows which Anthropic model to call.",
+        "Anthropic is selected, but no model is chosen. Pick a model under AI for voice commands.",
       );
     }
   }
@@ -133,7 +133,7 @@ function ApiKeysDisclosure(props: {
             className="settings-field-label"
             htmlFor="vocode-elevenlabs-key"
           >
-            ElevenLabs API key (voice)
+            ElevenLabs (speech-to-text)
           </label>
           <div className="settings-api-row">
             <input
@@ -300,7 +300,8 @@ export function SettingsPanel(props: { config: VocodeConfig | null }) {
       ) : null}
 
       <p className="settings-intro-short">
-        Vocode configuration. Changes apply automatically.
+        Adjust listening, speech recognition, and how voice commands are run.
+        Changes apply as you go.
       </p>
       <LlmWarnings config={config} />
 
@@ -319,14 +320,19 @@ export function SettingsPanel(props: { config: VocodeConfig | null }) {
 
       {config ? (
         <section className="settings-section">
-          <h2 className="settings-section-title">LLM Agent</h2>
+          <h2 className="settings-section-title">AI for voice commands</h2>
+          <p className="settings-subtle">
+            Chooses which model interprets what you say and plans edits.
+            Built-in works offline without an API key; OpenAI and Anthropic use
+            the keys below.
+          </p>
           <div className="settings-field-stack">
             <div className="settings-field">
               <span className="settings-field-label">Provider</span>
               <div
                 className="settings-segmented"
                 role="group"
-                aria-label="LLM provider"
+                aria-label="AI provider for voice commands"
               >
                 <button
                   type="button"
@@ -334,7 +340,7 @@ export function SettingsPanel(props: { config: VocodeConfig | null }) {
                   disabled={disabled}
                   onClick={() => patchConfig({ daemonAgentProvider: "stub" })}
                 >
-                  Stub
+                  Built-in
                 </button>
                 <button
                   type="button"
@@ -412,12 +418,13 @@ export function SettingsPanel(props: { config: VocodeConfig | null }) {
 
       {config ? (
         <section className="settings-section">
-          <h2 className="settings-section-title">Speech (ElevenLabs)</h2>
+          <h2 className="settings-section-title">Speech recognition</h2>
           <p className="settings-subtle">
-            Workspace STT keywords: add a <code>.vocode</code> JSON file at a
-            folder root with <code>sttKeywords</code> (string array). Command
-            Palette: <strong>Vocode: Create Workspace .vocode File</strong>,
-            then apply &amp; restart.
+            Powered by ElevenLabs. To bias recognition toward names or jargon,
+            add a <code>.vocode</code> file at a folder root with a{" "}
+            <code>sttKeywords</code> list. Use the Command Palette:{" "}
+            <strong>Vocode: Create Workspace .vocode File</strong>, then save
+            and restart if prompted.
           </p>
           <div className="settings-field-stack">
             <LanguageSelectRow
@@ -431,9 +438,9 @@ export function SettingsPanel(props: { config: VocodeConfig | null }) {
               onCommit={(v) => patchConfig({ elevenLabsSttModelId: v })}
             />
             <OptionalZeroSliderRow
-              label="Commit response timeout"
-              hint="When off, wait indefinitely for a response from the speech-to-text server"
-              toggleLabel="Limit how long to wait for speech-to-text server response"
+              label="Final transcript wait time"
+              hint="After you pause speaking, how long to wait for the final text before sending more audio. Turn off to wait as long as the service needs."
+              toggleLabel="Limit wait for final transcript after each phrase"
               value={config.voiceSttCommitResponseTimeoutMs}
               spec={SLIDER_SPECS.voiceSttCommitResponseTimeoutMs}
               disabled={disabled}
@@ -449,12 +456,18 @@ export function SettingsPanel(props: { config: VocodeConfig | null }) {
       ) : null}
 
       {config ? (
-        <AdvancedDisclosure title="Advanced">
+        <AdvancedDisclosure title="Advanced tuning">
           <div className="settings-advanced-inner">
-            <h3 className="settings-subhead">VAD</h3>
+            <h3 className="settings-subhead">When Vocode hears speech</h3>
+            <p className="settings-subtle">
+              Fine-tune how your microphone is interpreted. Only change these if
+              something is cutting off too early, picking up noise, or feeling
+              sluggish.
+            </p>
             <div className="settings-field-stack">
               <SliderRow
-                label="Threshold multiplier"
+                label="Speech vs noise sensitivity"
+                hint="Higher = louder speech required. Use in noisy rooms; lower if your voice is quiet."
                 value={config.voiceVadThresholdMultiplier}
                 spec={SLIDER_SPECS.voiceVadThresholdMultiplier}
                 disabled={disabled}
@@ -463,67 +476,88 @@ export function SettingsPanel(props: { config: VocodeConfig | null }) {
                 }
               />
               <SliderRow
-                label="Min energy floor"
+                label="Ignore very quiet sound"
+                hint="Raises the floor so hum and background noise are less likely to count as speech."
                 value={config.voiceVadMinEnergyFloor}
                 spec={SLIDER_SPECS.voiceVadMinEnergyFloor}
                 disabled={disabled}
                 onCommit={(n) => patchConfig({ voiceVadMinEnergyFloor: n })}
               />
               <SliderRow
-                label="Start (ms)"
+                label="Time to confirm you started talking"
+                hint="How long speech must continue before a phrase officially starts. Higher reduces accidental triggers."
                 value={config.voiceVadStartMs}
                 spec={SLIDER_SPECS.voiceVadStartMs}
                 disabled={disabled}
                 onCommit={(n) => patchConfig({ voiceVadStartMs: n })}
+                formatDisplay={formatMs}
               />
               <SliderRow
-                label="End (ms)"
+                label="Pause before end of phrase"
+                hint="How long you must pause before Vocode treats the sentence as finished."
                 value={config.voiceVadEndMs}
                 spec={SLIDER_SPECS.voiceVadEndMs}
                 disabled={disabled}
                 onCommit={(n) => patchConfig({ voiceVadEndMs: n })}
+                formatDisplay={formatMs}
               />
               <SliderRow
-                label="Preroll (ms)"
+                label="Audio kept before speech starts"
+                hint="Includes a little sound before the detected start so words are not clipped."
                 value={config.voiceVadPrerollMs}
                 spec={SLIDER_SPECS.voiceVadPrerollMs}
                 disabled={disabled}
                 onCommit={(n) => patchConfig({ voiceVadPrerollMs: n })}
+                formatDisplay={formatMs}
               />
             </div>
-            <h3 className="settings-subhead">Stream</h3>
+            <h3 className="settings-subhead">Audio sent for recognition</h3>
+            <p className="settings-subtle">
+              Controls how audio is sliced before it is sent for transcription.
+              Defaults work for most setups.
+            </p>
             <div className="settings-field-stack">
               <SliderRow
-                label="Min chunk (ms)"
+                label="Smallest slice (ms)"
+                hint="Minimum amount of audio per send. Affects how often partial results can update."
                 value={config.voiceStreamMinChunkMs}
                 spec={SLIDER_SPECS.voiceStreamMinChunkMs}
                 disabled={disabled}
                 onCommit={(n) => patchConfig({ voiceStreamMinChunkMs: n })}
+                formatDisplay={formatMs}
               />
               <SliderRow
-                label="Max chunk (ms)"
+                label="Largest slice (ms)"
+                hint="Maximum time window bundled into one send before it must go out."
                 value={config.voiceStreamMaxChunkMs}
                 spec={SLIDER_SPECS.voiceStreamMaxChunkMs}
                 disabled={disabled}
                 onCommit={(n) => patchConfig({ voiceStreamMaxChunkMs: n })}
+                formatDisplay={formatMs}
               />
               <OptionalZeroSliderRow
-                label="Max utterance (ms)"
-                hint="When off, commits only on silence or end of stream. When on, force a commit at most every N ms during continuous speech."
-                toggleLabel="Cap utterance length (periodic commit)"
+                label="Break up very long talking (ms)"
+                hint="When on, Vocode finalizes text periodically during one long monologue so nothing is held forever. When off, it waits for a pause or when you stop voice."
+                toggleLabel="Periodically finalize text during long speech"
                 value={config.voiceStreamMaxUtteranceMs}
                 spec={SLIDER_SPECS.voiceStreamMaxUtteranceMs}
                 disabled={disabled}
                 enableDefault={8000}
                 onCommit={(n) => patchConfig({ voiceStreamMaxUtteranceMs: n })}
                 formatDisplay={formatMs}
-                offSummary="Unlimited"
+                offSummary="Only on pause or stop"
               />
             </div>
-            <h3 className="settings-subhead">Daemon (voice transcript)</h3>
+            <h3 className="settings-subhead">Batching voice commands</h3>
+            <p className="settings-subtle">
+              How Vocode combines back-to-back phrases and how many can wait in
+              line. Change only if you need different throughput or merging
+              behavior.
+            </p>
             <div className="settings-field-stack">
               <SliderRow
-                label="Queue size"
+                label="Command queue size"
+                hint="How many spoken commands can wait to run at once."
                 value={config.daemonVoiceTranscriptQueueSize}
                 spec={SLIDER_SPECS.daemonVoiceTranscriptQueueSize}
                 disabled={disabled}
@@ -532,7 +566,8 @@ export function SettingsPanel(props: { config: VocodeConfig | null }) {
                 }
               />
               <SliderRow
-                label="Coalesce (ms)"
+                label="Combine phrases within (ms)"
+                hint="Speech arriving in this window may be merged into one command."
                 value={config.daemonVoiceTranscriptCoalesceMs}
                 spec={SLIDER_SPECS.daemonVoiceTranscriptCoalesceMs}
                 disabled={disabled}
@@ -542,7 +577,8 @@ export function SettingsPanel(props: { config: VocodeConfig | null }) {
                 formatDisplay={formatMs}
               />
               <SliderRow
-                label="Max merge jobs"
+                label="Max lines merged at once"
+                hint="Upper limit on how many separate spoken lines join one batch."
                 value={config.daemonVoiceTranscriptMaxMergeJobs}
                 spec={SLIDER_SPECS.daemonVoiceTranscriptMaxMergeJobs}
                 disabled={disabled}
@@ -551,7 +587,8 @@ export function SettingsPanel(props: { config: VocodeConfig | null }) {
                 }
               />
               <SliderRow
-                label="Max merge chars"
+                label="Max characters merged at once"
+                hint="Caps total text size when merging lines into one batch."
                 value={config.daemonVoiceTranscriptMaxMergeChars}
                 spec={SLIDER_SPECS.daemonVoiceTranscriptMaxMergeChars}
                 disabled={disabled}
@@ -560,15 +597,16 @@ export function SettingsPanel(props: { config: VocodeConfig | null }) {
                 }
               />
               <OptionalZeroSliderRow
-                label="Session idle reset"
-                hint="When off, voice sessions are not dropped after idle"
-                toggleLabel="Drop voice session after idle timeout"
+                label="Forget in-progress voice session after idle"
+                hint="If you pause voice commands for this long, Vocode clears what it was holding for your current conversation—like a follow-up question, a file-picker step, or other remembered context. Your microphone and speech-to-text are not affected."
+                toggleLabel="Clear remembered voice-session context after idle"
                 value={config.sessionIdleResetMs}
                 spec={SLIDER_SPECS.sessionIdleResetMs}
                 disabled={disabled}
                 enableDefault={1_800_000}
                 onCommit={(n) => patchConfig({ sessionIdleResetMs: n })}
                 formatDisplay={formatMs}
+                offSummary="No idle timeout"
               />
             </div>
           </div>
@@ -577,20 +615,24 @@ export function SettingsPanel(props: { config: VocodeConfig | null }) {
 
       {config ? (
         <section className="settings-section settings-section-after-advanced">
-          <h2 className="settings-section-title">Debug</h2>
+          <h2 className="settings-section-title">Troubleshooting</h2>
+          <p className="settings-subtle">
+            Extra logging for diagnosing voice issues. Leave off during normal
+            use.
+          </p>
           <div className="settings-stack">
             <ToggleRow
               id="vocode-voice-vad-debug"
-              label="Voice VAD debug"
-              description="Forward VOCODE_VOICE_VAD_DEBUG to the sidecar (verbose stderr)."
+              label="Verbose speech-detection log"
+              description="Print detailed mic / speech-boundary logs from the voice helper (helpful when tuning or reporting bugs)."
               checked={config.voiceVadDebug}
               disabled={disabled}
               onChange={(voiceVadDebug) => patchConfig({ voiceVadDebug })}
             />
             <ToggleRow
               id="vocode-voice-protocol-log"
-              label="Log sidecar protocol"
-              description="Log JSON lines from the voice sidecar to Developer Tools."
+              label="Log raw voice protocol"
+              description="Log every message between VS Code and the voice helper in Developer Tools. Very noisy."
               checked={config.voiceSidecarLogProtocol}
               disabled={disabled}
               onChange={(voiceSidecarLogProtocol) =>

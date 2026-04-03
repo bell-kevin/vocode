@@ -11,12 +11,12 @@ export function processingPipelineSteps(status: PendingRow["status"]): {
   return [
     { label: "Transcript committed", visual: "done" },
     {
-      label: "Run agent",
+      label: "Understand & run",
       visual: st === "processing" ? "active" : "pending",
       title:
         st === "queued"
-          ? "Waiting to send this line to the daemon"
-          : "Agent is running",
+          ? "Waiting to process this line"
+          : "Working on your request",
     },
   ];
 }

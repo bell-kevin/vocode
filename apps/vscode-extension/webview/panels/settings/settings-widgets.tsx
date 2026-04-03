@@ -263,7 +263,7 @@ export function LanguageSelectRow(props: {
   return (
     <div className="settings-field">
       <label className="settings-field-label" htmlFor={selectId}>
-        STT language
+        Spoken language
       </label>
       <select
         id={selectId}
@@ -291,7 +291,8 @@ export function LanguageSelectRow(props: {
       {customOpen ? (
         <>
           <span className="settings-field-hint">
-            Enter ElevenLabs language_code (ISO 639-1)
+            Two-letter code (e.g. nl for Dutch). Use the list above when
+            possible.
           </span>
           <input
             id={customId}
@@ -336,11 +337,16 @@ export function SttModelChoiceRow(props: {
 
   return (
     <div className="settings-field">
-      <span className="settings-field-label">STT model</span>
+      <span className="settings-field-label">Recognition model</span>
       <span className="settings-field-hint">
-        Realtime WebSocket model id (see ElevenLabs docs)
+        Default is recommended for live dictation. Use custom only with a
+        specific model id from ElevenLabs.
       </span>
-      <div className="settings-segmented" role="group" aria-label="STT model">
+      <div
+        className="settings-segmented"
+        role="group"
+        aria-label="Speech recognition model"
+      >
         <button
           type="button"
           className={`settings-segment ${isDefault && !customArmed ? "settings-segment-active" : ""}`}
@@ -358,7 +364,7 @@ export function SttModelChoiceRow(props: {
           disabled={disabled}
           onClick={() => setCustomArmed(true)}
         >
-          Custom ID
+          Custom model id
         </button>
       </div>
       {!isDefault || customArmed ? (

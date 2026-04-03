@@ -95,20 +95,26 @@ func (r *Recorder) Stop() error {
 	}
 
 	r.stopOnce.Do(func() {
-		// Stop first to unblock Pa_ReadStream.
-		if err := r.stream.Stop(); err != nil {
+		r.mu.Lock()
+		st := r.stream
+		r.mu.Unlock()
+		if st == nil {
+			return
+		}
+
+		// Unblock Pa_ReadStream first; only Close after Read() has exited (see pcm16leReader.Read).
+		if err := st.Stop(); err != nil {
 			r.stopErr = err
 		}
-		_ = r.stream.Close()
 
-		// Wait until any in-flight Read() call is done, then terminate.
-		// This avoids calling portaudio.Terminate() while Pa_ReadStream is active.
 		r.mu.Lock()
 		for r.reading {
 			r.readCond.Wait()
 		}
+		r.stream = nil
 		r.mu.Unlock()
 
+		_ = st.Close()
 		_ = portaudio.Terminate()
 	})
 
@@ -123,12 +129,17 @@ func (r *pcm16leReader) Read(p []byte) (int, error) {
 	if len(p) == 0 {
 		return 0, nil
 	}
-	if r.rec == nil || r.rec.stream == nil {
+	if r.rec == nil {
 		return 0, io.EOF
 	}
 
 	r.rec.mu.Lock()
+	if r.rec.stream == nil {
+		r.rec.mu.Unlock()
+		return 0, io.EOF
+	}
 	r.rec.reading = true
+	st := r.rec.stream
 	r.rec.mu.Unlock()
 	defer func() {
 		r.rec.mu.Lock()
@@ -145,7 +156,7 @@ func (r *pcm16leReader) Read(p []byte) (int, error) {
 	}
 
 	// Read fills r.rec.in (int16 samples).
-	if err := r.rec.stream.Read(); err != nil {
+	if err := st.Read(); err != nil {
 		return 0, err
 	}
 
