@@ -83,7 +83,7 @@
         "vocode.voiceSttCommitResponseTimeoutMs": {
           "type": "number",
           "default": 5000,
-          "description": "After commit:true, flush deferred PCM if committed_transcript never arrives (ms). 0 = wait indefinitely."
+          "description": "After commit:true, flush deferred PCM if committed_transcript never arrives (ms, max 180000 / 180s). Also mapped to ElevenLabs realtime inactivity_timeout (rounded up to seconds; provider cap applies). 0 = disabled for both behaviors."
         },
         "vocode.voiceVadThresholdMultiplier": {
           "type": "number",

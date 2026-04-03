@@ -87,9 +87,9 @@ func applyConfigPatch(base SidecarConfig, patch *ConfigPatch) (SidecarConfig, er
 	}
 
 	if patch.SttCommitResponseTimeoutMs != nil {
-		if *patch.SttCommitResponseTimeoutMs < 0 || *patch.SttCommitResponseTimeoutMs > 120000 {
+		if *patch.SttCommitResponseTimeoutMs < 0 || *patch.SttCommitResponseTimeoutMs > 180_000 {
 			return SidecarConfig{}, fmt.Errorf(
-				"sttCommitResponseTimeoutMs must be within [0, 120000]",
+				"sttCommitResponseTimeoutMs must be within [0, 180000]",
 			)
 		}
 		out.SttCommitResponseTimeoutMs = *patch.SttCommitResponseTimeoutMs
@@ -113,4 +113,3 @@ func applyConfigPatch(base SidecarConfig, patch *ConfigPatch) (SidecarConfig, er
 
 	return out, nil
 }
-
