@@ -50,6 +50,38 @@ func TestCancelSelection_clearsSelectionAndDismissesClarify(t *testing.T) {
 	}
 }
 
+func TestCancelFileSelection_clearsFileList(t *testing.T) {
+	root := t.TempDir()
+	p := filepath.Join(root, "a.go")
+	if err := os.WriteFile(p, []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	s := NewService(router.NewFlowRouter(nil))
+	*s.env.Ephemeral = session.VoiceSession{
+		BasePhase:          session.BasePhaseFileSelection,
+		FileSelectionPaths: []string{p},
+		FileSelectionIndex: 0,
+		FileSelectionFocus: p,
+	}
+
+	res, ok, _ := s.AcceptTranscript(protocol.VoiceTranscriptParams{
+		WorkspaceRoot:  root,
+		ControlRequest: "cancel_file_selection",
+	})
+	if !ok || !res.Success {
+		t.Fatalf("expected ok=true success=true; got ok=%v res=%+v", ok, res)
+	}
+	if res.FileSelection == nil || !res.FileSelection.Closed {
+		t.Fatalf("expected fileSelection.closed, got %+v", res.FileSelection)
+	}
+	if s.env.Ephemeral.BasePhase != session.BasePhaseMain {
+		t.Fatalf("expected base phase main, got %q", s.env.Ephemeral.BasePhase)
+	}
+	if s.env.Ephemeral.FileSelectionPaths != nil {
+		t.Fatalf("expected FileSelectionPaths cleared")
+	}
+}
+
 func TestClarifyAnswer_editWhileSelection_closesSelection(t *testing.T) {
 	s := NewService(router.NewFlowRouter(nil))
 	*s.env.Ephemeral = session.VoiceSession{
@@ -119,8 +151,16 @@ func TestFileSelectionNavigation_nextUpdatesFocus(t *testing.T) {
 	if !ok || !res.Success {
 		t.Fatalf("expected ok=true success=true; got ok=%v res=%+v", ok, res)
 	}
-	if res.FileSelection == nil || !res.FileSelection.NavigatingList || res.FileSelection.FocusPath != expected {
-		t.Fatalf("expected fileSelection navigation focus %q, got %+v", expected, res.FileSelection)
+	fs := res.FileSelection
+	if fs == nil || len(fs.Results) != 3 || fs.ActiveIndex == nil {
+		t.Fatalf("expected fileSelection list with 3 results + activeIndex, got %+v", fs)
+	}
+	if *fs.ActiveIndex != 1 {
+		t.Fatalf("expected activeIndex=1, got %+v", fs.ActiveIndex)
+	}
+	gotPath := fs.Results[int(*fs.ActiveIndex)].Path
+	if gotPath != expected {
+		t.Fatalf("expected active path %q, got %q (fs=%+v)", expected, gotPath, fs)
 	}
 }
 
@@ -142,8 +182,11 @@ func TestFileSelectionExit_doneReturnsMain(t *testing.T) {
 	if !ok || !res.Success {
 		t.Fatalf("expected ok=true success=true; got ok=%v res=%+v", ok, res)
 	}
-	if res.Search != nil || res.FileSelection != nil {
-		t.Fatalf("expected no search/fileSelection after file-selection exit, got %+v / %+v", res.Search, res.FileSelection)
+	if res.Search != nil {
+		t.Fatalf("expected no search after file-selection exit, got %+v", res.Search)
+	}
+	if res.FileSelection == nil || !res.FileSelection.Closed {
+		t.Fatalf("expected fileSelection.closed after exit, got %+v", res.FileSelection)
 	}
 	if s.env.Ephemeral.BasePhase != session.BasePhaseMain {
 		t.Fatalf("expected base phase main after exit, got %q", s.env.Ephemeral.BasePhase)

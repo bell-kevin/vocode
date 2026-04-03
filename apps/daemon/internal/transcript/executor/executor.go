@@ -116,7 +116,7 @@ func (e *Executor) Execute(
 			Success:       true,
 			Summary:       "File selection",
 			UiDisposition: "hidden",
-			FileSelection: &protocol.VoiceTranscriptFileSelectionState{EnterSession: true},
+			FileSelection: &protocol.VoiceTranscriptFileSearchState{},
 		}, nil, gatheredIn, nil, true, ""
 	default:
 		// Model may pick "instruction" when the user clearly asked to find something in the repo
@@ -267,7 +267,7 @@ func (e *Executor) executeInstructionPath(
 		default:
 			// Search-shaped utterances ("find X") that hit scope clarify should resume as search, not edit.
 			if _, ok := searchLikeQueryFromText(text); ok {
-				targetRes = agentcontext.ClarifyTargetSelect
+				targetRes = agentcontext.ClarifyTargetWorkspaceSelect
 			} else {
 				targetRes = agentcontext.ClarifyTargetInstruction
 			}

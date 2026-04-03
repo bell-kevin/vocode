@@ -5,7 +5,7 @@ import "testing"
 func TestClarifyTargetAllowedMain(t *testing.T) {
 	for _, target := range []string{
 		ClarifyTargetQuestion,
-		ClarifyTargetSelect,
+		ClarifyTargetWorkspaceSelect,
 		ClarifyTargetSelectFile,
 		ClarifyTargetInstruction,
 	} {

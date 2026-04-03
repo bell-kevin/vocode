@@ -8,9 +8,9 @@ import (
 // Wire names for clarifyTargetResolution (per-flow registry; must match executor/service).
 const (
 	ClarifyTargetQuestion = "question"
-	// ClarifyTargetSelect / ClarifyTargetSelectFile are clarifyTargetResolution wires (align with apps/core clarify registry).
-	ClarifyTargetSelect     = "select"
-	ClarifyTargetSelectFile = "select_file"
+	// ClarifyTargetWorkspaceSelect / ClarifyTargetSelectFile match apps/core/transcript/clarify registry.
+	ClarifyTargetWorkspaceSelect = "workspace_select"
+	ClarifyTargetSelectFile      = "select_file"
 	// ClarifyTargetInstruction is Main-flow scoped edit (classifier instruction + scope intent).
 	ClarifyTargetInstruction = "instruction"
 	// ClarifyTargetEdit is Selection-flow locked-match edit.
@@ -28,7 +28,7 @@ func ClarifyTargetAllowed(parentFlowKind, target string) bool {
 	switch parentFlowKind {
 	case FlowKindMain:
 		switch t {
-		case ClarifyTargetQuestion, ClarifyTargetSelect, ClarifyTargetSelectFile, ClarifyTargetInstruction:
+		case ClarifyTargetQuestion, ClarifyTargetWorkspaceSelect, ClarifyTargetSelectFile, ClarifyTargetInstruction:
 			return true
 		}
 	case FlowKindSelection:

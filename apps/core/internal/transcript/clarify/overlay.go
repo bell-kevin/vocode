@@ -5,7 +5,7 @@ import "vocoding.net/vocode/v2/apps/core/internal/transcript/session"
 func BaseFlowKindFromPhase(p session.BasePhase) BaseFlowKind {
 	switch p {
 	case session.BasePhaseSelection:
-		return BaseFlowSelect
+		return BaseFlowWorkspaceSelect
 	case session.BasePhaseFileSelection:
 		return BaseFlowSelectFile
 	default:

@@ -148,28 +148,41 @@ test("isVoiceTranscriptCompletion rejects extra keys (unexpected property)", () 
   );
 });
 
-test("isVoiceTranscriptCompletion accepts fileSelection navigatingList with focusPath", () => {
+test("isVoiceTranscriptCompletion accepts fileSelection with results + activeIndex", () => {
   assert.equal(
     isVoiceTranscriptCompletion({
       success: true,
       uiDisposition: "hidden",
       fileSelection: {
-        focusPath: "C:\\\\repo\\\\src\\\\main.ts",
-        navigatingList: true,
+        results: [{ path: "C:\\\\repo\\\\src\\\\main.ts", preview: "main.ts" }],
+        activeIndex: 0,
       },
     }),
     true,
   );
 });
 
-test("isVoiceTranscriptCompletion rejects fileSelection navigatingList without focus path", () => {
+test("isVoiceTranscriptCompletion rejects fileSelection results without activeIndex", () => {
   assert.equal(
     isVoiceTranscriptCompletion({
       success: true,
       uiDisposition: "hidden",
-      fileSelection: { navigatingList: true },
+      fileSelection: {
+        results: [{ path: "C:\\\\x.ts" }],
+      },
     }),
     false,
+  );
+});
+
+test("isVoiceTranscriptCompletion accepts fileSelection empty object (enter session)", () => {
+  assert.equal(
+    isVoiceTranscriptCompletion({
+      success: true,
+      uiDisposition: "hidden",
+      fileSelection: {},
+    }),
+    true,
   );
 });
 

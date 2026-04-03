@@ -73,8 +73,8 @@ func classifyWithStub(in Context) Result {
 	raw := strings.TrimSpace(in.Instruction)
 	var res Result
 	switch in.Flow {
-	case flows.Select:
-		res = stubSelect(t, raw)
+	case flows.WorkspaceSelect:
+		res = stubWorkspaceSelect(t, raw)
 	case flows.SelectFile:
 		res = stubSelectFile(t, raw)
 	default:
@@ -96,7 +96,7 @@ func stubRoot(t, raw string) Result {
 		return Result{Flow: flows.Root, Route: "select_file", SearchQuery: raw}
 	}
 	if strings.HasPrefix(t, "find ") || strings.HasPrefix(t, "search ") || strings.HasPrefix(t, "where is ") || strings.HasPrefix(t, "locate ") {
-		return Result{Flow: flows.Root, Route: "select", SearchQuery: raw}
+		return Result{Flow: flows.Root, Route: "workspace_select", SearchQuery: raw}
 	}
 	if strings.HasSuffix(t, "?") || strings.HasPrefix(t, "what ") || strings.HasPrefix(t, "why ") || strings.HasPrefix(t, "how ") {
 		return Result{Flow: flows.Root, Route: "question"}
@@ -107,35 +107,35 @@ func stubRoot(t, raw string) Result {
 	return Result{Flow: flows.Root, Route: "irrelevant"}
 }
 
-func stubSelect(t, raw string) Result {
+func stubWorkspaceSelect(t, raw string) Result {
 	if t == "" {
-		return Result{Flow: flows.Select, Route: "irrelevant"}
+		return Result{Flow: flows.WorkspaceSelect, Route: "irrelevant"}
 	}
 	if globalExitLike(t) {
-		return Result{Flow: flows.Select, Route: "control"}
+		return Result{Flow: flows.WorkspaceSelect, Route: "control"}
 	}
 	if strings.Contains(t, "find file ") || strings.Contains(t, "open file ") || strings.Contains(t, "show file ") {
-		return Result{Flow: flows.Select, Route: "select_file", SearchQuery: raw}
+		return Result{Flow: flows.WorkspaceSelect, Route: "select_file", SearchQuery: raw}
 	}
 	if strings.Contains(t, "find ") || strings.Contains(t, "search ") {
-		return Result{Flow: flows.Select, Route: "select", SearchQuery: raw}
+		return Result{Flow: flows.WorkspaceSelect, Route: "workspace_select", SearchQuery: raw}
 	}
 	if strings.Contains(t, "next") || strings.Contains(t, "forward") ||
 		strings.Contains(t, "back") || strings.Contains(t, "prev") {
-		return Result{Flow: flows.Select, Route: "select_control"}
+		return Result{Flow: flows.WorkspaceSelect, Route: "workspace_select_control"}
 	}
 	if strings.Contains(t, "delete") || strings.Contains(t, "remove") {
-		return Result{Flow: flows.Select, Route: "delete"}
+		return Result{Flow: flows.WorkspaceSelect, Route: "delete"}
 	}
 	for _, w := range []string{"one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "1", "2", "3", "4", "5", "6", "7", "8", "9"} {
 		if strings.Contains(t, w) {
-			return Result{Flow: flows.Select, Route: "select_control"}
+			return Result{Flow: flows.WorkspaceSelect, Route: "workspace_select_control"}
 		}
 	}
 	if strings.Contains(t, "edit") || strings.Contains(t, "change") {
-		return Result{Flow: flows.Select, Route: "edit"}
+		return Result{Flow: flows.WorkspaceSelect, Route: "edit"}
 	}
-	return Result{Flow: flows.Select, Route: "irrelevant"}
+	return Result{Flow: flows.WorkspaceSelect, Route: "irrelevant"}
 }
 
 func stubSelectFile(t, raw string) Result {
@@ -147,11 +147,11 @@ func stubSelectFile(t, raw string) Result {
 	}
 	if strings.Contains(t, "next") || strings.Contains(t, "forward") ||
 		strings.Contains(t, "back") || strings.Contains(t, "prev") {
-		return Result{Flow: flows.SelectFile, Route: "select_file_control"}
+		return Result{Flow: flows.SelectFile, Route: "file_select_control"}
 	}
 	for _, w := range []string{"one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "1", "2", "3", "4", "5", "6", "7", "8", "9"} {
 		if strings.Contains(t, w) {
-			return Result{Flow: flows.SelectFile, Route: "select_file_control"}
+			return Result{Flow: flows.SelectFile, Route: "file_select_control"}
 		}
 	}
 	if strings.Contains(t, "delete") || strings.Contains(t, "remove") || strings.Contains(t, "trash") {

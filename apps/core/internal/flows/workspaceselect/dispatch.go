@@ -1,4 +1,4 @@
-package selectflow
+package workspaceselectflow
 
 import (
 	"vocoding.net/vocode/v2/apps/core/internal/flows"
@@ -7,7 +7,7 @@ import (
 	protocol "vocoding.net/vocode/v2/packages/protocol/go"
 )
 
-// SelectionDeps are dependencies for select-flow route handlers (post-classification).
+// SelectionDeps are dependencies for workspace-select flow route handlers (post-classification).
 type SelectionDeps struct {
 	HostApply             protocolHostApply
 	NewBatchID            func() string
@@ -26,7 +26,7 @@ func routeDeps(d *SelectionDeps) *global.RouteDeps {
 	return &global.RouteDeps{Search: d.Search}
 }
 
-// DispatchRoute dispatches a classified select-flow route (global routes → global/, select_control → control.go).
+// DispatchRoute dispatches a classified workspace-select flow route (global routes → global/, workspace_select_control → control.go).
 func DispatchRoute(
 	deps *SelectionDeps,
 	params protocol.VoiceTranscriptParams,
@@ -38,21 +38,21 @@ func DispatchRoute(
 	rd := routeDeps(deps)
 	switch route {
 	case "control":
-		return global.HandleControl(flows.Select, params, vs, text)
-	case "select_control":
+		return global.HandleControl(flows.WorkspaceSelect, params, vs, text)
+	case "workspace_select_control":
 		return HandleSelectControl(deps, params, vs, text)
-	case "select":
-		return global.HandleSelect(rd, params, vs, flows.Select, searchQuery)
+	case "workspace_select":
+		return global.HandleWorkspaceSelect(rd, params, vs, flows.WorkspaceSelect, searchQuery)
 	case "select_file":
-		return global.HandleSelectFile(rd, params, vs, flows.Select, searchQuery)
+		return global.HandleSelectFile(rd, params, vs, flows.WorkspaceSelect, searchQuery)
 	case "edit":
 		return HandleEdit(deps, params, vs, text)
 	case "delete":
 		return HandleDelete(deps, params, vs, text)
 	case "irrelevant":
-		return global.HandleIrrelevant(vs, flows.Select)
+		return global.HandleIrrelevant(vs, flows.WorkspaceSelect)
 	default:
-		return global.HandleIrrelevant(vs, flows.Select)
+		return global.HandleIrrelevant(vs, flows.WorkspaceSelect)
 	}
 }
 

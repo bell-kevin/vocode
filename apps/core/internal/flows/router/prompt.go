@@ -23,7 +23,7 @@ Return exactly ONE JSON object:
 { "route": "<one of the route ids above>", "search_query": "<string or empty>" }
 
 Rules:
-- For routes "select" and "select_file" you MUST set "search_query" to the exact literal string to pass to ripgrep (workspace content search for "select", path/name fragment for "select_file"). Do not leave it empty for those routes.
+- For routes "workspace_select" and "select_file" you MUST set "search_query" to the exact literal string to pass to ripgrep (workspace content search for "workspace_select", path/name fragment for "select_file"). Do not leave it empty for those routes.
 - For all other routes, set "search_query" to "".
 - No extra keys. No markdown.
 `)
@@ -55,7 +55,7 @@ func ClassifierResponseJSONSchema(flow flows.ID) map[string]any {
 			},
 			"search_query": map[string]any{
 				"type":        "string",
-				"description": "For routes select and select_file: ripgrep query. Otherwise empty.",
+				"description": "For routes workspace_select and select_file: ripgrep query. Otherwise empty.",
 			},
 		},
 		"required":             []string{"route", "search_query"},

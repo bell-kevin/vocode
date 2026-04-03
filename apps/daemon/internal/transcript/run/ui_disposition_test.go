@@ -13,12 +13,15 @@ func TestInferTranscriptUIDisposition(t *testing.T) {
 		t.Fatal("minimal success completion → shown")
 	}
 	if inferTranscriptUIDisposition(&protocol.VoiceTranscriptCompletion{
-		FileSelection: &protocol.VoiceTranscriptFileSelectionState{NavigatingList: true, FocusPath: "/x"},
+		FileSelection: &protocol.VoiceTranscriptFileSearchState{
+			Results:     []protocol.VoiceTranscriptFileListHit{{Path: "/x", Preview: "x"}},
+			ActiveIndex: ptrInt64(0),
+		},
 	}) != "hidden" {
 		t.Fatal("fileSelection navigation → hidden")
 	}
 	if inferTranscriptUIDisposition(&protocol.VoiceTranscriptCompletion{
-		Search: &protocol.VoiceTranscriptSearchState{
+		Search: &protocol.VoiceTranscriptWorkspaceSearchState{
 			Results: []protocol.VoiceTranscriptSearchHit{{Path: "p", Line: 0, Character: 0, Preview: "x"}},
 		},
 	}) != "hidden" {

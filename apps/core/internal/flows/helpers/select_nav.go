@@ -3,8 +3,6 @@ package helpers
 import (
 	"regexp"
 	"strings"
-
-	globalflow "vocoding.net/vocode/v2/apps/core/internal/flows/global"
 )
 
 var (
@@ -21,7 +19,7 @@ func ParseNav(transcript string) (kind string, ord int, ok bool) {
 	if t == "" {
 		return "", 0, false
 	}
-	if globalflow.IsExitPhrase(t) {
+	if IsExitPhrase(t) {
 		return "exit", 0, true
 	}
 	lower := strings.ToLower(t)

@@ -13,6 +13,7 @@ export type PanelState = {
       preview: string;
     }[];
     activeIndex: number;
+    listKind?: "workspace" | "file";
   };
   answerState?: {
     question: string;

@@ -47,7 +47,21 @@ func Execute(env *Env, params protocol.VoiceTranscriptParams) (protocol.VoiceTra
 			return protocol.VoiceTranscriptCompletion{
 				Success:       true,
 				Summary:       "Search session closed",
-				Search:        &protocol.VoiceTranscriptSearchState{Closed: true},
+				Search:        &protocol.VoiceTranscriptWorkspaceSearchState{Closed: true},
+				UiDisposition: "hidden",
+			}, true, ""
+		case "cancel_file_selection":
+			vs.FileSelectionPaths = nil
+			vs.FileSelectionIndex = 0
+			vs.FileSelectionFocus = ""
+			if ns, ok := agentcontext.FlowPopIfTop(vs.FlowStack, agentcontext.FlowKindFileSelection); ok {
+				vs.FlowStack = ns
+			}
+			env.persistSession(key, vs)
+			return protocol.VoiceTranscriptCompletion{
+				Success:       true,
+				Summary:       "File selection closed",
+				FileSelection: &protocol.VoiceTranscriptFileSearchState{Closed: true},
 				UiDisposition: "hidden",
 			}, true, ""
 		case "cancel_clarify":
@@ -85,7 +99,7 @@ func Execute(env *Env, params protocol.VoiceTranscriptParams) (protocol.VoiceTra
 			q, orig, tgt, okPrompt := agentcontext.ClarifyPromptFromStack(vs.FlowStack)
 			if okPrompt {
 				_, origIsSearch := executor.SearchLikeQueryFromText(orig)
-				if tgt == agentcontext.ClarifyTargetSelect ||
+				if tgt == agentcontext.ClarifyTargetWorkspaceSelect ||
 					(tgt == agentcontext.ClarifyTargetInstruction && origIsSearch) {
 					forceSearchQuery = executor.SearchResumeQuery(orig, answer)
 				}
@@ -115,6 +129,7 @@ func Execute(env *Env, params protocol.VoiceTranscriptParams) (protocol.VoiceTra
 			return protocol.VoiceTranscriptCompletion{
 				Success:       true,
 				Summary:       "File selection closed",
+				FileSelection: &protocol.VoiceTranscriptFileSearchState{Closed: true},
 				UiDisposition: "hidden",
 			}, true, ""
 		}
@@ -143,7 +158,7 @@ func Execute(env *Env, params protocol.VoiceTranscriptParams) (protocol.VoiceTra
 				return protocol.VoiceTranscriptCompletion{
 					Success:       true,
 					Summary:       "Search session closed",
-					Search:        &protocol.VoiceTranscriptSearchState{Closed: true},
+					Search:        &protocol.VoiceTranscriptWorkspaceSearchState{Closed: true},
 					UiDisposition: "hidden",
 				}, true, ""
 			}
@@ -167,7 +182,7 @@ func Execute(env *Env, params protocol.VoiceTranscriptParams) (protocol.VoiceTra
 				Success:       true,
 				Summary:       "search results",
 				UiDisposition: "hidden",
-				Search: &protocol.VoiceTranscriptSearchState{
+				Search: &protocol.VoiceTranscriptWorkspaceSearchState{
 					Results:     voiceSessionHitsToWire(vs.SearchResults),
 					ActiveIndex: ptrInt64(int64(vs.ActiveSearchIndex)),
 				},
@@ -393,7 +408,11 @@ func Execute(env *Env, params protocol.VoiceTranscriptParams) (protocol.VoiceTra
 				env.persistSession(key, vs)
 			}
 		}
-		if res.FileSelection != nil && res.FileSelection.EnterSession && agentcontext.FlowTopKind(vs.FlowStack) != agentcontext.FlowKindFileSelection {
+		if res.FileSelection != nil {
+			applyFileSelectionToVoiceSession(&vs, res.FileSelection)
+			env.persistSession(key, vs)
+		}
+		if res.FileSelection != nil && len(res.FileSelection.Results) == 0 && !res.FileSelection.Closed && !res.FileSelection.NoHits && agentcontext.FlowTopKind(vs.FlowStack) != agentcontext.FlowKindFileSelection {
 			vs.FileSelectionPaths = nil
 			vs.FileSelectionIndex = 0
 			vs.FileSelectionFocus = ""
@@ -460,6 +479,9 @@ func Execute(env *Env, params protocol.VoiceTranscriptParams) (protocol.VoiceTra
 			}
 			syncSelectionStackForHits(&vs)
 		}
+	}
+	if res.FileSelection != nil {
+		applyFileSelectionToVoiceSession(&vs, res.FileSelection)
 	}
 
 	env.persistSession(key, vs)

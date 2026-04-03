@@ -132,6 +132,50 @@ test("markHandled search.closed clears search (voice cancel)", () => {
   assert.equal(store.getSnapshot().searchState, undefined);
 });
 
+test("markHandled fileSelection.results maps to sidebar searchState (file list)", () => {
+  const store = new MainPanelStore();
+  const id = store.enqueueCommitted("open config") as number;
+  store.markHandled(id, {
+    uiDisposition: "hidden",
+    contextSessionId: "ctx-files-1",
+    fileSelection: {
+      results: [
+        { path: "/w/src/foo.ts", preview: "foo.ts" },
+        { path: "/w/src/bar.ts" },
+      ],
+      activeIndex: 1,
+    },
+  });
+  const ss = store.getSnapshot().searchState;
+  assert.ok(ss);
+  assert.equal(ss?.listKind, "file");
+  assert.equal(ss?.activeIndex, 1);
+  assert.equal(ss?.results.length, 2);
+  assert.equal(ss?.results[1]?.path, "/w/src/bar.ts");
+  assert.equal(ss?.results[1]?.preview, "bar.ts");
+  assert.equal(store.searchContextSessionId(), "ctx-files-1");
+});
+
+test("markHandled fileSelection.closed clears sidebar list", () => {
+  const store = new MainPanelStore();
+  const id1 = store.enqueueCommitted("pick file") as number;
+  store.markHandled(id1, {
+    uiDisposition: "hidden",
+    fileSelection: {
+      results: [{ path: "/w/a.ts" }],
+      activeIndex: 0,
+    },
+  });
+  assert.ok(store.getSnapshot().searchState);
+  const id2 = store.enqueueCommitted("cancel") as number;
+  store.markHandled(id2, {
+    uiDisposition: "hidden",
+    summary: "Closed",
+    fileSelection: { closed: true },
+  });
+  assert.equal(store.getSnapshot().searchState, undefined);
+});
+
 test("markHandled stores contextSessionId for daemon cancel RPCs", () => {
   const store = new MainPanelStore();
   const id = store.enqueueCommitted("fix thing") as number;

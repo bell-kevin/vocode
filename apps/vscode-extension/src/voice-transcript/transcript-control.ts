@@ -10,7 +10,7 @@ import { transcriptWorkspaceRoot } from "./workspace-root";
  */
 export async function sendTranscriptControlRequest(
   services: ExtensionServices,
-  kind: "cancel_clarify" | "cancel_selection",
+  kind: "cancel_clarify" | "cancel_selection" | "cancel_file_selection",
   contextSessionId: string | undefined,
 ): Promise<boolean> {
   const { client } = services;

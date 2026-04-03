@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"vocoding.net/vocode/v2/apps/core/internal/flows"
+	"vocoding.net/vocode/v2/apps/core/internal/transcript/searchapply"
 	"vocoding.net/vocode/v2/apps/core/internal/transcript/session"
 	protocol "vocoding.net/vocode/v2/packages/protocol/go"
 )
@@ -53,17 +54,18 @@ func selectFileSearchMiss(host flows.ID, vs *session.VoiceSession) protocol.Voic
 			UiDisposition: "skipped",
 		}
 	case flows.SelectFile:
-		fs := &protocol.VoiceTranscriptFileSelectionState{FocusPath: vs.FileSelectionFocus}
-		if strings.TrimSpace(vs.FileSelectionFocus) != "" {
-			fs.NavigatingList = true
-		}
-		return protocol.VoiceTranscriptCompletion{
+		c := protocol.VoiceTranscriptCompletion{
 			Success:       true,
 			Summary:       "file focus updated",
 			UiDisposition: "hidden",
-			FileSelection: fs,
 		}
-	default: // flows.Select
+		if len(vs.FileSelectionPaths) > 0 {
+			c.FileSelection = searchapply.FileSearchStateFromPaths(vs.FileSelectionPaths, vs.FileSelectionIndex)
+		} else if strings.TrimSpace(vs.FileSelectionFocus) != "" {
+			c.FileSelection = searchapply.FileSearchStateFromSinglePath(vs.FileSelectionFocus)
+		}
+		return c
+	default: // flows.WorkspaceSelect
 		return protocol.VoiceTranscriptCompletion{
 			Success:       true,
 			Summary:       "core transcript (stub)",

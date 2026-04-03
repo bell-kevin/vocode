@@ -1,8 +1,11 @@
+import path from "node:path";
+
 import type {
   VoiceTranscriptClarifyOffer,
-  VoiceTranscriptFileSelectionState,
+  VoiceTranscriptFileListHit,
+  VoiceTranscriptFileSearchState,
   VoiceTranscriptQuestionAnswer,
-  VoiceTranscriptSearchState,
+  VoiceTranscriptWorkspaceSearchState,
   VoiceTranscriptWorkspaceHints,
 } from "@vocode/protocol";
 
@@ -18,10 +21,10 @@ const DEFAULT_PARTIAL_CLEAR_DEBOUNCE_MS = 180;
 
 /** Mirrors daemon inferTranscriptUIDisposition when completion omits uiDisposition. */
 function inferVoiceTranscriptUiDisposition(opts: {
-  search?: VoiceTranscriptSearchState;
+  search?: VoiceTranscriptWorkspaceSearchState;
   question?: VoiceTranscriptQuestionAnswer;
   clarify?: VoiceTranscriptClarifyOffer;
-  fileSelection?: VoiceTranscriptFileSelectionState;
+  fileSelection?: VoiceTranscriptFileSearchState;
   workspace?: VoiceTranscriptWorkspaceHints;
 }): "shown" | "skipped" | "hidden" {
   const ans = opts.question?.answerText?.trim();
@@ -41,15 +44,8 @@ function inferVoiceTranscriptUiDisposition(opts: {
   ) {
     return "hidden";
   }
-  const fs = opts.fileSelection;
-  if (fs) {
-    if (
-      fs.enterSession ||
-      fs.navigatingList ||
-      (typeof fs.focusPath === "string" && fs.focusPath.trim() !== "")
-    ) {
-      return "hidden";
-    }
+  if (opts.fileSelection) {
+    return "hidden";
   }
   if (opts.workspace?.needsFolder === true) {
     return "shown";
@@ -57,14 +53,30 @@ function inferVoiceTranscriptUiDisposition(opts: {
   return "shown";
 }
 
+function sidebarRowsFromFileHits(
+  hits: readonly VoiceTranscriptFileListHit[],
+): {
+  path: string;
+  line: number;
+  character: number;
+  preview: string;
+}[] {
+  return hits.map((h) => ({
+    path: h.path,
+    line: 0,
+    character: 0,
+    preview: (h.preview?.trim() || path.basename(h.path)) ?? "",
+  }));
+}
+
 export type TranscriptHandledOptions = {
   summary?: string;
   uiDisposition?: "shown" | "skipped" | "hidden";
   contextSessionId?: string;
-  search?: VoiceTranscriptSearchState;
+  search?: VoiceTranscriptWorkspaceSearchState;
   question?: VoiceTranscriptQuestionAnswer;
   clarify?: VoiceTranscriptClarifyOffer;
-  fileSelection?: VoiceTranscriptFileSelectionState;
+  fileSelection?: VoiceTranscriptFileSearchState;
   workspace?: VoiceTranscriptWorkspaceHints;
 };
 
@@ -95,6 +107,8 @@ export type MainPanelSnapshot = {
       readonly preview: string;
     }[];
     readonly activeIndex: number;
+    /** Workspace text hits vs file path hits (same sidebar list UX). */
+    readonly listKind?: "workspace" | "file";
   };
   /** Latest question answer (`VoiceTranscriptCompletion.question`). */
   readonly answerState?: {
@@ -169,7 +183,8 @@ export class MainPanelStore {
           preview: string;
         }[];
         activeIndex: number;
-        /** Daemon session key for this hit list; used for cancel_selection RPC after voice stops. */
+        listKind?: "workspace" | "file";
+        /** Daemon session key for this hit list; used for cancel_* RPC after voice stops. */
         contextSessionId?: string;
       }
     | undefined;
@@ -456,6 +471,24 @@ export class MainPanelStore {
         this.searchState = {
           results: s.results,
           activeIndex: Math.max(0, s.activeIndex ?? 0),
+          listKind: "workspace",
+          contextSessionId: options.contextSessionId ?? prevCtx,
+        };
+      }
+    }
+
+    if (options?.fileSelection) {
+      const f = options.fileSelection;
+      if (f.closed || f.noHits) {
+        this.searchState = undefined;
+      } else if (f.results && f.results.length > 0) {
+        const prevCtx = this.searchState?.contextSessionId;
+        const ai = Math.max(0, f.activeIndex ?? 0);
+        const capped = Math.min(ai, f.results.length - 1);
+        this.searchState = {
+          results: sidebarRowsFromFileHits(f.results),
+          activeIndex: capped,
+          listKind: "file",
           contextSessionId: options.contextSessionId ?? prevCtx,
         };
       }
@@ -537,6 +570,24 @@ export class MainPanelStore {
         this.searchState = {
           results: s.results,
           activeIndex: Math.max(0, s.activeIndex ?? 0),
+          listKind: "workspace",
+          contextSessionId: options.contextSessionId ?? prevCtx,
+        };
+      }
+    }
+
+    if (options?.fileSelection) {
+      const f = options.fileSelection;
+      if (f.closed || f.noHits) {
+        this.searchState = undefined;
+      } else if (f.results && f.results.length > 0) {
+        const prevCtx = this.searchState?.contextSessionId;
+        const ai = Math.max(0, f.activeIndex ?? 0);
+        const capped = Math.min(ai, f.results.length - 1);
+        this.searchState = {
+          results: sidebarRowsFromFileHits(f.results),
+          activeIndex: capped,
+          listKind: "file",
           contextSessionId: options.contextSessionId ?? prevCtx,
         };
       }
@@ -628,6 +679,9 @@ export class MainPanelStore {
             searchState: {
               results: this.searchState.results,
               activeIndex: this.searchState.activeIndex,
+              ...(this.searchState.listKind
+                ? { listKind: this.searchState.listKind }
+                : {}),
             },
           }
         : {}),

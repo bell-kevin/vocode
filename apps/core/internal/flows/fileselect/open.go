@@ -1,8 +1,9 @@
-package selectfileflow
+package fileselectflow
 
 import (
 	"strings"
 
+	"vocoding.net/vocode/v2/apps/core/internal/transcript/searchapply"
 	"vocoding.net/vocode/v2/apps/core/internal/transcript/session"
 	protocol "vocoding.net/vocode/v2/packages/protocol/go"
 )
@@ -53,13 +54,15 @@ func fileSelectionOpenPath(deps *SelectFileDeps, params protocol.VoiceTranscript
 	}
 	vs.PendingDirectiveApply = nil
 	vs.FileSelectionFocus = path
-	return protocol.VoiceTranscriptCompletion{
+	c := protocol.VoiceTranscriptCompletion{
 		Success:       true,
 		Summary:       "open file",
 		UiDisposition: "hidden",
-		FileSelection: &protocol.VoiceTranscriptFileSelectionState{
-			FocusPath:      path,
-			NavigatingList: true,
-		},
-	}, ""
+	}
+	if len(vs.FileSelectionPaths) > 0 {
+		c.FileSelection = searchapply.FileSearchStateFromPaths(vs.FileSelectionPaths, vs.FileSelectionIndex)
+	} else {
+		c.FileSelection = searchapply.FileSearchStateFromSinglePath(path)
+	}
+	return c, ""
 }

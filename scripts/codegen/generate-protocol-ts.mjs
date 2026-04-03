@@ -58,7 +58,7 @@ const entries = [
   },
   {
     file: "voice-transcript.search-state.schema.json",
-    name: "VoiceTranscriptSearchState",
+    name: "VoiceTranscriptWorkspaceSearchState",
   },
   {
     file: "voice-transcript.question-answer.schema.json",
@@ -69,8 +69,12 @@ const entries = [
     name: "VoiceTranscriptClarifyOffer",
   },
   {
+    file: "voice-transcript.file-list-hit.schema.json",
+    name: "VoiceTranscriptFileListHit",
+  },
+  {
     file: "voice-transcript.file-selection-state.schema.json",
-    name: "VoiceTranscriptFileSelectionState",
+    name: "VoiceTranscriptFileSearchState",
   },
   {
     file: "voice-transcript.workspace-hints.schema.json",

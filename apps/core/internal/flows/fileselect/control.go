@@ -1,14 +1,15 @@
-package selectfileflow
+package fileselectflow
 
 import (
 	"strings"
 
 	"vocoding.net/vocode/v2/apps/core/internal/flows/helpers"
+	"vocoding.net/vocode/v2/apps/core/internal/transcript/searchapply"
 	"vocoding.net/vocode/v2/apps/core/internal/transcript/session"
 	protocol "vocoding.net/vocode/v2/packages/protocol/go"
 )
 
-// HandleSelectFileControl handles the select-file flow "select_file_control" route only (path-list navigation via [selection.ParseNav]).
+// HandleSelectFileControl handles the select-file flow "file_select_control" route only (path-list navigation via [selection.ParseNav]).
 func HandleSelectFileControl(_ *SelectFileDeps, _ protocol.VoiceTranscriptParams, vs *session.VoiceSession, text string) (protocol.VoiceTranscriptCompletion, string) {
 	op, pick, ok := listNavOp(text)
 	if !ok {
@@ -17,20 +18,22 @@ func HandleSelectFileControl(_ *SelectFileDeps, _ protocol.VoiceTranscriptParams
 			UiDisposition: "skipped",
 		}
 		if strings.TrimSpace(vs.FileSelectionFocus) != "" {
-			c.FileSelection = &protocol.VoiceTranscriptFileSelectionState{FocusPath: vs.FileSelectionFocus}
+			c.FileSelection = searchapply.FileSearchStateFromSinglePath(vs.FileSelectionFocus)
 		}
 		return c, ""
 	}
 	applyFileSelectionControlOp(vs, op, pick)
-	return protocol.VoiceTranscriptCompletion{
+	c := protocol.VoiceTranscriptCompletion{
 		Success:       true,
 		Summary:       "file focus updated",
 		UiDisposition: "hidden",
-		FileSelection: &protocol.VoiceTranscriptFileSelectionState{
-			FocusPath:      vs.FileSelectionFocus,
-			NavigatingList: true,
-		},
-	}, ""
+	}
+	if len(vs.FileSelectionPaths) > 0 {
+		c.FileSelection = searchapply.FileSearchStateFromPaths(vs.FileSelectionPaths, vs.FileSelectionIndex)
+	} else if strings.TrimSpace(vs.FileSelectionFocus) != "" {
+		c.FileSelection = searchapply.FileSearchStateFromSinglePath(vs.FileSelectionFocus)
+	}
+	return c, ""
 }
 
 func applyFileSelectionControlOp(vs *session.VoiceSession, op string, pick1Based int) {

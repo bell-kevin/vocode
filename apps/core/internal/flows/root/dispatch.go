@@ -40,8 +40,8 @@ func DispatchRoute(
 	}
 
 	switch res.Route {
-	case "select":
-		if r, fail, ok := global.TryHandleSelectSearch(rd, params, vs, res.SearchQuery); ok {
+	case "workspace_select":
+		if r, fail, ok := global.TryHandleWorkspaceSelectSearch(rd, params, vs, res.SearchQuery); ok {
 			return r, fail
 		}
 		return IrrelevantSkipped()
@@ -73,7 +73,7 @@ func DispatchRoute(
 }
 
 // ExecuteMainPhase runs root-flow classification and route handling. Workspace search runs only
-// when the classifier returns select or select_file with a non-empty search_query (see global.TryHandle*).
+// when the classifier returns workspace_select or select_file with a non-empty search_query (see global.TryHandle*).
 func ExecuteMainPhase(
 	deps *RootDeps,
 	params protocol.VoiceTranscriptParams,

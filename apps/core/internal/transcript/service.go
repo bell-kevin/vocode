@@ -156,7 +156,7 @@ func (s *Service) tryImmediateAfterClassify(params protocol.VoiceTranscriptParam
 func basePhaseToFlow(phase session.BasePhase) flows.ID {
 	switch phase {
 	case session.BasePhaseSelection:
-		return flows.Select
+		return flows.WorkspaceSelect
 	case session.BasePhaseFileSelection:
 		return flows.SelectFile
 	default:

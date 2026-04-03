@@ -3,7 +3,7 @@ package pipeline
 import (
 	"strings"
 
-	global "vocoding.net/vocode/v2/apps/core/internal/flows/global"
+	flowhelpers "vocoding.net/vocode/v2/apps/core/internal/flows/helpers"
 	"vocoding.net/vocode/v2/apps/core/internal/transcript/clarify"
 	"vocoding.net/vocode/v2/apps/core/internal/transcript/controlrequest"
 	"vocoding.net/vocode/v2/apps/core/internal/transcript/idle"
@@ -53,7 +53,7 @@ func Execute(e *run.Env, params protocol.VoiceTranscriptParams, opts *Opts) (pro
 
 	switch vs.BasePhase {
 	case session.BasePhaseSelection:
-		return runSelectionPhase(e, key, params, &vs, text, pre)
+		return runWorkspaceSelectPhase(e, key, params, &vs, text, pre)
 	case session.BasePhaseFileSelection:
 		return runFileSelectionPhase(e, key, params, &vs, text, pre)
 	default:
@@ -71,7 +71,7 @@ func tryClarifyTurn(
 		return false, res
 	}
 
-	if global.IsExitPhrase(text) {
+	if flowhelpers.IsExitPhrase(text) {
 		vs.Clarify = nil
 		persist(e, key, *vs)
 		return true, protocol.VoiceTranscriptCompletion{

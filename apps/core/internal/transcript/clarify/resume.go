@@ -8,7 +8,7 @@ func ApplyResolvedBasePhaseTransition(vs *session.VoiceSession) {
 	}
 
 	switch vs.Clarify.TargetResolution {
-	case ClarifyTargetSelect:
+	case ClarifyTargetWorkspaceSelect:
 		vs.BasePhase = session.BasePhaseSelection
 		vs.FileSelectionPaths = nil
 		vs.FileSelectionIndex = 0

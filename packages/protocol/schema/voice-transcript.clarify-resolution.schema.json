@@ -7,7 +7,7 @@
   "properties": {
     "targetResolution": {
       "type": "string",
-      "description": "After the user answers, which parent-flow resolution runs (e.g. instruction, edit, select)."
+      "description": "After the user answers, which parent-flow resolution runs (e.g. instruction, edit, workspace_select, select_file)."
     }
   }
 }

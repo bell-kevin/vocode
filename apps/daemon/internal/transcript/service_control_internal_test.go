@@ -94,6 +94,43 @@ func TestAcceptTranscript_controlCancelClarify_ok(t *testing.T) {
 	_ = res
 }
 
+func TestAcceptTranscript_controlCancelFileSelection_clearsKeyedSession(t *testing.T) {
+	t.Helper()
+	ag := agent.New(stub.New())
+	svc := NewService(ag, log.New(io.Discard, "", 0))
+	svc.queue = nil
+
+	key := "session-key-fs"
+	vs := agentcontext.VoiceSession{
+		FlowStack: []agentcontext.FlowFrame{
+			{Kind: agentcontext.FlowKindFileSelection},
+		},
+		FileSelectionPaths: []string{"/proj/a.go"},
+		FileSelectionIndex: 0,
+		FileSelectionFocus: "/proj/a.go",
+	}
+	voicesession.SaveKeyed(svc.sessions, key, vs)
+
+	res, ok, reason := svc.AcceptTranscript(protocol.VoiceTranscriptParams{
+		ContextSessionId: key,
+		ControlRequest:   "cancel_file_selection",
+	})
+	if !ok || !res.Success || reason != "" {
+		t.Fatalf("got ok=%v success=%v reason=%q res=%+v", ok, res.Success, reason, res)
+	}
+	if res.FileSelection == nil || !res.FileSelection.Closed {
+		t.Fatalf("expected fileSelection.closed, got %+v", res.FileSelection)
+	}
+
+	loaded := voicesession.Load(svc.sessions, key, time.Hour, nil)
+	if len(loaded.FileSelectionPaths) != 0 {
+		t.Fatalf("expected FileSelectionPaths cleared, got %+v", loaded.FileSelectionPaths)
+	}
+	if agentcontext.FlowTopKind(loaded.FlowStack) == agentcontext.FlowKindFileSelection {
+		t.Fatalf("expected file_selection frame popped")
+	}
+}
+
 func TestAcceptTranscript_unknownControl_fails(t *testing.T) {
 	t.Helper()
 	ag := agent.New(stub.New())

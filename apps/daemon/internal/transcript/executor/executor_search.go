@@ -70,7 +70,7 @@ func workspaceSearch(
 			Success:       true,
 			Summary:       fmt.Sprintf("no matches for %q", query),
 			UiDisposition: "hidden",
-			Search:        &protocol.VoiceTranscriptSearchState{NoHits: true},
+			Search:        &protocol.VoiceTranscriptWorkspaceSearchState{NoHits: true},
 		}, nil, gatheredIn, nil, true, ""
 	}
 
@@ -139,7 +139,7 @@ func workspaceSearch(
 		Success:       true,
 		Summary:       fmt.Sprintf("found %d matches for %q; opened first", len(hits), query),
 		UiDisposition: "hidden",
-		Search: &protocol.VoiceTranscriptSearchState{
+		Search: &protocol.VoiceTranscriptWorkspaceSearchState{
 			Results:     wireHits,
 			ActiveIndex: &z,
 		},

@@ -1,21 +1,30 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://vocoding.net/schemas/voice-transcript.file-selection-state.schema.json",
-  "title": "VoiceTranscriptFileSelectionState",
+  "title": "VoiceTranscriptFileSearchState",
   "type": "object",
   "additionalProperties": false,
+  "description": "File path hit list for voice navigation (parallel to workspace search). JSON key remains fileSelection. An empty object {} means enter file-selection mode before any hits exist.",
   "properties": {
-    "focusPath": {
-      "type": "string",
-      "description": "Workspace-jailed absolute path the host should focus in the file-selection UI."
+    "results": {
+      "type": "array",
+      "description": "Numbered file path hits for voice navigation (parallel to workspace search hits).",
+      "items": {
+        "$ref": "voice-transcript.file-list-hit.schema.json"
+      }
     },
-    "enterSession": {
-      "type": "boolean",
-      "description": "Enter file-selection flow before a path list exists (e.g. classifier chose file mode)."
+    "activeIndex": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "0-based active index into results."
     },
-    "navigatingList": {
+    "closed": {
       "type": "boolean",
-      "description": "True when this completion updates numbered file-list navigation; focusPath should be set."
+      "description": "True when the file-selection list session ended without a new hit list."
+    },
+    "noHits": {
+      "type": "boolean",
+      "description": "True when a file path query ran successfully but returned zero matches."
     }
   }
 }

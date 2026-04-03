@@ -79,15 +79,12 @@ func HandleFileSelectionUtterance(
 			Success:       true,
 			Summary:       "file focus updated",
 			UiDisposition: "hidden",
-			FileSelection: &protocol.VoiceTranscriptFileSelectionState{
-				FocusPath:      focus,
-				NavigatingList: true,
-			},
+			FileSelection: fileSearchStateFromPaths(paths, vs.FileSelectionIndex),
 		}, nil, ""
 	}
 
 	if fileOpenRe.MatchString(tl) && !fileDeleteRe.MatchString(tl) {
-		return openFileDirectiveCompletion(focus)
+		return openFileDirectiveCompletion(vs, paths, focus)
 	}
 	if fileDeleteRe.MatchString(tl) {
 		if focus == "" {
@@ -136,7 +133,7 @@ func HandleFileSelectionUtterance(
 			Success:       true,
 			Summary:       "rename (move)",
 			UiDisposition: "shown",
-			FileSelection: &protocol.VoiceTranscriptFileSelectionState{FocusPath: dest},
+			FileSelection: fileSearchStateFromSinglePath(dest),
 		}, []protocol.VoiceTranscriptDirective{d}, ""
 	}
 	if m := fileMoveRe.FindStringSubmatch(text); len(m) == 2 {
@@ -169,7 +166,7 @@ func HandleFileSelectionUtterance(
 				Success:       true,
 				Summary:       "move file",
 				UiDisposition: "shown",
-				FileSelection: &protocol.VoiceTranscriptFileSelectionState{FocusPath: destFile},
+				FileSelection: fileSearchStateFromSinglePath(destFile),
 			}, []protocol.VoiceTranscriptDirective{d}, ""
 		}
 		return protocol.VoiceTranscriptCompletion{Success: false}, nil, "move destination escapes workspace"
@@ -211,7 +208,7 @@ func HandleFileSelectionUtterance(
 			Success:       true,
 			Summary:       "create file",
 			UiDisposition: "shown",
-			FileSelection: &protocol.VoiceTranscriptFileSelectionState{FocusPath: newPath},
+			FileSelection: fileSearchStateFromSinglePath(newPath),
 		}, []protocol.VoiceTranscriptDirective{d}, ""
 	}
 	if m := fileCreateDRe.FindStringSubmatch(text); len(m) == 2 {
@@ -271,7 +268,11 @@ func clarifyFile(target, q string) (protocol.VoiceTranscriptCompletion, []protoc
 	}, nil, ""
 }
 
-func openFileDirectiveCompletion(path string) (protocol.VoiceTranscriptCompletion, []protocol.VoiceTranscriptDirective, string) {
+func openFileDirectiveCompletion(
+	vs *agentcontext.VoiceSession,
+	paths []string,
+	path string,
+) (protocol.VoiceTranscriptCompletion, []protocol.VoiceTranscriptDirective, string) {
 	d := protocol.VoiceTranscriptDirective{
 		Kind: "navigate",
 		NavigationDirective: &protocol.NavigationDirective{
@@ -284,13 +285,15 @@ func openFileDirectiveCompletion(path string) (protocol.VoiceTranscriptCompletio
 			},
 		},
 	}
-	return protocol.VoiceTranscriptCompletion{
+	c := protocol.VoiceTranscriptCompletion{
 		Success:       true,
 		Summary:       "open file",
 		UiDisposition: "hidden",
-		FileSelection: &protocol.VoiceTranscriptFileSelectionState{
-			FocusPath:      path,
-			NavigatingList: true,
-		},
-	}, []protocol.VoiceTranscriptDirective{d}, ""
+	}
+	if len(paths) > 0 {
+		c.FileSelection = fileSearchStateFromPaths(paths, vs.FileSelectionIndex)
+	} else {
+		c.FileSelection = fileSearchStateFromSinglePath(path)
+	}
+	return c, []protocol.VoiceTranscriptDirective{d}, ""
 }

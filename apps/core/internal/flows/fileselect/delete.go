@@ -1,4 +1,4 @@
-package selectfileflow
+package fileselectflow
 
 import (
 	"os"

@@ -120,9 +120,14 @@ export function normalizePanelState(raw: unknown): PanelState {
         typeof ss.activeIndex === "number" && Number.isFinite(ss.activeIndex)
           ? ss.activeIndex
           : 0;
+      const listKind =
+        ss.listKind === "file" || ss.listKind === "workspace"
+          ? ss.listKind
+          : undefined;
       base.searchState = {
         results,
         activeIndex,
+        ...(listKind ? { listKind } : {}),
       };
     }
   }

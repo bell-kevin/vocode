@@ -53,10 +53,7 @@ func inferTranscriptUIDisposition(res *protocol.VoiceTranscriptCompletion) strin
 		return "hidden"
 	}
 	if res.FileSelection != nil {
-		fs := res.FileSelection
-		if fs.EnterSession || fs.NavigatingList || strings.TrimSpace(fs.FocusPath) != "" {
-			return "hidden"
-		}
+		return "hidden"
 	}
 	if res.Workspace != nil && res.Workspace.NeedsFolder {
 		return "shown"

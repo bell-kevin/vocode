@@ -52,7 +52,7 @@ func (e *TranscriptSearch) SearchFromQuery(params protocol.VoiceTranscriptParams
 			Success:       true,
 			Summary:       fmt.Sprintf("no matches for %q", q),
 			UiDisposition: "hidden",
-			Search: &protocol.VoiceTranscriptSearchState{
+			Search: &protocol.VoiceTranscriptWorkspaceSearchState{
 				NoHits: true,
 			},
 		}, true, ""
@@ -63,7 +63,7 @@ func (e *TranscriptSearch) SearchFromQuery(params protocol.VoiceTranscriptParams
 		Success:       true,
 		Summary:       fmt.Sprintf("found %d matches for %q", len(hits), q),
 		UiDisposition: "hidden",
-		Search: &protocol.VoiceTranscriptSearchState{
+		Search: &protocol.VoiceTranscriptWorkspaceSearchState{
 			Results:     wireHits,
 			ActiveIndex: &z,
 		},
@@ -142,6 +142,9 @@ func (e *TranscriptSearch) FileSearchFromQuery(params protocol.VoiceTranscriptPa
 			Success:       true,
 			Summary:       fmt.Sprintf("no file path matches for %q", q),
 			UiDisposition: "hidden",
+			FileSelection: &protocol.VoiceTranscriptFileSearchState{
+				NoHits: true,
+			},
 		}, true, ""
 	}
 
@@ -193,10 +196,7 @@ func (e *TranscriptSearch) FileSearchFromQuery(params protocol.VoiceTranscriptPa
 		Success:       true,
 		Summary:       fmt.Sprintf("found %d path(s) for %q", len(paths), q),
 		UiDisposition: "hidden",
-		FileSelection: &protocol.VoiceTranscriptFileSelectionState{
-			FocusPath:       first,
-			NavigatingList: true,
-		},
+		FileSelection: FileSearchStateFromPaths(paths, 0),
 	}, true, ""
 }
 

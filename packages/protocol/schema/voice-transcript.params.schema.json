@@ -136,8 +136,8 @@
         },
         "controlRequest": {
           "type": "string",
-          "enum": ["cancel_clarify", "cancel_selection"],
-          "description": "Host UI control: cancel clarification or close code-selection session without spoken text."
+          "enum": ["cancel_clarify", "cancel_selection", "cancel_file_selection"],
+          "description": "Host UI control: cancel clarification, close workspace hit list, or close file hit list without spoken text."
         },
         "daemonConfig": {
           "type": "object",
@@ -172,7 +172,7 @@
           "properties": {
             "controlRequest": {
               "type": "string",
-              "enum": ["cancel_clarify", "cancel_selection"]
+              "enum": ["cancel_clarify", "cancel_selection", "cancel_file_selection"]
             }
           }
         }

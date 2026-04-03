@@ -17,8 +17,8 @@ type Spec struct {
 // SpecFor returns the classifier spec for the given flow.
 func SpecFor(f ID) Spec {
 	switch f {
-	case Select:
-		return selectSpec()
+	case WorkspaceSelect:
+		return workspaceSelectSpec()
 	case SelectFile:
 		return selectFileSpec()
 	default:
@@ -36,7 +36,7 @@ func (s Spec) RouteIDs() []string {
 }
 
 var globalRoutes = []Route{
-	{ID: "select", Description: "Find text or symbols in the workspace.", Execution: ExecutionSerialized},
+	{ID: "workspace_select", Description: "Find text or symbols in the workspace (content search).", Execution: ExecutionSerialized},
 	{ID: "select_file", Description: "Search the workspace for files and folders.", Execution: ExecutionSerialized},
 	{ID: "control", Description: "Flow navigation (such as exit)", Execution: ExecutionImmediate},
 	{ID: "irrelevant", Description: "Not actionable in this flow.", Execution: ExecutionImmediate},
@@ -52,21 +52,21 @@ func rootSpec() Spec {
 	}
 }
 
-func selectSpec() Spec {
-	selectRoutes := []Route{
-		{ID: "select_control", Description: "Navigate the hit list (next/previous, jump/goto by number).", Execution: ExecutionImmediate},
+func workspaceSelectSpec() Spec {
+	wsRoutes := []Route{
+		{ID: "workspace_select_control", Description: "Navigate the workspace hit list (next/previous, jump/goto by number).", Execution: ExecutionImmediate},
 		{ID: "edit", Description: "They want to edit or change code (scoped edit), not just navigate the list.", Execution: ExecutionSerialized},
 		{ID: "delete", Description: "They want to delete this selection.", Execution: ExecutionSerialized},
 	}
 	return Spec{
-		Intro:  "You are Vocode's classifier for the SELECT result flow.\nThe user already has a list of search hits. Choose exactly one route id. You only classify — details are resolved later.",
-		Routes: append(globalRoutes, selectRoutes...),
+		Intro:  "You are Vocode's classifier for the WORKSPACE SELECT flow.\nThe user already has a list of workspace text/symbol search hits. Choose exactly one route id. You only classify — details are resolved later.",
+		Routes: append(globalRoutes, wsRoutes...),
 	}
 }
 
 func selectFileSpec() Spec {
 	selectFileRoutes := []Route{
-		{ID: "select_file_control", Description: "Navigate the selected file/folder hit list (next/previous, jump/goto by number).", Execution: ExecutionImmediate},
+		{ID: "file_select_control", Description: "Navigate the file hit list (next/previous, jump/goto by number).", Execution: ExecutionImmediate},
 		{ID: "open", Description: "Open the selected file.", Execution: ExecutionSerialized},
 		{ID: "move", Description: "Move selected file or folder to a new location.", Execution: ExecutionSerialized},
 		{ID: "rename", Description: "Rename selected file or folder.", Execution: ExecutionSerialized},

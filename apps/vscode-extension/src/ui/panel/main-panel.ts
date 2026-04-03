@@ -137,7 +137,11 @@ export class MainPanelViewProvider
         }
         if (m.type === "transcriptControl") {
           const c = m.control;
-          if (c !== "cancel_clarify" && c !== "cancel_selection") {
+          if (
+            c !== "cancel_clarify" &&
+            c !== "cancel_selection" &&
+            c !== "cancel_file_selection"
+          ) {
             return;
           }
           void (async () => {

@@ -1,4 +1,4 @@
-package selectfileflow
+package fileselectflow
 
 import (
 	"vocoding.net/vocode/v2/apps/core/internal/transcript/session"
@@ -8,8 +8,8 @@ import (
 // HandleRename handles the "rename" route (stub until executor is ported).
 func HandleRename(_ *SelectFileDeps, _ protocol.VoiceTranscriptParams, _ *session.VoiceSession, _ string) (protocol.VoiceTranscriptCompletion, string) {
 	return protocol.VoiceTranscriptCompletion{
-		Success:           true,
-		Summary:           "core transcript (stub)",
-		UiDisposition:     "hidden",
+		Success:       true,
+		Summary:       "core transcript (stub)",
+		UiDisposition: "hidden",
 	}, ""
 }

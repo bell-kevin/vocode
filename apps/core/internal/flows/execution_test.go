@@ -3,7 +3,7 @@ package flows
 import "testing"
 
 func TestRouteExecution_coversEverySpecRoute(t *testing.T) {
-	for _, fid := range []ID{Root, Select, SelectFile} {
+	for _, fid := range []ID{Root, WorkspaceSelect, SelectFile} {
 		spec := SpecFor(fid)
 		for _, r := range spec.Routes {
 			pol := RouteExecution(fid, r.ID)

@@ -437,39 +437,40 @@ function isVoiceTranscriptSearchHit(value: unknown): boolean {
   return true;
 }
 
-function isVoiceTranscriptSearchState(value: unknown): boolean {
+function isVoiceTranscriptWorkspaceSearchState(value: unknown): boolean {
   if (!isRecord(value)) {
     return false;
   }
-  const keys = Object.keys(value);
+  const rec = value as Record<string, unknown>;
+  const keys = Object.keys(rec);
   if (!keys.every((k) =>
     ["results", "activeIndex", "closed", "noHits"].includes(k),
   )) {
     return false;
   }
-  if (value.results !== undefined) {
-    if (!Array.isArray(value.results)) {
+  if (rec.results !== undefined) {
+    if (!Array.isArray(rec.results)) {
       return false;
     }
-    for (const item of value.results) {
+    for (const item of rec.results) {
       if (!isVoiceTranscriptSearchHit(item)) {
         return false;
       }
     }
   }
-  if (value.activeIndex !== undefined) {
+  if (rec.activeIndex !== undefined) {
     if (
-      typeof value.activeIndex !== "number" ||
-      !Number.isInteger(value.activeIndex) ||
-      value.activeIndex < 0
+      typeof rec.activeIndex !== "number" ||
+      !Number.isInteger(rec.activeIndex) ||
+      rec.activeIndex < 0
     ) {
       return false;
     }
   }
-  if (value.closed !== undefined && typeof value.closed !== "boolean") {
+  if (rec.closed !== undefined && typeof rec.closed !== "boolean") {
     return false;
   }
-  if (value.noHits !== undefined && typeof value.noHits !== "boolean") {
+  if (rec.noHits !== undefined && typeof rec.noHits !== "boolean") {
     return false;
   }
   return true;
@@ -502,34 +503,63 @@ function isVoiceTranscriptClarifyOffer(value: unknown): boolean {
   return typeof (value as Record<string, unknown>).targetResolution === "string";
 }
 
-function isVoiceTranscriptFileSelectionState(value: unknown): boolean {
+function isVoiceTranscriptFileListHit(value: unknown): boolean {
   if (!isRecord(value)) {
     return false;
   }
-  const keys = Object.keys(value);
-  if (!keys.every((k) =>
-    ["focusPath", "enterSession", "navigatingList"].includes(k),
-  )) {
+  if (!hasOnlyKeys(value, ["path", "preview"])) {
     return false;
   }
   const rec = value as Record<string, unknown>;
-  if (rec.focusPath !== undefined && typeof rec.focusPath !== "string") {
+  if (typeof rec.path !== "string" || rec.path.trim() === "") {
     return false;
   }
-  if (rec.enterSession !== undefined && typeof rec.enterSession !== "boolean") {
+  if (rec.preview !== undefined) {
+    if (typeof rec.preview !== "string") {
+      return false;
+    }
+    if (rec.preview.includes("\0")) {
+      return false;
+    }
+  }
+  return true;
+}
+
+function isVoiceTranscriptFileSearchState(value: unknown): boolean {
+  if (!isRecord(value)) {
     return false;
   }
-  if (
-    rec.navigatingList !== undefined &&
-    typeof rec.navigatingList !== "boolean"
-  ) {
+  const rec = value as Record<string, unknown>;
+  const keys = Object.keys(rec);
+  if (!keys.every((k) =>
+    ["results", "activeIndex", "closed", "noHits"].includes(k),
+  )) {
     return false;
   }
-  if (
-    rec.navigatingList === true &&
-    (typeof rec.focusPath !== "string" || rec.focusPath.trim() === "")
-  ) {
+  if (rec.closed !== undefined && typeof rec.closed !== "boolean") {
     return false;
+  }
+  if (rec.noHits !== undefined && typeof rec.noHits !== "boolean") {
+    return false;
+  }
+  if (rec.results !== undefined) {
+    if (!Array.isArray(rec.results)) {
+      return false;
+    }
+    for (const item of rec.results) {
+      if (!isVoiceTranscriptFileListHit(item)) {
+        return false;
+      }
+    }
+  }
+  if (rec.activeIndex !== undefined) {
+    if (
+      typeof rec.activeIndex !== "number" ||
+      !Number.isInteger(rec.activeIndex) ||
+      rec.activeIndex < 0
+    ) {
+      return false;
+    }
   }
   return true;
 }
@@ -601,7 +631,10 @@ export function isVoiceTranscriptCompletion(
   }
 
   if (value.search !== undefined) {
-    if (value.success !== true || !isVoiceTranscriptSearchState(value.search)) {
+    if (
+      value.success !== true ||
+      !isVoiceTranscriptWorkspaceSearchState(value.search)
+    ) {
       return false;
     }
   }
@@ -635,8 +668,20 @@ export function isVoiceTranscriptCompletion(
   if (value.fileSelection !== undefined) {
     if (
       value.success !== true ||
-      !isVoiceTranscriptFileSelectionState(value.fileSelection)
+      !isVoiceTranscriptFileSearchState(value.fileSelection)
     ) {
+      return false;
+    }
+    const fs = value.fileSelection as {
+      results?: { path: string }[];
+      activeIndex?: number;
+    };
+    const n = fs.results?.length ?? 0;
+    if (n > 0) {
+      if (fs.activeIndex === undefined || fs.activeIndex >= n) {
+        return false;
+      }
+    } else if (fs.activeIndex !== undefined && fs.activeIndex !== 0) {
       return false;
     }
   }

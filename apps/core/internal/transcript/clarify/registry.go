@@ -5,9 +5,9 @@ import "strings"
 // Clarify target resolutions are the protocol strings the controller passes through.
 // These must match the agent/executor semantics in later porting.
 const (
-	ClarifyTargetQuestion   = "question"
-	ClarifyTargetSelect     = "select"
-	ClarifyTargetSelectFile = "select_file"
+	ClarifyTargetQuestion        = "question"
+	ClarifyTargetWorkspaceSelect = "workspace_select"
+	ClarifyTargetSelectFile      = "select_file"
 
 	ClarifyTargetEdit = "edit"
 
@@ -21,9 +21,9 @@ const (
 type BaseFlowKind string
 
 const (
-	BaseFlowMain       BaseFlowKind = "main"
-	BaseFlowSelect     BaseFlowKind = "select"
-	BaseFlowSelectFile BaseFlowKind = "select_file"
+	BaseFlowMain            BaseFlowKind = "main"
+	BaseFlowWorkspaceSelect BaseFlowKind = "workspace_select"
+	BaseFlowSelectFile      BaseFlowKind = "select_file"
 )
 
 // ClarifyTargetAllowed is true iff target names a resolution allowed to be clarified under parent/base phase.
@@ -32,10 +32,10 @@ func ClarifyTargetAllowed(parentFlowKind BaseFlowKind, target string) bool {
 	switch parentFlowKind {
 	case BaseFlowMain:
 		switch t {
-		case ClarifyTargetQuestion, ClarifyTargetSelect, ClarifyTargetSelectFile:
+		case ClarifyTargetQuestion, ClarifyTargetWorkspaceSelect, ClarifyTargetSelectFile:
 			return true
 		}
-	case BaseFlowSelect:
+	case BaseFlowWorkspaceSelect:
 		return t == ClarifyTargetEdit
 	case BaseFlowSelectFile:
 		switch t {

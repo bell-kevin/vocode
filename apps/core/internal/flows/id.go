@@ -4,7 +4,7 @@ package flows
 type ID string
 
 const (
-	Root       ID = "root"
-	Select     ID = "select"
-	SelectFile ID = "select_file"
+	Root            ID = "root"
+	WorkspaceSelect ID = "workspace_select" // workspace text/symbol hit list (parallel: SelectFile = paths)
+	SelectFile      ID = "select_file"
 )

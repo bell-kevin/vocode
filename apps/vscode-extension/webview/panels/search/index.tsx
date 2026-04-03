@@ -10,12 +10,15 @@ export function SearchPanel({ state }: { state: PanelState }) {
     Math.max(0, Number.isFinite(ss.activeIndex) ? ss.activeIndex : 0),
     ss.results.length - 1,
   );
+  const isFile = ss.listKind === "file";
+  const cancelControl = isFile ? "cancel_file_selection" : "cancel_selection";
+  const kicker = isFile
+    ? `${ss.results.length} file${ss.results.length === 1 ? "" : "s"} — the highlighted row is active in the editor.`
+    : `${ss.results.length} match${ss.results.length === 1 ? "" : "es"} — the highlighted row is active in the editor.`;
+
   return (
     <div className="interrupt-panel">
-      <p className="interrupt-panel-kicker">
-        {ss.results.length} match{ss.results.length === 1 ? "" : "es"} — the
-        highlighted row is active in the editor.
-      </p>
+      <p className="interrupt-panel-kicker">{kicker}</p>
       <div className="stack interrupt-panel-results">
         {ss.results.map((r, i) => (
           <div
@@ -29,7 +32,9 @@ export function SearchPanel({ state }: { state: PanelState }) {
                 {i + 1}
               </span>
               <span className="muted-transcript">
-                {r.path}:{r.line + 1}:{r.character + 1}
+                {isFile
+                  ? r.path
+                  : `${r.path}:${r.line + 1}:${r.character + 1}`}
               </span>
             </div>
             <div className="text mono interrupt-search-preview">
@@ -54,7 +59,7 @@ export function SearchPanel({ state }: { state: PanelState }) {
           onClick={() =>
             getVsCodeApi()?.postMessage({
               type: "transcriptControl",
-              control: "cancel_selection",
+              control: cancelControl,
             })
           }
         >

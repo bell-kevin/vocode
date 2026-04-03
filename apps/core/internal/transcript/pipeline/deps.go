@@ -5,10 +5,10 @@ import (
 	"strings"
 
 	"vocoding.net/vocode/v2/apps/core/internal/flows"
+	fileselectflow "vocoding.net/vocode/v2/apps/core/internal/flows/fileselect"
 	rootflow "vocoding.net/vocode/v2/apps/core/internal/flows/root"
 	"vocoding.net/vocode/v2/apps/core/internal/flows/router"
-	selectflow "vocoding.net/vocode/v2/apps/core/internal/flows/select"
-	selectfileflow "vocoding.net/vocode/v2/apps/core/internal/flows/selectfile"
+	workspaceselectflow "vocoding.net/vocode/v2/apps/core/internal/flows/workspaceselect"
 	"vocoding.net/vocode/v2/apps/core/internal/transcript/hostdirectives"
 	"vocoding.net/vocode/v2/apps/core/internal/transcript/run"
 	"vocoding.net/vocode/v2/apps/core/internal/transcript/session"
@@ -41,8 +41,8 @@ func persist(e *run.Env, key string, vs session.VoiceSession) {
 	e.Sessions.Put(key, vs)
 }
 
-func selectionDeps(e *run.Env) *selectflow.SelectionDeps {
-	return &selectflow.SelectionDeps{
+func selectionDeps(e *run.Env) *workspaceselectflow.SelectionDeps {
+	return &workspaceselectflow.SelectionDeps{
 		HostApply:             e.HostApply,
 		NewBatchID:            hostdirectives.NewApplyBatchID,
 		HitNavigateDirectives: hostdirectives.HitNavigateDirectives,
@@ -50,8 +50,8 @@ func selectionDeps(e *run.Env) *selectflow.SelectionDeps {
 	}
 }
 
-func selectFileDeps(e *run.Env) *selectfileflow.SelectFileDeps {
-	return &selectfileflow.SelectFileDeps{
+func selectFileDeps(e *run.Env) *fileselectflow.SelectFileDeps {
+	return &fileselectflow.SelectFileDeps{
 		HostApply:  e.HostApply,
 		NewBatchID: hostdirectives.NewApplyBatchID,
 		Search:     e.Search,
@@ -65,15 +65,15 @@ func rootDeps(e *run.Env) *rootflow.RootDeps {
 	}
 }
 
-func resolveSelectRoute(e *run.Env, text string, pre preOpts) (route string, searchQuery string, ok bool) {
-	if pre.has && pre.flow == flows.Select {
+func resolveWorkspaceSelectRoute(e *run.Env, text string, pre preOpts) (route string, searchQuery string, ok bool) {
+	if pre.has && pre.flow == flows.WorkspaceSelect {
 		return pre.route, pre.searchQuery, true
 	}
 	if e.FlowRouter == nil {
 		return "", "", false
 	}
 	fr, err := e.FlowRouter.ClassifyFlow(context.Background(), router.Context{
-		Flow:        flows.Select,
+		Flow:        flows.WorkspaceSelect,
 		Instruction: text,
 	})
 	if err != nil {

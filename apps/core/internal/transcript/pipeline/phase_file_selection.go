@@ -3,8 +3,8 @@ package pipeline
 import (
 	"strings"
 
-	global "vocoding.net/vocode/v2/apps/core/internal/flows/global"
-	selectfileflow "vocoding.net/vocode/v2/apps/core/internal/flows/selectfile"
+	fileselectflow "vocoding.net/vocode/v2/apps/core/internal/flows/fileselect"
+	flowhelpers "vocoding.net/vocode/v2/apps/core/internal/flows/helpers"
 	"vocoding.net/vocode/v2/apps/core/internal/transcript/outcome"
 	"vocoding.net/vocode/v2/apps/core/internal/transcript/run"
 	"vocoding.net/vocode/v2/apps/core/internal/transcript/session"
@@ -19,15 +19,13 @@ func runFileSelectionPhase(
 	text string,
 	pre preOpts,
 ) (protocol.VoiceTranscriptCompletion, bool, string) {
-	if global.IsExitPhrase(text) {
-		vs.FileSelectionPaths = nil
-		vs.FileSelectionIndex = 0
-		vs.FileSelectionFocus = ""
-		vs.BasePhase = session.BasePhaseMain
+	if flowhelpers.IsExitPhrase(text) {
+		flowhelpers.CloseFileSelectionPhase(vs, true)
 		persist(e, key, *vs)
 		return protocol.VoiceTranscriptCompletion{
 			Success:       true,
 			Summary:       "File selection closed",
+			FileSelection: &protocol.VoiceTranscriptFileSearchState{Closed: true},
 			UiDisposition: "hidden",
 		}, true, ""
 	}
@@ -61,7 +59,7 @@ func runFileSelectionPhase(
 		return protocol.VoiceTranscriptCompletion{}, true, "flow classifier: empty route"
 	}
 
-	frRes, frFail := selectfileflow.DispatchRoute(selectFileDeps(e), params, vs, text, route, searchQuery)
+	frRes, frFail := fileselectflow.DispatchRoute(selectFileDeps(e), params, vs, text, route, searchQuery)
 	if strings.TrimSpace(frFail) != "" {
 		persist(e, key, *vs)
 		if !frRes.Success {

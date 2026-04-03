@@ -1,4 +1,4 @@
-package selectflow
+package workspaceselectflow
 
 import (
 	"strings"
@@ -8,7 +8,7 @@ import (
 	protocol "vocoding.net/vocode/v2/packages/protocol/go"
 )
 
-// HandleSelectControl handles the select-flow "select_control" route only (hit-list navigation via [selection.ParseNav]).
+// HandleSelectControl handles the workspace-select flow "workspace_select_control" route only (hit-list navigation via [selection.ParseNav]).
 func HandleSelectControl(deps *SelectionDeps, params protocol.VoiceTranscriptParams, vs *session.VoiceSession, text string) (protocol.VoiceTranscriptCompletion, string) {
 	op, pick, ok := listNavOp(text)
 	if !ok {
@@ -46,7 +46,7 @@ func selectApplyHostForActiveHit(deps *SelectionDeps, params protocol.VoiceTrans
 			Success:       true,
 			Summary:       "search results",
 			UiDisposition: "hidden",
-			Search: &protocol.VoiceTranscriptSearchState{
+			Search: &protocol.VoiceTranscriptWorkspaceSearchState{
 				Closed: true,
 			},
 		}, ""
@@ -80,7 +80,7 @@ func selectApplyHostForActiveHit(deps *SelectionDeps, params protocol.VoiceTrans
 		Success:       true,
 		Summary:       "search results",
 		UiDisposition: "hidden",
-		Search: &protocol.VoiceTranscriptSearchState{
+		Search: &protocol.VoiceTranscriptWorkspaceSearchState{
 			Results:     wireHitsToProtocol(vs.SearchResults),
 			ActiveIndex: ptrInt64(int64(vs.ActiveSearchIndex)),
 		},

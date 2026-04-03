@@ -71,12 +71,46 @@ func Apply(
 	}
 
 	fs := res.FileSelection
-	if fs != nil && (len(vs.FileSelectionPaths) > 0 || fs.EnterSession || strings.TrimSpace(fs.FocusPath) != "") {
-		vs.BasePhase = session.BasePhaseFileSelection
-		if p := strings.TrimSpace(fs.FocusPath); p != "" {
-			vs.FileSelectionFocus = p
+	if fs == nil {
+		return
+	}
+
+	if len(fs.Results) > 0 {
+		paths := make([]string, 0, len(fs.Results))
+		for _, h := range fs.Results {
+			paths = append(paths, strings.TrimSpace(h.Path))
 		}
+		vs.FileSelectionPaths = paths
+		if fs.ActiveIndex != nil {
+			i := int(*fs.ActiveIndex)
+			if i < 0 || i >= len(paths) {
+				i = 0
+			}
+			vs.FileSelectionIndex = i
+			vs.FileSelectionFocus = paths[i]
+		} else {
+			vs.FileSelectionIndex = 0
+			vs.FileSelectionFocus = paths[0]
+		}
+		vs.BasePhase = session.BasePhaseFileSelection
 		vs.SearchResults = nil
 		vs.ActiveSearchIndex = 0
+		return
 	}
+
+	if fs.Closed || fs.NoHits {
+		vs.FileSelectionPaths = nil
+		vs.FileSelectionIndex = 0
+		vs.FileSelectionFocus = ""
+		vs.BasePhase = session.BasePhaseMain
+		return
+	}
+
+	// Non-nil fileSelection with no results and not terminal: enter file-selection mode (wire {}).
+	vs.BasePhase = session.BasePhaseFileSelection
+	vs.FileSelectionPaths = nil
+	vs.FileSelectionIndex = 0
+	vs.FileSelectionFocus = ""
+	vs.SearchResults = nil
+	vs.ActiveSearchIndex = 0
 }

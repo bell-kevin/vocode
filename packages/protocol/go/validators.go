@@ -304,8 +304,24 @@ func (r VoiceTranscriptCompletion) Validate() error {
 
 	if r.FileSelection != nil && r.Success {
 		fs := r.FileSelection
-		if fs.NavigatingList && strings.TrimSpace(fs.FocusPath) == "" {
-			return errors.New("voice transcript result: fileSelection.navigatingList requires focusPath")
+		for _, h := range fs.Results {
+			if strings.TrimSpace(h.Path) == "" {
+				return errors.New("voice transcript result: fileSelection.results[].path is required")
+			}
+			if strings.Contains(h.Preview, "\u0000") {
+				return errors.New("voice transcript result: fileSelection.results[].preview contains NUL")
+			}
+		}
+		n := len(fs.Results)
+		if n > 0 {
+			if fs.ActiveIndex == nil {
+				return errors.New("voice transcript result: fileSelection.activeIndex is required when results is non-empty")
+			}
+			if *fs.ActiveIndex < 0 || int(*fs.ActiveIndex) >= n {
+				return errors.New("voice transcript result: fileSelection.activeIndex out of range for results")
+			}
+		} else if fs.ActiveIndex != nil && *fs.ActiveIndex != 0 {
+			return errors.New("voice transcript result: fileSelection.activeIndex must be omitted or 0 when results is empty")
 		}
 	}
 

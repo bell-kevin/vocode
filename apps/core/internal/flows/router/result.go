@@ -11,20 +11,20 @@ import (
 type Result struct {
 	Flow  flows.ID
 	Route string
-	// SearchQuery is the literal string to pass to ripgrep for routes "select" (content) and
+	// SearchQuery is the literal string to pass to ripgrep for routes "workspace_select" (content) and
 	// "select_file" (path/name fragment). Populated by the routing model (or stub); must be non-empty when those routes are chosen.
 	SearchQuery string
 }
 
 func (r Result) Validate() error {
-	if r.Flow != flows.Root && r.Flow != flows.Select && r.Flow != flows.SelectFile {
+	if r.Flow != flows.Root && r.Flow != flows.WorkspaceSelect && r.Flow != flows.SelectFile {
 		return fmt.Errorf("flow router: unknown flow %q", r.Flow)
 	}
 	if err := flows.ValidateRoute(r.Flow, r.Route); err != nil {
 		return err
 	}
 	switch r.Route {
-	case "select", "select_file":
+	case "workspace_select", "select_file":
 		if strings.TrimSpace(r.SearchQuery) == "" {
 			return fmt.Errorf("flow router: route %q requires non-empty search_query", r.Route)
 		}

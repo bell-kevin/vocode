@@ -1,6 +1,7 @@
 package controlrequest
 
 import (
+	"vocoding.net/vocode/v2/apps/core/internal/flows/helpers"
 	"vocoding.net/vocode/v2/apps/core/internal/transcript/session"
 	protocol "vocoding.net/vocode/v2/packages/protocol/go"
 )
@@ -27,18 +28,23 @@ func Handle(
 
 	case "cancel_selection":
 		vs.Clarify = nil
-		vs.SearchResults = nil
-		vs.ActiveSearchIndex = 0
-		vs.PendingDirectiveApply = nil
-		if vs.BasePhase == session.BasePhaseSelection {
-			vs.BasePhase = session.BasePhaseMain
-		}
+		helpers.CloseSelectionPhase(vs, false)
 		return protocol.VoiceTranscriptCompletion{
 			Success:       true,
 			Summary:       "Search session closed",
-			Search:        &protocol.VoiceTranscriptSearchState{Closed: true},
+			Search:        &protocol.VoiceTranscriptWorkspaceSearchState{Closed: true},
 			UiDisposition: "hidden",
 		}, true
+
+	case "cancel_file_selection":
+		helpers.CloseFileSelectionPhase(vs, false)
+		return protocol.VoiceTranscriptCompletion{
+			Success:       true,
+			Summary:       "File selection closed",
+			FileSelection: &protocol.VoiceTranscriptFileSearchState{Closed: true},
+			UiDisposition: "hidden",
+		}, true
+
 	default:
 		return protocol.VoiceTranscriptCompletion{}, false
 	}

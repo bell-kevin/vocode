@@ -1,4 +1,4 @@
-package selectfileflow
+package fileselectflow
 
 import (
 	"vocoding.net/vocode/v2/apps/core/internal/flows"
@@ -25,7 +25,7 @@ func routeDeps(d *SelectFileDeps) *global.RouteDeps {
 	return &global.RouteDeps{Search: d.Search}
 }
 
-// DispatchRoute dispatches a classified select-file route (global routes → global/, select_file_control → control.go).
+// DispatchRoute dispatches a classified select-file route (global routes → global/, file_select_control → control.go).
 func DispatchRoute(
 	deps *SelectFileDeps,
 	params protocol.VoiceTranscriptParams,
@@ -38,10 +38,10 @@ func DispatchRoute(
 	switch route {
 	case "control":
 		return global.HandleControl(flows.SelectFile, params, vs, text)
-	case "select_file_control":
+	case "file_select_control":
 		return HandleSelectFileControl(deps, params, vs, text)
-	case "select":
-		return global.HandleSelect(rd, params, vs, flows.SelectFile, searchQuery)
+	case "workspace_select":
+		return global.HandleWorkspaceSelect(rd, params, vs, flows.SelectFile, searchQuery)
 	case "select_file":
 		return global.HandleSelectFile(rd, params, vs, flows.SelectFile, searchQuery)
 	case "open":

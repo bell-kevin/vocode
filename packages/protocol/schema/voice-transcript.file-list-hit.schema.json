@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vocoding.net/schemas/voice-transcript.file-list-hit.schema.json",
+  "title": "VoiceTranscriptFileListHit",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "path": {
+      "type": "string",
+      "description": "Workspace-jailed absolute file path for this numbered row."
+    },
+    "preview": {
+      "type": "string",
+      "description": "Optional short label (e.g. basename) for sidebar display."
+    }
+  },
+  "required": ["path"]
+}
