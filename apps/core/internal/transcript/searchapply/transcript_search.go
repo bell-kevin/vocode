@@ -23,8 +23,14 @@ type HostApplyClient interface {
 // TranscriptSearch runs workspace content search and file-path search for transcript handling.
 type TranscriptSearch struct {
 	HostApply             HostApplyClient
+	ExtensionHost         workspaceSymbolHost
 	NewBatchID            func() string
 	NavigateHitDirectives func(params protocol.VoiceTranscriptParams, path string, line0, char0, length int) []protocol.VoiceTranscriptDirective
+}
+
+// workspaceSymbolHost is satisfied by [rpc.ExtensionHost]; kept minimal to avoid import cycles in tests.
+type workspaceSymbolHost interface {
+	WorkspaceSymbolSearch(protocol.HostWorkspaceSymbolSearchParams) (protocol.HostWorkspaceSymbolSearchResult, error)
 }
 
 // SearchFromQuery runs fixed-string workspace content search and returns a completion with Search hits.
@@ -41,9 +47,19 @@ func (e *TranscriptSearch) SearchFromQuery(params protocol.VoiceTranscriptParams
 		}, true, "search requires workspaceRoot or activeFile"
 	}
 
-	hits, err := search.FixedStringSearch(root, q, contentSearchMaxHits)
-	if err != nil {
-		return protocol.VoiceTranscriptCompletion{Success: false}, true, "search failed: " + err.Error()
+	var hits []search.Hit
+	if e.ExtensionHost != nil {
+		symRes, err := e.ExtensionHost.WorkspaceSymbolSearch(protocol.HostWorkspaceSymbolSearchParams{Query: q})
+		if err == nil && len(symRes.Hits) > 0 {
+			hits = workspaceSymbolHitsToSearchHits(symRes)
+		}
+	}
+	if len(hits) == 0 {
+		var err error
+		hits, err = search.FixedStringSearch(root, q, contentSearchMaxHits)
+		if err != nil {
+			return protocol.VoiceTranscriptCompletion{Success: false}, true, "search failed: " + err.Error()
+		}
 	}
 
 	if len(hits) == 0 {
@@ -92,11 +108,37 @@ func hitsToProtocolSearchResults(hits []search.Hit) []protocol.VoiceTranscriptSe
 	}
 	out := make([]protocol.VoiceTranscriptSearchHit, 0, len(hits))
 	for _, h := range hits {
+		ml := int64(h.Len)
+		if ml <= 0 {
+			ml = 1
+		}
+		p := ml
 		out = append(out, protocol.VoiceTranscriptSearchHit{
-			Path:      h.Path,
-			Line:      int64(h.Line0),
-			Character: int64(h.Char0),
-			Preview:   h.Preview,
+			Path:        h.Path,
+			Line:        int64(h.Line0),
+			Character:   int64(h.Char0),
+			Preview:     h.Preview,
+			MatchLength: &p,
+		})
+	}
+	return out
+}
+
+func workspaceSymbolHitsToSearchHits(res protocol.HostWorkspaceSymbolSearchResult) []search.Hit {
+	out := make([]search.Hit, 0, len(res.Hits))
+	for _, h := range res.Hits {
+		ln := int(h.Line)
+		ch := int(h.Character)
+		ml := int(h.MatchLength)
+		if ml <= 0 {
+			ml = 1
+		}
+		out = append(out, search.Hit{
+			Path:    h.Path,
+			Line0:   ln,
+			Char0:   ch,
+			Len:     ml,
+			Preview: h.Preview,
 		})
 	}
 	return out

@@ -21,12 +21,12 @@ func TestPathFragmentSearch_findsByFileName(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	got, err := PathFragmentSearch(root, "test.js", 10)
+	got, err := PathFragmentMatches(root, "test.js", 10)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(got) != 1 || got[0] != filepath.Clean(want) {
-		t.Fatalf("got %v want [%s]", got, filepath.Clean(want))
+	if len(got) != 1 || got[0].Path != filepath.Clean(want) || got[0].IsDir {
+		t.Fatalf("got %v want file [%s]", got, filepath.Clean(want))
 	}
 }
 
@@ -45,11 +45,11 @@ func TestPathFragmentSearch_skipsNodeModules(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	got, err := PathFragmentSearch(root, "test.js", 10)
+	got, err := PathFragmentMatches(root, "test.js", 10)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(got) != 1 || got[0] != filepath.Clean(visible) {
+	if len(got) != 1 || got[0].Path != filepath.Clean(visible) {
 		t.Fatalf("got %v want only root test.js", got)
 	}
 }

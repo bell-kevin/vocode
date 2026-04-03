@@ -12,6 +12,10 @@
     "preview": {
       "type": "string",
       "description": "Optional short label (e.g. basename) for sidebar display."
+    },
+    "isDirectory": {
+      "type": "boolean",
+      "description": "True when this hit is a folder path (do not open as a text document)."
     }
   },
   "required": ["path"]

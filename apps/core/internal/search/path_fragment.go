@@ -21,10 +21,22 @@ var pathSearchSkipDirNames = map[string]struct{}{
 	".idea":        {},
 }
 
-// PathFragmentSearch lists files under root whose relative path or base name contains
-// fragment (case-insensitive). Used for select_file / path discovery — not content search.
-// Returns up to maxPaths sorted paths (clean, absolute). maxPaths <= 0 defaults to 20.
-func PathFragmentSearch(root, fragment string, maxPaths int) ([]string, error) {
+// PathMatch is one file or directory path from path-fragment discovery.
+type PathMatch struct {
+	Path  string
+	IsDir bool
+}
+
+func pathFragmentMatches(rel, baseName, lowerFragment string) bool {
+	relLower := strings.ToLower(rel)
+	baseLower := strings.ToLower(baseName)
+	return strings.Contains(relLower, lowerFragment) || strings.Contains(baseLower, lowerFragment)
+}
+
+// PathFragmentMatches lists files and directories under root whose relative path or base name contains
+// fragment (case-insensitive). Used for select_file — not content search.
+// Returns up to maxPaths matches sorted by path. maxPaths <= 0 defaults to 20.
+func PathFragmentMatches(root, fragment string, maxPaths int) ([]PathMatch, error) {
 	root = filepath.Clean(strings.TrimSpace(root))
 	fragment = strings.TrimSpace(fragment)
 	if root == "" || fragment == "" {
@@ -35,7 +47,7 @@ func PathFragmentSearch(root, fragment string, maxPaths int) ([]string, error) {
 	}
 	lower := strings.ToLower(fragment)
 
-	var matches []string
+	var matches []PathMatch
 	err := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return nil
@@ -47,6 +59,20 @@ func PathFragmentSearch(root, fragment string, maxPaths int) ([]string, error) {
 					return filepath.SkipDir
 				}
 			}
+			if path == root {
+				return nil
+			}
+			rel, err := filepath.Rel(root, path)
+			if err != nil {
+				return nil
+			}
+			rel = filepath.ToSlash(rel)
+			if pathFragmentMatches(rel, name, lower) {
+				matches = append(matches, PathMatch{Path: filepath.Clean(path), IsDir: true})
+			}
+			if len(matches) >= maxPaths*4 {
+				return filepath.SkipAll
+			}
 			return nil
 		}
 		rel, err := filepath.Rel(root, path)
@@ -54,14 +80,12 @@ func PathFragmentSearch(root, fragment string, maxPaths int) ([]string, error) {
 			return nil
 		}
 		rel = filepath.ToSlash(rel)
-		base := strings.ToLower(filepath.Base(path))
-		relLower := strings.ToLower(rel)
-		if !strings.Contains(relLower, lower) && !strings.Contains(base, lower) {
+		base := filepath.Base(path)
+		if !pathFragmentMatches(rel, base, lower) {
 			return nil
 		}
-		matches = append(matches, filepath.Clean(path))
+		matches = append(matches, PathMatch{Path: filepath.Clean(path), IsDir: false})
 		if len(matches) >= maxPaths*4 {
-			// Collect extras then unique+sort+cap (simple bound on walk work).
 			return filepath.SkipAll
 		}
 		return nil
@@ -69,25 +93,25 @@ func PathFragmentSearch(root, fragment string, maxPaths int) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	return uniqueSortedPathsCap(matches, maxPaths), nil
+	return uniqueSortedPathMatchesCap(matches, maxPaths), nil
 }
 
-func uniqueSortedPathsCap(paths []string, max int) []string {
-	if len(paths) == 0 {
+func uniqueSortedPathMatchesCap(items []PathMatch, max int) []PathMatch {
+	if len(items) == 0 {
 		return nil
 	}
-	sort.Strings(paths)
-	out := make([]string, 0, max)
+	sort.Slice(items, func(i, j int) bool { return items[i].Path < items[j].Path })
+	out := make([]PathMatch, 0, max)
 	var last string
-	for _, p := range paths {
-		if p == "" {
+	for _, it := range items {
+		if it.Path == "" {
 			continue
 		}
-		if len(out) > 0 && p == last {
+		if len(out) > 0 && it.Path == last {
 			continue
 		}
-		out = append(out, p)
-		last = p
+		out = append(out, it)
+		last = it.Path
 		if len(out) >= max {
 			break
 		}

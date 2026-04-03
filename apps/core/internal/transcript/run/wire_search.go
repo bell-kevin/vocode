@@ -16,9 +16,13 @@ func WireSearchEngine(e *Env) {
 	if e.Search == nil {
 		e.Search = &searchapply.TranscriptSearch{}
 	}
-	e.Search.HostApply = e.HostApply
+	e.Search.HostApply = e.ExtensionHost
+	e.Search.ExtensionHost = e.ExtensionHost
 	e.Search.NewBatchID = hostdirectives.NewApplyBatchID
-	e.Search.NavigateHitDirectives = hostdirectives.HitNavigateDirectivesExpand
+	e.Search.NavigateHitDirectives = func(params protocol.VoiceTranscriptParams, path string, line0, char0, length int) []protocol.VoiceTranscriptDirective {
+		syms := hostdirectives.DocumentSymbolsForPath(e.ExtensionHost, params, path)
+		return hostdirectives.HitNavigateDirectivesExpandWithSymbols(path, line0, char0, length, syms)
+	}
 }
 
 // IdleResetForParams mirrors session idle eviction tuning from RPC params.

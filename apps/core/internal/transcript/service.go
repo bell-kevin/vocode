@@ -5,8 +5,10 @@ import (
 	"strings"
 	"sync"
 
+	"vocoding.net/vocode/v2/apps/core/internal/agent"
 	"vocoding.net/vocode/v2/apps/core/internal/flows"
 	"vocoding.net/vocode/v2/apps/core/internal/flows/router"
+	"vocoding.net/vocode/v2/apps/core/internal/rpc"
 	"vocoding.net/vocode/v2/apps/core/internal/transcript/idle"
 	"vocoding.net/vocode/v2/apps/core/internal/transcript/pipeline"
 	"vocoding.net/vocode/v2/apps/core/internal/transcript/run"
@@ -39,7 +41,7 @@ type transcriptAcceptResp struct {
 	reason string
 }
 
-func NewService(flowRouter *router.FlowRouter) *Service {
+func NewService(flowRouter *router.FlowRouter, editModel agent.ModelClient) *Service {
 	if flowRouter == nil {
 		flowRouter = router.NewFlowRouter(nil)
 	}
@@ -47,6 +49,7 @@ func NewService(flowRouter *router.FlowRouter) *Service {
 	env := &run.Env{
 		Sessions:   session.NewVoiceSessionStore(),
 		Ephemeral:  &ephemeral,
+		EditModel:  editModel,
 		FlowRouter: flowRouter,
 	}
 	run.WireSearchEngine(env)
@@ -61,9 +64,19 @@ func (s *Service) SetHostApplyClient(
 	if s == nil || s.env == nil {
 		return
 	}
-	s.env.HostApply = client
+	if eh, ok := client.(rpc.ExtensionHost); ok {
+		s.env.ExtensionHost = eh
+	} else {
+		s.env.ExtensionHost = nil
+	}
 	if s.env.Search != nil {
 		s.env.Search.HostApply = client
+		if eh, ok := client.(rpc.ExtensionHost); ok {
+			s.env.Search.ExtensionHost = eh
+		} else {
+			s.env.Search.ExtensionHost = nil
+		}
+		run.WireSearchEngine(s.env)
 	}
 }
 

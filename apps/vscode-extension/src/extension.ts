@@ -1,5 +1,14 @@
 import type { ChildProcessWithoutNullStreams } from "node:child_process";
-import type { HostApplyParams, HostApplyResult } from "@vocode/protocol";
+import type {
+  HostApplyParams,
+  HostApplyResult,
+  HostGetDocumentSymbolsParams,
+  HostGetDocumentSymbolsResult,
+  HostReadFileParams,
+  HostReadFileResult,
+  HostWorkspaceSymbolSearchParams,
+  HostWorkspaceSymbolSearchResult,
+} from "@vocode/protocol";
 import * as vscode from "vscode";
 
 import { registerAllCommands } from "./commands";
@@ -23,6 +32,11 @@ import { VoiceStatusIndicator } from "./ui/status-bar";
 import { VoiceSidecarClient } from "./voice/client";
 import { spawnVoiceSidecar } from "./voice/spawn";
 import { applyDirectives } from "./voice-transcript/apply-directives";
+import {
+  handleHostGetDocumentSymbols,
+  handleHostReadFile,
+  handleHostWorkspaceSymbolSearch,
+} from "./voice-transcript/host-rpc-handlers";
 import { attachTranscriptPipeline } from "./voice-transcript/pipeline";
 
 function safeKillProcess(proc: ChildProcessWithoutNullStreams | null): void {
@@ -80,6 +94,51 @@ async function wireVocodeBackend(
               : {}),
           })),
         };
+      },
+    );
+
+    services.client.registerRequestHandler(
+      "host.readFile",
+      async (unknownParams): Promise<HostReadFileResult> => {
+        const params = unknownParams as HostReadFileParams;
+        if (
+          !params ||
+          typeof params.path !== "string" ||
+          params.path.trim() === ""
+        ) {
+          throw new Error("host.readFile: invalid params (expected path)");
+        }
+        return await handleHostReadFile(params);
+      },
+    );
+
+    services.client.registerRequestHandler(
+      "host.getDocumentSymbols",
+      async (unknownParams): Promise<HostGetDocumentSymbolsResult> => {
+        const params = unknownParams as HostGetDocumentSymbolsParams;
+        if (
+          !params ||
+          typeof params.path !== "string" ||
+          params.path.trim() === ""
+        ) {
+          throw new Error(
+            "host.getDocumentSymbols: invalid params (expected path)",
+          );
+        }
+        return await handleHostGetDocumentSymbols(params);
+      },
+    );
+
+    services.client.registerRequestHandler(
+      "host.workspaceSymbolSearch",
+      async (unknownParams): Promise<HostWorkspaceSymbolSearchResult> => {
+        const params = unknownParams as HostWorkspaceSymbolSearchParams;
+        if (!params || typeof params.query !== "string") {
+          throw new Error(
+            "host.workspaceSymbolSearch: invalid params (expected query)",
+          );
+        }
+        return await handleHostWorkspaceSymbolSearch(params);
       },
     );
 

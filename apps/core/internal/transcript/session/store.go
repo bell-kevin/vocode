@@ -15,6 +15,7 @@ type SearchHit struct {
 	Line      int
 	Character int
 	Preview   string
+	Len       int
 }
 
 // VoiceSession is core’s per-voice transcript state.
@@ -34,6 +35,7 @@ type VoiceSession struct {
 	Clarify   *ClarifyOverlay
 
 	FileSelectionPaths []string
+	FileSelectionIsDir []bool
 	FileSelectionIndex int
 	FileSelectionFocus string
 }
@@ -72,6 +74,7 @@ func CloneVoiceSession(v VoiceSession) VoiceSession {
 		BasePhase:             v.BasePhase,
 		Clarify:               cloneClarifyOverlay(v.Clarify),
 		FileSelectionPaths:    append([]string(nil), v.FileSelectionPaths...),
+		FileSelectionIsDir:    append([]bool(nil), v.FileSelectionIsDir...),
 		FileSelectionIndex:    v.FileSelectionIndex,
 		FileSelectionFocus:    v.FileSelectionFocus,
 	}
@@ -83,6 +86,9 @@ func CloneVoiceSession(v VoiceSession) VoiceSession {
 	if len(out.FileSelectionPaths) == 0 {
 		out.FileSelectionPaths = nil
 	}
+	if len(out.FileSelectionIsDir) == 0 {
+		out.FileSelectionIsDir = nil
+	}
 	return out
 }
 
@@ -92,6 +98,21 @@ func cloneClarifyOverlay(ov *ClarifyOverlay) *ClarifyOverlay {
 	}
 	tmp := *ov
 	return &tmp
+}
+
+// FileFocusIsDir reports whether the focused file-selection row is a directory (wire isDirectory).
+func (vs *VoiceSession) FileFocusIsDir() bool {
+	if vs == nil || len(vs.FileSelectionPaths) == 0 {
+		return false
+	}
+	i := vs.FileSelectionIndex
+	if i < 0 || i >= len(vs.FileSelectionPaths) {
+		return false
+	}
+	if i < len(vs.FileSelectionIsDir) {
+		return vs.FileSelectionIsDir[i]
+	}
+	return false
 }
 
 // Get returns session state, or empty if unknown, blank key, or idle evicted.

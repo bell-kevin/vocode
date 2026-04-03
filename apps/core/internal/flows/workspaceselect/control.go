@@ -26,12 +26,20 @@ func applySelectControlOp(vs *session.VoiceSession, op string, pick1Based int) {
 	n := len(vs.SearchResults)
 	switch op {
 	case "next":
-		if n > 0 && vs.ActiveSearchIndex < n-1 {
-			vs.ActiveSearchIndex++
+		if n > 0 {
+			if vs.ActiveSearchIndex < n-1 {
+				vs.ActiveSearchIndex++
+			} else {
+				vs.ActiveSearchIndex = 0
+			}
 		}
 	case "back":
-		if vs.ActiveSearchIndex > 0 {
-			vs.ActiveSearchIndex--
+		if n > 0 {
+			if vs.ActiveSearchIndex > 0 {
+				vs.ActiveSearchIndex--
+			} else {
+				vs.ActiveSearchIndex = n - 1
+			}
 		}
 	case "pick":
 		if pick1Based >= 1 && pick1Based <= n {
@@ -58,7 +66,11 @@ func selectApplyHostForActiveHit(deps *SelectionDeps, params protocol.VoiceTrans
 		return protocol.VoiceTranscriptCompletion{Success: false}, "select flow not fully configured"
 	}
 	hit := vs.SearchResults[vs.ActiveSearchIndex]
-	dirs := deps.HitNavigateDirectives(hit.Path, hit.Line, hit.Character, 1)
+	needleLen := hit.Len
+	if needleLen <= 0 {
+		needleLen = 1
+	}
+	dirs := deps.HitNavigateDirectives(params, hit.Path, hit.Line, hit.Character, needleLen)
 	batchID := deps.NewBatchID()
 	pending := &session.DirectiveApplyBatch{ID: batchID, NumDirectives: len(dirs)}
 	vs.PendingDirectiveApply = pending

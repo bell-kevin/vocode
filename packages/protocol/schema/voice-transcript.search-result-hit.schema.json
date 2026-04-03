@@ -8,7 +8,12 @@
     "path": { "type": "string" },
     "line": { "type": "integer", "minimum": 0 },
     "character": { "type": "integer", "minimum": 0 },
-    "preview": { "type": "string" }
+    "preview": { "type": "string" },
+    "matchLength": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "UTF-16/code-unit span length of the search needle at this hit; 0 means unspecified (host may infer)."
+    }
   },
   "required": ["path", "line", "character", "preview"]
 }

@@ -17,7 +17,7 @@ func HandleIrrelevant(vs *session.VoiceSession, host flows.ID) (protocol.VoiceTr
 	}
 	if host == flows.SelectFile {
 		if len(vs.FileSelectionPaths) > 0 {
-			c.FileSelection = searchapply.FileSearchStateFromPaths(vs.FileSelectionPaths, vs.FileSelectionIndex)
+			c.FileSelection = searchapply.FileSearchStateFromPathsWithDir(vs.FileSelectionPaths, vs.FileSelectionIsDir, vs.FileSelectionIndex)
 		} else if p := strings.TrimSpace(vs.FileSelectionFocus); p != "" {
 			c.FileSelection = searchapply.FileSearchStateFromSinglePath(p)
 		}

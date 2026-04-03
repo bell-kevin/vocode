@@ -12,6 +12,7 @@ import (
 	"vocoding.net/vocode/v2/apps/core/internal/transcript/hostdirectives"
 	"vocoding.net/vocode/v2/apps/core/internal/transcript/run"
 	"vocoding.net/vocode/v2/apps/core/internal/transcript/session"
+	protocol "vocoding.net/vocode/v2/packages/protocol/go"
 )
 
 type preOpts struct {
@@ -43,16 +44,21 @@ func persist(e *run.Env, key string, vs session.VoiceSession) {
 
 func selectionDeps(e *run.Env) *workspaceselectflow.SelectionDeps {
 	return &workspaceselectflow.SelectionDeps{
-		HostApply:             e.HostApply,
-		NewBatchID:            hostdirectives.NewApplyBatchID,
-		HitNavigateDirectives: hostdirectives.HitNavigateDirectives,
-		Search:                e.Search,
+		HostApply:     e.ExtensionHost,
+		ExtensionHost: e.ExtensionHost,
+		EditModel:     e.EditModel,
+		NewBatchID:    hostdirectives.NewApplyBatchID,
+		HitNavigateDirectives: func(params protocol.VoiceTranscriptParams, path string, line0, char0, length int) []protocol.VoiceTranscriptDirective {
+			syms := hostdirectives.DocumentSymbolsForPath(e.ExtensionHost, params, path)
+			return hostdirectives.HitNavigateDirectivesExpandWithSymbols(path, line0, char0, length, syms)
+		},
+		Search: e.Search,
 	}
 }
 
 func selectFileDeps(e *run.Env) *fileselectflow.SelectFileDeps {
 	return &fileselectflow.SelectFileDeps{
-		HostApply:  e.HostApply,
+		HostApply:  e.ExtensionHost,
 		NewBatchID: hostdirectives.NewApplyBatchID,
 		Search:     e.Search,
 	}

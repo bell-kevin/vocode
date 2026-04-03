@@ -19,6 +19,9 @@ func fileSelectionOpenPath(deps *SelectFileDeps, params protocol.VoiceTranscript
 	if path == "" {
 		return protocol.VoiceTranscriptCompletion{Success: false}, "open: no file path"
 	}
+	if vs != nil && vs.FileFocusIsDir() {
+		return protocol.VoiceTranscriptCompletion{Success: false}, "open: selected row is a folder"
+	}
 	if deps.HostApply == nil {
 		return protocol.VoiceTranscriptCompletion{Success: false}, "host apply client not configured"
 	}
@@ -59,8 +62,8 @@ func fileSelectionOpenPath(deps *SelectFileDeps, params protocol.VoiceTranscript
 		Summary:       "open file",
 		UiDisposition: "hidden",
 	}
-	if len(vs.FileSelectionPaths) > 0 {
-		c.FileSelection = searchapply.FileSearchStateFromPaths(vs.FileSelectionPaths, vs.FileSelectionIndex)
+		if len(vs.FileSelectionPaths) > 0 {
+			c.FileSelection = searchapply.FileSearchStateFromPathsWithDir(vs.FileSelectionPaths, vs.FileSelectionIsDir, vs.FileSelectionIndex)
 	} else {
 		c.FileSelection = searchapply.FileSearchStateFromSinglePath(path)
 	}

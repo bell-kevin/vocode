@@ -11,11 +11,16 @@ import (
 func sessionHitsFromProtocol(in []protocol.VoiceTranscriptSearchHit) []session.SearchHit {
 	out := make([]session.SearchHit, 0, len(in))
 	for _, h := range in {
+		length := 0
+		if h.MatchLength != nil {
+			length = int(*h.MatchLength)
+		}
 		out = append(out, session.SearchHit{
 			Path:      h.Path,
 			Line:      int(h.Line),
 			Character: int(h.Character),
 			Preview:   h.Preview,
+			Len:       length,
 		})
 	}
 	return out
@@ -76,11 +81,14 @@ func Apply(
 	}
 
 	if len(fs.Results) > 0 {
-		paths := make([]string, 0, len(fs.Results))
-		for _, h := range fs.Results {
-			paths = append(paths, strings.TrimSpace(h.Path))
+		paths := make([]string, len(fs.Results))
+		isDir := make([]bool, len(fs.Results))
+		for i, h := range fs.Results {
+			paths[i] = strings.TrimSpace(h.Path)
+			isDir[i] = h.IsDirectory
 		}
 		vs.FileSelectionPaths = paths
+		vs.FileSelectionIsDir = isDir
 		if fs.ActiveIndex != nil {
 			i := int(*fs.ActiveIndex)
 			if i < 0 || i >= len(paths) {
@@ -100,6 +108,7 @@ func Apply(
 
 	if fs.Closed || fs.NoHits {
 		vs.FileSelectionPaths = nil
+		vs.FileSelectionIsDir = nil
 		vs.FileSelectionIndex = 0
 		vs.FileSelectionFocus = ""
 		vs.BasePhase = session.BasePhaseMain
@@ -109,6 +118,7 @@ func Apply(
 	// Non-nil fileSelection with no results and not terminal: enter file-selection mode (wire {}).
 	vs.BasePhase = session.BasePhaseFileSelection
 	vs.FileSelectionPaths = nil
+	vs.FileSelectionIsDir = nil
 	vs.FileSelectionIndex = 0
 	vs.FileSelectionFocus = ""
 	vs.SearchResults = nil

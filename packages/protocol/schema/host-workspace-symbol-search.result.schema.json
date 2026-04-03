@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vocoding.net/schemas/host-workspace-symbol-search.result.schema.json",
+  "title": "HostWorkspaceSymbolSearchResult",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "hits": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path", "line", "character", "preview", "matchLength"],
+        "properties": {
+          "path": { "type": "string" },
+          "line": { "type": "integer", "minimum": 0 },
+          "character": { "type": "integer", "minimum": 0 },
+          "preview": { "type": "string" },
+          "matchLength": { "type": "integer", "minimum": 0 }
+        }
+      }
+    }
+  },
+  "required": ["hits"]
+}

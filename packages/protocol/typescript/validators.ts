@@ -418,7 +418,9 @@ function isVoiceTranscriptSearchHit(value: unknown): boolean {
   if (!isRecord(value)) {
     return false;
   }
-  if (!hasOnlyKeys(value, ["path", "line", "character", "preview"])) {
+  if (
+    !hasOnlyKeys(value, ["path", "line", "character", "preview", "matchLength"])
+  ) {
     return false;
   }
   const rec = value as Record<string, unknown>;
@@ -434,6 +436,12 @@ function isVoiceTranscriptSearchHit(value: unknown): boolean {
   if (typeof rec.preview !== "string") {
     return false;
   }
+  if (rec.matchLength !== undefined) {
+    const len = rec.matchLength as number;
+    if (!Number.isInteger(len) || len < 1) {
+      return false;
+    }
+  }
   return true;
 }
 
@@ -443,9 +451,11 @@ function isVoiceTranscriptWorkspaceSearchState(value: unknown): boolean {
   }
   const rec = value as Record<string, unknown>;
   const keys = Object.keys(rec);
-  if (!keys.every((k) =>
-    ["results", "activeIndex", "closed", "noHits"].includes(k),
-  )) {
+  if (
+    !keys.every((k) =>
+      ["results", "activeIndex", "closed", "noHits"].includes(k),
+    )
+  ) {
     return false;
   }
   if (rec.results !== undefined) {
@@ -500,14 +510,16 @@ function isVoiceTranscriptClarifyOffer(value: unknown): boolean {
   if (!hasOnlyKeys(value, ["targetResolution"])) {
     return false;
   }
-  return typeof (value as Record<string, unknown>).targetResolution === "string";
+  return (
+    typeof (value as Record<string, unknown>).targetResolution === "string"
+  );
 }
 
 function isVoiceTranscriptFileListHit(value: unknown): boolean {
   if (!isRecord(value)) {
     return false;
   }
-  if (!hasOnlyKeys(value, ["path", "preview"])) {
+  if (!hasOnlyKeys(value, ["path", "preview", "isDirectory"])) {
     return false;
   }
   const rec = value as Record<string, unknown>;
@@ -522,6 +534,9 @@ function isVoiceTranscriptFileListHit(value: unknown): boolean {
       return false;
     }
   }
+  if (rec.isDirectory !== undefined && typeof rec.isDirectory !== "boolean") {
+    return false;
+  }
   return true;
 }
 
@@ -531,9 +546,11 @@ function isVoiceTranscriptFileSearchState(value: unknown): boolean {
   }
   const rec = value as Record<string, unknown>;
   const keys = Object.keys(rec);
-  if (!keys.every((k) =>
-    ["results", "activeIndex", "closed", "noHits"].includes(k),
-  )) {
+  if (
+    !keys.every((k) =>
+      ["results", "activeIndex", "closed", "noHits"].includes(k),
+    )
+  ) {
     return false;
   }
   if (rec.closed !== undefined && typeof rec.closed !== "boolean") {
@@ -640,20 +657,23 @@ export function isVoiceTranscriptCompletion(
   }
 
   if (value.question !== undefined) {
-    if (value.success !== true || !isVoiceTranscriptQuestionAnswer(value.question)) {
+    if (
+      value.success !== true ||
+      !isVoiceTranscriptQuestionAnswer(value.question)
+    ) {
       return false;
     }
     const q = value.question as { answerText?: string };
-    if (
-      typeof q.answerText !== "string" ||
-      q.answerText.trim() === ""
-    ) {
+    if (typeof q.answerText !== "string" || q.answerText.trim() === "") {
       return false;
     }
   }
 
   if (value.clarify !== undefined) {
-    if (value.success !== true || !isVoiceTranscriptClarifyOffer(value.clarify)) {
+    if (
+      value.success !== true ||
+      !isVoiceTranscriptClarifyOffer(value.clarify)
+    ) {
       return false;
     }
     const c = value.clarify as { targetResolution?: string };

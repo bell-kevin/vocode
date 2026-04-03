@@ -9,6 +9,11 @@ import (
 
 // FileSearchStateFromPaths builds protocol fileSelection state for a numbered path list.
 func FileSearchStateFromPaths(paths []string, activeIndex int) *protocol.VoiceTranscriptFileSearchState {
+	return FileSearchStateFromPathsWithDir(paths, nil, activeIndex)
+}
+
+// FileSearchStateFromPathsWithDir sets VoiceTranscriptFileListHit.isDirectory when isDir[i] is true.
+func FileSearchStateFromPathsWithDir(paths []string, isDir []bool, activeIndex int) *protocol.VoiceTranscriptFileSearchState {
 	if len(paths) == 0 {
 		return nil
 	}
@@ -16,12 +21,16 @@ func FileSearchStateFromPaths(paths []string, activeIndex int) *protocol.VoiceTr
 		activeIndex = 0
 	}
 	res := make([]protocol.VoiceTranscriptFileListHit, 0, len(paths))
-	for _, p := range paths {
+	for i, p := range paths {
 		p = strings.TrimSpace(p)
-		res = append(res, protocol.VoiceTranscriptFileListHit{
+		h := protocol.VoiceTranscriptFileListHit{
 			Path:    p,
 			Preview: filepath.Base(p),
-		})
+		}
+		if i < len(isDir) && isDir[i] {
+			h.IsDirectory = true
+		}
+		res = append(res, h)
 	}
 	idx := int64(activeIndex)
 	return &protocol.VoiceTranscriptFileSearchState{

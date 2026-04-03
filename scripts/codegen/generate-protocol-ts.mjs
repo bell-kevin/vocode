@@ -93,6 +93,30 @@ const entries = [
     name: "HostApplyResult",
   },
   {
+    file: "host-read-file.params.schema.json",
+    name: "HostReadFileParams",
+  },
+  {
+    file: "host-read-file.result.schema.json",
+    name: "HostReadFileResult",
+  },
+  {
+    file: "host-get-document-symbols.params.schema.json",
+    name: "HostGetDocumentSymbolsParams",
+  },
+  {
+    file: "host-get-document-symbols.result.schema.json",
+    name: "HostGetDocumentSymbolsResult",
+  },
+  {
+    file: "host-workspace-symbol-search.params.schema.json",
+    name: "HostWorkspaceSymbolSearchParams",
+  },
+  {
+    file: "host-workspace-symbol-search.result.schema.json",
+    name: "HostWorkspaceSymbolSearchResult",
+  },
+  {
     file: "command-directive.schema.json",
     name: "CommandDirective",
   },

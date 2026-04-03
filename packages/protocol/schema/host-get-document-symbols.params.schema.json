@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vocoding.net/schemas/host-get-document-symbols.params.schema.json",
+  "title": "HostGetDocumentSymbolsParams",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "path": {
+      "type": "string",
+      "description": "Absolute path to the document."
+    }
+  },
+  "required": ["path"]
+}

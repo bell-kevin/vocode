@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vocoding.net/schemas/host-workspace-symbol-search.params.schema.json",
+  "title": "HostWorkspaceSymbolSearchParams",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "query": {
+      "type": "string",
+      "description": "Workspace symbol query from voice/classifier; host matches case-insensitively."
+    }
+  },
+  "required": ["query"]
+}

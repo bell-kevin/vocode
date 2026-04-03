@@ -6,6 +6,7 @@ import (
 	"os"
 	"strings"
 
+	"vocoding.net/vocode/v2/apps/core/internal/agent"
 	"vocoding.net/vocode/v2/apps/core/internal/agent/anthropic"
 	"vocoding.net/vocode/v2/apps/core/internal/agent/openai"
 	"vocoding.net/vocode/v2/apps/core/internal/flows/router"
@@ -23,7 +24,13 @@ func New(opts Options) (*App, error) {
 	var stdin io.Reader = opts.Stdin
 	var stdout io.Writer = opts.Stdout
 
-	voiceService := transcript.NewService(selectFlowRouter(opts.Logger))
+	var editModel agent.ModelClient
+	if c, err := openai.NewFromEnv(); err == nil {
+		editModel = c
+	} else if c2, err2 := anthropic.NewFromEnv(); err2 == nil {
+		editModel = c2
+	}
+	voiceService := transcript.NewService(selectFlowRouter(opts.Logger), editModel)
 
 	r := rpc.NewRouter(opts.Logger)
 	for _, def := range rpc.BuildHandlers(voiceService) {

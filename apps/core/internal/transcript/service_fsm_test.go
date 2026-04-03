@@ -13,7 +13,7 @@ import (
 )
 
 func TestCancelSelection_clearsSelectionAndDismissesClarify(t *testing.T) {
-	s := NewService(router.NewFlowRouter(nil))
+	s := NewService(router.NewFlowRouter(nil), nil)
 	*s.env.Ephemeral = session.VoiceSession{
 		BasePhase:             session.BasePhaseSelection,
 		SearchResults:         []session.SearchHit{{Path: "x.go", Line: 0, Character: 0, Preview: ""}},
@@ -56,7 +56,7 @@ func TestCancelFileSelection_clearsFileList(t *testing.T) {
 	if err := os.WriteFile(p, []byte("x"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	s := NewService(router.NewFlowRouter(nil))
+	s := NewService(router.NewFlowRouter(nil), nil)
 	*s.env.Ephemeral = session.VoiceSession{
 		BasePhase:          session.BasePhaseFileSelection,
 		FileSelectionPaths: []string{p},
@@ -83,7 +83,7 @@ func TestCancelFileSelection_clearsFileList(t *testing.T) {
 }
 
 func TestClarifyAnswer_editWhileSelection_closesSelection(t *testing.T) {
-	s := NewService(router.NewFlowRouter(nil))
+	s := NewService(router.NewFlowRouter(nil), nil)
 	*s.env.Ephemeral = session.VoiceSession{
 		BasePhase:         session.BasePhaseSelection,
 		SearchResults:     []session.SearchHit{{Path: "x.go", Line: 0, Character: 0, Preview: ""}},
@@ -136,7 +136,7 @@ func TestFileSelectionNavigation_nextUpdatesFocus(t *testing.T) {
 	sort.Strings(paths)
 	expected := paths[1]
 
-	s := NewService(router.NewFlowRouter(nil))
+	s := NewService(router.NewFlowRouter(nil), nil)
 	*s.env.Ephemeral = session.VoiceSession{
 		BasePhase:          session.BasePhaseFileSelection,
 		FileSelectionPaths: paths,
@@ -170,7 +170,7 @@ func TestFileSelectionExit_doneReturnsMain(t *testing.T) {
 		t.Fatalf("write a.go: %v", err)
 	}
 
-	s := NewService(router.NewFlowRouter(nil))
+	s := NewService(router.NewFlowRouter(nil), nil)
 	*s.env.Ephemeral = session.VoiceSession{
 		BasePhase: session.BasePhaseFileSelection,
 	}

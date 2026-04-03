@@ -59,44 +59,12 @@ func TestHitNavigateDirectivesExpand_prefersInnerSymbol(t *testing.T) {
 	}
 }
 
-func TestSmallestSymbolContainingPoint(t *testing.T) {
-	// Outer function lines 0-10, inner lines 2-4 (smaller — should win).
-	syms := []struct {
-		Name           string `json:"name"`
-		Kind           string `json:"kind"`
-		Range          struct {
-			StartLine int64 `json:"startLine"`
-			StartChar int64 `json:"startChar"`
-			EndLine   int64 `json:"endLine"`
-			EndChar   int64 `json:"endChar"`
-		} `json:"range"`
-		SelectionRange struct {
-			StartLine int64 `json:"startLine"`
-			StartChar int64 `json:"startChar"`
-			EndLine   int64 `json:"endLine"`
-			EndChar   int64 `json:"endChar"`
-		} `json:"selectionRange"`
-	}{
-		{
-			Name: "outer",
-			Range: struct {
-				StartLine int64 `json:"startLine"`
-				StartChar int64 `json:"startChar"`
-				EndLine   int64 `json:"endLine"`
-				EndChar   int64 `json:"endChar"`
-			}{StartLine: 0, StartChar: 0, EndLine: 10, EndChar: 1},
-		},
-		{
-			Name: "inner",
-			Range: struct {
-				StartLine int64 `json:"startLine"`
-				StartChar int64 `json:"startChar"`
-				EndLine   int64 `json:"endLine"`
-				EndChar   int64 `json:"endChar"`
-			}{StartLine: 2, StartChar: 0, EndLine: 4, EndChar: 10},
-		},
+func TestSmallestSymbolContainingPointSyms(t *testing.T) {
+	syms := []DocumentSymbol{
+		{Name: "outer", Range: DocumentRange{StartLine: 0, StartChar: 0, EndLine: 10, EndChar: 1}},
+		{Name: "inner", Range: DocumentRange{StartLine: 2, StartChar: 0, EndLine: 4, EndChar: 10}},
 	}
-	sl, sc, el, ec, ok := smallestSymbolContainingPoint(syms, 3, 2)
+	sl, sc, el, ec, ok := smallestSymbolContainingPointSyms(syms, 3, 2)
 	if !ok {
 		t.Fatal("expected hit")
 	}

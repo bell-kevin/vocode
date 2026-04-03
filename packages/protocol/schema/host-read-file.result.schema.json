@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vocoding.net/schemas/host-read-file.result.schema.json",
+  "title": "HostReadFileResult",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "text": {
+      "type": "string",
+      "description": "Full file contents."
+    }
+  },
+  "required": ["text"]
+}
