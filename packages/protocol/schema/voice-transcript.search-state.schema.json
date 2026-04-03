@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vocoding.net/schemas/voice-transcript.search-state.schema.json",
+  "title": "VoiceTranscriptSearchState",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "results": {
+      "type": "array",
+      "description": "Numbered workspace search hits for voice navigation.",
+      "items": {
+        "$ref": "voice-transcript.search-result-hit.schema.json"
+      }
+    },
+    "activeIndex": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "0-based active index into results."
+    },
+    "closed": {
+      "type": "boolean",
+      "description": "True when the search session ended without a new hit list."
+    },
+    "noHits": {
+      "type": "boolean",
+      "description": "True when a search ran successfully but returned zero matches."
+    }
+  }
+}

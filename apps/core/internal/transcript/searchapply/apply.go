@@ -26,6 +26,8 @@ type TranscriptSearch struct {
 	NavigateHitDirectives func(path string, line0, char0, length int) []protocol.VoiceTranscriptDirective
 }
 
+func ptrInt64(v int64) *int64 { return &v }
+
 func (e *TranscriptSearch) SearchFromQuery(params protocol.VoiceTranscriptParams, q string, vs *session.VoiceSession) (protocol.VoiceTranscriptCompletion, bool, string) {
 	q = strings.TrimSpace(q)
 	if q == "" {
@@ -34,9 +36,8 @@ func (e *TranscriptSearch) SearchFromQuery(params protocol.VoiceTranscriptParams
 	root := strings.TrimSpace(workspace.EffectiveWorkspaceRoot(params.WorkspaceRoot, params.ActiveFile))
 	if root == "" {
 		return protocol.VoiceTranscriptCompletion{
-			Success:           false,
-			Summary:           "",
-			TranscriptOutcome: "",
+			Success: false,
+			Summary: "",
 		}, true, "search requires workspaceRoot or activeFile"
 	}
 
@@ -48,23 +49,24 @@ func (e *TranscriptSearch) SearchFromQuery(params protocol.VoiceTranscriptParams
 	wireHits := hitsToProtocolSearchResults(hits)
 	if len(hits) == 0 {
 		return protocol.VoiceTranscriptCompletion{
-			Success:           true,
-			Summary:           fmt.Sprintf("no matches for %q", q),
-			TranscriptOutcome: "selection",
-			UiDisposition:     "hidden",
-			SearchResults:     wireHits,
-			ActiveSearchIndex: nil,
+			Success:       true,
+			Summary:       fmt.Sprintf("no matches for %q", q),
+			UiDisposition: "hidden",
+			Search: &protocol.VoiceTranscriptSearchState{
+				NoHits: true,
+			},
 		}, true, ""
 	}
 
 	var z int64 = 0
 	res := protocol.VoiceTranscriptCompletion{
-		Success:           true,
-		Summary:           fmt.Sprintf("found %d matches for %q", len(hits), q),
-		TranscriptOutcome: "selection",
-		UiDisposition:     "hidden",
-		SearchResults:     wireHits,
-		ActiveSearchIndex: &z,
+		Success:       true,
+		Summary:       fmt.Sprintf("found %d matches for %q", len(hits), q),
+		UiDisposition: "hidden",
+		Search: &protocol.VoiceTranscriptSearchState{
+			Results:     wireHits,
+			ActiveIndex: &z,
+		},
 	}
 
 	if e.HostApply == nil {
@@ -109,9 +111,8 @@ func (e *TranscriptSearch) FileSearchFromQuery(params protocol.VoiceTranscriptPa
 	root := strings.TrimSpace(workspace.EffectiveWorkspaceRoot(params.WorkspaceRoot, params.ActiveFile))
 	if root == "" {
 		return protocol.VoiceTranscriptCompletion{
-			Success:           false,
-			Summary:           "",
-			TranscriptOutcome: "",
+			Success: false,
+			Summary: "",
 		}, true, "search requires workspaceRoot or activeFile"
 	}
 
@@ -138,10 +139,9 @@ func (e *TranscriptSearch) FileSearchFromQuery(params protocol.VoiceTranscriptPa
 
 	if len(paths) == 0 {
 		return protocol.VoiceTranscriptCompletion{
-			Success:           true,
-			Summary:           fmt.Sprintf("no file path matches for %q", q),
-			TranscriptOutcome: "file_selection",
-			UiDisposition:     "hidden",
+			Success:       true,
+			Summary:       fmt.Sprintf("no file path matches for %q", q),
+			UiDisposition: "hidden",
 		}, true, ""
 	}
 
@@ -190,41 +190,23 @@ func (e *TranscriptSearch) FileSearchFromQuery(params protocol.VoiceTranscriptPa
 	}
 
 	return protocol.VoiceTranscriptCompletion{
-		Success:                true,
-		Summary:                fmt.Sprintf("found %d path(s) for %q", len(paths), q),
-		TranscriptOutcome:      "file_selection",
-		UiDisposition:          "hidden",
-		FileSelectionFocusPath: first,
+		Success:       true,
+		Summary:       fmt.Sprintf("found %d path(s) for %q", len(paths), q),
+		UiDisposition: "hidden",
+		FileSelection: &protocol.VoiceTranscriptFileSelectionState{
+			FocusPath:       first,
+			NavigatingList: true,
+		},
 	}, true, ""
 }
 
-func hitsToProtocolSearchResults(hits []search.Hit) []struct {
-	Path      string `json:"path"`
-	Line      int64  `json:"line"`
-	Character int64  `json:"character"`
-	Preview   string `json:"preview"`
-} {
+func hitsToProtocolSearchResults(hits []search.Hit) []protocol.VoiceTranscriptSearchHit {
 	if len(hits) == 0 {
-		return []struct {
-			Path      string `json:"path"`
-			Line      int64  `json:"line"`
-			Character int64  `json:"character"`
-			Preview   string `json:"preview"`
-		}{}
+		return nil
 	}
-	out := make([]struct {
-		Path      string `json:"path"`
-		Line      int64  `json:"line"`
-		Character int64  `json:"character"`
-		Preview   string `json:"preview"`
-	}, 0, len(hits))
+	out := make([]protocol.VoiceTranscriptSearchHit, 0, len(hits))
 	for _, h := range hits {
-		out = append(out, struct {
-			Path      string `json:"path"`
-			Line      int64  `json:"line"`
-			Character int64  `json:"character"`
-			Preview   string `json:"preview"`
-		}{
+		out = append(out, protocol.VoiceTranscriptSearchHit{
 			Path:      h.Path,
 			Line:      int64(h.Line0),
 			Character: int64(h.Char0),

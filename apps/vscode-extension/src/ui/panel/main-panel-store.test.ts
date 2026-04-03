@@ -60,12 +60,11 @@ test("markHandled stores optional agent summary", () => {
   assert.equal(h?.summary, "Updated handler and tests.");
 });
 
-test("markHandled sets skipped when transcript outcome is irrelevant", () => {
+test("markHandled sets skipped when transcript uiDisposition is skipped", () => {
   const store = new MainPanelStore();
   const id = store.enqueueCommitted("what is the weather") as number;
   store.markHandled(id, {
     summary: "Not a coding task.",
-    transcriptOutcome: "irrelevant",
     uiDisposition: "skipped",
   });
   const h = store.getSnapshot().recentHandled[0];
@@ -77,7 +76,7 @@ test("abortClarifyAsSkipped clears prompt and appends skipped row", () => {
   const id = store.enqueueCommitted("fix thing") as number;
   store.markHandled(id, {
     summary: "Which file?",
-    transcriptOutcome: "clarify",
+    clarify: { targetResolution: "instruction" },
   });
   assert.ok(store.getSnapshot().clarifyPrompt);
   store.abortClarifyAsSkipped();
@@ -95,38 +94,40 @@ test("dismissSearchState clears search hit list", () => {
   const store = new MainPanelStore();
   const id = store.enqueueCommitted("find foo") as number;
   store.markHandled(id, {
-    transcriptOutcome: "search",
     uiDisposition: "hidden",
-    searchResults: [
-      {
-        path: "a.ts",
-        line: 0,
-        character: 0,
-        preview: "hit",
-      },
-    ],
-    activeSearchIndex: 0,
+    search: {
+      results: [
+        {
+          path: "a.ts",
+          line: 0,
+          character: 0,
+          preview: "hit",
+        },
+      ],
+      activeIndex: 0,
+    },
   });
   assert.ok(store.getSnapshot().searchState);
   store.dismissSearchState();
   assert.equal(store.getSnapshot().searchState, undefined);
 });
 
-test("markHandled selection_control without searchResults clears search (voice cancel)", () => {
+test("markHandled search.closed clears search (voice cancel)", () => {
   const store = new MainPanelStore();
   const id1 = store.enqueueCommitted("find foo") as number;
   store.markHandled(id1, {
-    transcriptOutcome: "search",
     uiDisposition: "hidden",
-    searchResults: [{ path: "a.ts", line: 0, character: 0, preview: "hit" }],
-    activeSearchIndex: 0,
+    search: {
+      results: [{ path: "a.ts", line: 0, character: 0, preview: "hit" }],
+      activeIndex: 0,
+    },
   });
   assert.ok(store.getSnapshot().searchState);
   const id2 = store.enqueueCommitted("cancel") as number;
   store.markHandled(id2, {
-    transcriptOutcome: "selection_control",
     uiDisposition: "hidden",
     summary: "Search session closed",
+    search: { closed: true },
   });
   assert.equal(store.getSnapshot().searchState, undefined);
 });
@@ -136,7 +137,7 @@ test("markHandled stores contextSessionId for daemon cancel RPCs", () => {
   const id = store.enqueueCommitted("fix thing") as number;
   store.markHandled(id, {
     summary: "Which file?",
-    transcriptOutcome: "clarify",
+    clarify: { targetResolution: "instruction" },
     contextSessionId: "ctx-clarify-1",
   });
   assert.equal(store.clarifyPromptContextSessionId(), "ctx-clarify-1");
@@ -149,11 +150,12 @@ test("markHandled stores contextSessionId for daemon cancel RPCs", () => {
 
   const id2 = store.enqueueCommitted("find foo") as number;
   store.markHandled(id2, {
-    transcriptOutcome: "search",
     uiDisposition: "hidden",
     contextSessionId: "ctx-search-1",
-    searchResults: [{ path: "a.ts", line: 0, character: 0, preview: "hit" }],
-    activeSearchIndex: 0,
+    search: {
+      results: [{ path: "a.ts", line: 0, character: 0, preview: "hit" }],
+      activeIndex: 0,
+    },
   });
   assert.equal(store.searchContextSessionId(), "ctx-search-1");
 });
@@ -162,18 +164,20 @@ test("markHandled preserves search contextSessionId when follow-up omits it", ()
   const store = new MainPanelStore();
   const id = store.enqueueCommitted("find foo") as number;
   store.markHandled(id, {
-    transcriptOutcome: "search",
     uiDisposition: "hidden",
     contextSessionId: "ctx-keep",
-    searchResults: [{ path: "a.ts", line: 0, character: 0, preview: "h" }],
-    activeSearchIndex: 0,
+    search: {
+      results: [{ path: "a.ts", line: 0, character: 0, preview: "h" }],
+      activeIndex: 0,
+    },
   });
   const id2 = store.enqueueCommitted("next") as number;
   store.markHandled(id2, {
-    transcriptOutcome: "selection_control",
     uiDisposition: "hidden",
-    searchResults: [{ path: "b.ts", line: 1, character: 0, preview: "h2" }],
-    activeSearchIndex: 0,
+    search: {
+      results: [{ path: "b.ts", line: 1, character: 0, preview: "h2" }],
+      activeIndex: 0,
+    },
   });
   assert.equal(store.searchContextSessionId(), "ctx-keep");
 });
@@ -183,7 +187,7 @@ test("markHandled sets clarifyPrompt when transcript outcome is clarify", () => 
   const id = store.enqueueCommitted("fix thing") as number;
   store.markHandled(id, {
     summary: "Which function should I edit?",
-    transcriptOutcome: "clarify",
+    clarify: { targetResolution: "instruction" },
   });
   const snap = store.getSnapshot();
   assert.equal(snap.clarifyPrompt?.question, "Which function should I edit?");
@@ -197,14 +201,13 @@ test("uiDisposition=hidden prevents adding items to Recent while clarify is acti
   const id = store.enqueueCommitted("fix thing") as number;
   store.markHandled(id, {
     summary: "Which file?",
-    transcriptOutcome: "clarify",
+    clarify: { targetResolution: "instruction" },
     uiDisposition: "hidden",
   });
   assert.ok(store.getSnapshot().clarifyPrompt);
 
   const filler = store.enqueueCommitted("uh") as number;
   store.markHandled(filler, {
-    transcriptOutcome: "irrelevant",
     uiDisposition: "hidden",
   });
   assert.equal(store.getSnapshot().recentHandled.length, 0);
@@ -214,54 +217,57 @@ test("uiDisposition=hidden prevents adding items to Recent while clarify is acti
   assert.equal(store.getSnapshot().recentHandled[0]?.skipped, true);
 });
 
-test("uiDisposition=hidden keeps search/selection_control out of Recent/History", () => {
+test("uiDisposition=hidden keeps search updates out of Recent/History", () => {
   const store = new MainPanelStore();
   const id = store.enqueueCommitted("find foo") as number;
   store.markHandled(id, {
-    transcriptOutcome: "search",
     uiDisposition: "hidden",
-    searchResults: [{ path: "a.ts", line: 0, character: 0, preview: "hit" }],
-    activeSearchIndex: 0,
+    search: {
+      results: [{ path: "a.ts", line: 0, character: 0, preview: "hit" }],
+      activeIndex: 0,
+    },
   });
   // Search flows are not edits; don't add them to history.
   assert.equal(store.getSnapshot().recentHandled.length, 0);
 
   const nav = store.enqueueCommitted("next") as number;
   store.markHandled(nav, {
-    transcriptOutcome: "selection_control",
     uiDisposition: "hidden",
-    searchResults: [{ path: "b.ts", line: 1, character: 0, preview: "hit2" }],
-    activeSearchIndex: 0,
+    search: {
+      results: [{ path: "b.ts", line: 1, character: 0, preview: "hit2" }],
+      activeIndex: 0,
+    },
   });
   assert.equal(store.getSnapshot().recentHandled.length, 0);
 });
 
-test("uiDisposition=hidden prevents skipped spam while searchState is active", () => {
+test("uiDisposition=hidden prevents noise in Recent while searchState is active", () => {
   const store = new MainPanelStore();
   const id = store.enqueueCommitted("find foo") as number;
   store.markHandled(id, {
-    transcriptOutcome: "search",
     uiDisposition: "hidden",
-    searchResults: [{ path: "a.ts", line: 0, character: 0, preview: "hit" }],
-    activeSearchIndex: 0,
+    search: {
+      results: [{ path: "a.ts", line: 0, character: 0, preview: "hit" }],
+      activeIndex: 0,
+    },
   });
   assert.ok(store.getSnapshot().searchState);
 
-  // Simulate daemon returning uiDisposition=hidden (e.g. during active search navigation flow).
+  // During active search, daemon may force hidden (not skipped) for off-topic utterances.
   const nav = store.enqueueCommitted("next") as number;
   store.markHandled(nav, {
-    transcriptOutcome: "irrelevant",
     uiDisposition: "hidden",
   });
   assert.equal(store.getSnapshot().recentHandled.length, 0);
 });
 
-test("markHandled sets answerState when transcript outcome is answer", () => {
+test("markHandled sets answerState when transcript includes question answer", () => {
   const store = new MainPanelStore();
   const id = store.enqueueCommitted("what is a closure") as number;
   store.markHandled(id, {
-    transcriptOutcome: "answer",
-    answerText: "A closure is a function plus its lexical environment.",
+    question: {
+      answerText: "A closure is a function plus its lexical environment.",
+    },
   });
   const snap = store.getSnapshot();
   assert.equal(snap.answerState?.question, "what is a closure");
@@ -275,8 +281,9 @@ test("markHandled stores Q/A in qaHistory and does not add to recentHandled", ()
   const store = new MainPanelStore();
   const id = store.enqueueCommitted("what is a closure") as number;
   store.markHandled(id, {
-    transcriptOutcome: "answer",
-    answerText: "A closure is a function plus its lexical environment.",
+    question: {
+      answerText: "A closure is a function plus its lexical environment.",
+    },
   });
   const snap = store.getSnapshot();
   assert.equal(snap.qaHistory?.[0]?.question, "what is a closure");

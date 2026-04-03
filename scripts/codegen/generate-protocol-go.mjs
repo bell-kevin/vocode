@@ -52,6 +52,30 @@ const entries = [
     name: "VoiceTranscriptDirective",
   },
   {
+    file: "voice-transcript.search-result-hit.schema.json",
+    name: "VoiceTranscriptSearchHit",
+  },
+  {
+    file: "voice-transcript.search-state.schema.json",
+    name: "VoiceTranscriptSearchState",
+  },
+  {
+    file: "voice-transcript.question-answer.schema.json",
+    name: "VoiceTranscriptQuestionAnswer",
+  },
+  {
+    file: "voice-transcript.clarify-resolution.schema.json",
+    name: "VoiceTranscriptClarifyOffer",
+  },
+  {
+    file: "voice-transcript.file-selection-state.schema.json",
+    name: "VoiceTranscriptFileSelectionState",
+  },
+  {
+    file: "voice-transcript.workspace-hints.schema.json",
+    name: "VoiceTranscriptWorkspaceHints",
+  },
+  {
     file: "voice-transcript.result.schema.json",
     name: "VoiceTranscriptCompletion",
   },

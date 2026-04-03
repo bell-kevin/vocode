@@ -32,8 +32,8 @@ func TestCancelSelection_clearsSelectionAndDismissesClarify(t *testing.T) {
 	if !ok || !res.Success {
 		t.Fatalf("expected ok=true success=true; got ok=%v res=%+v", ok, res)
 	}
-	if res.TranscriptOutcome != "completed" {
-		t.Fatalf("expected TranscriptOutcome=completed, got %q", res.TranscriptOutcome)
+	if res.Search == nil || !res.Search.Closed {
+		t.Fatalf("expected search.closed on cancel_selection, got %+v", res.Search)
 	}
 
 	if s.env.Ephemeral.BasePhase != session.BasePhaseMain {
@@ -69,8 +69,8 @@ func TestClarifyAnswer_editWhileSelection_closesSelection(t *testing.T) {
 	if !ok || !res.Success {
 		t.Fatalf("expected ok=true success=true; got ok=%v res=%+v", ok, res)
 	}
-	if res.TranscriptOutcome != "completed" {
-		t.Fatalf("expected TranscriptOutcome=completed, got %q", res.TranscriptOutcome)
+	if res.Clarify != nil || res.Search != nil || res.Question != nil {
+		t.Fatalf("expected no grouped fields after clarify resolution, got %+v", res)
 	}
 
 	if s.env.Ephemeral.BasePhase != session.BasePhaseMain {
@@ -119,11 +119,8 @@ func TestFileSelectionNavigation_nextUpdatesFocus(t *testing.T) {
 	if !ok || !res.Success {
 		t.Fatalf("expected ok=true success=true; got ok=%v res=%+v", ok, res)
 	}
-	if res.TranscriptOutcome != "file_selection_control" {
-		t.Fatalf("expected TranscriptOutcome=file_selection_control, got %q", res.TranscriptOutcome)
-	}
-	if res.FileSelectionFocusPath != expected {
-		t.Fatalf("expected focus %q, got %q", expected, res.FileSelectionFocusPath)
+	if res.FileSelection == nil || !res.FileSelection.NavigatingList || res.FileSelection.FocusPath != expected {
+		t.Fatalf("expected fileSelection navigation focus %q, got %+v", expected, res.FileSelection)
 	}
 }
 
@@ -145,8 +142,8 @@ func TestFileSelectionExit_doneReturnsMain(t *testing.T) {
 	if !ok || !res.Success {
 		t.Fatalf("expected ok=true success=true; got ok=%v res=%+v", ok, res)
 	}
-	if res.TranscriptOutcome != "completed" {
-		t.Fatalf("expected TranscriptOutcome=completed, got %q", res.TranscriptOutcome)
+	if res.Search != nil || res.FileSelection != nil {
+		t.Fatalf("expected no search/fileSelection after file-selection exit, got %+v / %+v", res.Search, res.FileSelection)
 	}
 	if s.env.Ephemeral.BasePhase != session.BasePhaseMain {
 		t.Fatalf("expected base phase main after exit, got %q", s.env.Ephemeral.BasePhase)

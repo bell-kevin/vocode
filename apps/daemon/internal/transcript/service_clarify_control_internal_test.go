@@ -36,8 +36,8 @@ func TestAcceptTranscript_clarifyControl_cancelClearsState(t *testing.T) {
 	if !ok || !res.Success || reason != "" {
 		t.Fatalf("got ok=%v success=%v reason=%q res=%+v", ok, res.Success, reason, res)
 	}
-	if res.TranscriptOutcome != "clarify_control" {
-		t.Fatalf("expected outcome=clarify_control, got %q", res.TranscriptOutcome)
+	if res.Clarify != nil {
+		t.Fatalf("expected no clarify group on cancel, got %+v", res.Clarify)
 	}
 	if res.UiDisposition != "hidden" {
 		t.Fatalf("expected uiDisposition=hidden, got %q", res.UiDisposition)

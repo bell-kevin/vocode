@@ -8,9 +8,8 @@ import (
 // HandleEdit handles the "edit" route (scoped edit — stub until executor is ported).
 func HandleEdit(_ *SelectionDeps, _ protocol.VoiceTranscriptParams, _ *session.VoiceSession, _ string) (protocol.VoiceTranscriptCompletion, string) {
 	return protocol.VoiceTranscriptCompletion{
-		Success:           true,
-		Summary:           "core transcript (stub)",
-		TranscriptOutcome: "completed",
-		UiDisposition:     "hidden",
+		Success:       true,
+		Summary:       "core transcript (stub)",
+		UiDisposition: "hidden",
 	}, ""
 }

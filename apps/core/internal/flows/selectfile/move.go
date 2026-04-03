@@ -10,7 +10,6 @@ func HandleMove(_ *SelectFileDeps, _ protocol.VoiceTranscriptParams, _ *session.
 	return protocol.VoiceTranscriptCompletion{
 		Success:           true,
 		Summary:           "core transcript (stub)",
-		TranscriptOutcome: "completed",
 		UiDisposition:     "hidden",
 	}, ""
 }

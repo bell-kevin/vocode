@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vocoding.net/schemas/voice-transcript.workspace-hints.schema.json",
+  "title": "VoiceTranscriptWorkspaceHints",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "needsFolder": {
+      "type": "boolean",
+      "description": "Host should prompt to open a workspace folder (e.g. file selection without a folder)."
+    }
+  }
+}

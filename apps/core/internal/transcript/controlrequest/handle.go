@@ -20,10 +20,9 @@ func Handle(
 			vs.Clarify = nil
 		}
 		return protocol.VoiceTranscriptCompletion{
-			Success:           true,
-			Summary:           "Clarification cancelled",
-			TranscriptOutcome: "completed",
-			UiDisposition:     "hidden",
+			Success:       true,
+			Summary:       "Clarification cancelled",
+			UiDisposition: "hidden",
 		}, true
 
 	case "cancel_selection":
@@ -35,10 +34,10 @@ func Handle(
 			vs.BasePhase = session.BasePhaseMain
 		}
 		return protocol.VoiceTranscriptCompletion{
-			Success:           true,
-			Summary:           "Search session closed",
-			TranscriptOutcome: "completed",
-			UiDisposition:     "hidden",
+			Success:       true,
+			Summary:       "Search session closed",
+			Search:        &protocol.VoiceTranscriptSearchState{Closed: true},
+			UiDisposition: "hidden",
 		}, true
 	default:
 		return protocol.VoiceTranscriptCompletion{}, false

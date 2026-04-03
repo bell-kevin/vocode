@@ -8,9 +8,8 @@ import (
 // HandleDelete handles the "delete" route (delete selection — stub until executor is ported).
 func HandleDelete(_ *SelectionDeps, _ protocol.VoiceTranscriptParams, _ *session.VoiceSession, _ string) (protocol.VoiceTranscriptCompletion, string) {
 	return protocol.VoiceTranscriptCompletion{
-		Success:           true,
-		Summary:           "core transcript (stub)",
-		TranscriptOutcome: "completed",
-		UiDisposition:     "hidden",
+		Success:       true,
+		Summary:       "core transcript (stub)",
+		UiDisposition: "hidden",
 	}, ""
 }

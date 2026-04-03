@@ -12,20 +12,24 @@ import (
 func HandleSelectFileControl(_ *SelectFileDeps, _ protocol.VoiceTranscriptParams, vs *session.VoiceSession, text string) (protocol.VoiceTranscriptCompletion, string) {
 	op, pick, ok := listNavOp(text)
 	if !ok {
-		return protocol.VoiceTranscriptCompletion{
-			Success:                true,
-			TranscriptOutcome:      "irrelevant",
-			UiDisposition:          "skipped",
-			FileSelectionFocusPath: vs.FileSelectionFocus,
-		}, ""
+		c := protocol.VoiceTranscriptCompletion{
+			Success:       true,
+			UiDisposition: "skipped",
+		}
+		if strings.TrimSpace(vs.FileSelectionFocus) != "" {
+			c.FileSelection = &protocol.VoiceTranscriptFileSelectionState{FocusPath: vs.FileSelectionFocus}
+		}
+		return c, ""
 	}
 	applyFileSelectionControlOp(vs, op, pick)
 	return protocol.VoiceTranscriptCompletion{
-		Success:                true,
-		Summary:                "file focus updated",
-		TranscriptOutcome:      "file_selection_control",
-		UiDisposition:          "hidden",
-		FileSelectionFocusPath: vs.FileSelectionFocus,
+		Success:       true,
+		Summary:       "file focus updated",
+		UiDisposition: "hidden",
+		FileSelection: &protocol.VoiceTranscriptFileSelectionState{
+			FocusPath:      vs.FileSelectionFocus,
+			NavigatingList: true,
+		},
 	}, ""
 }
 

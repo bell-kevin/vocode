@@ -414,6 +414,136 @@ function isCreateFolderDirective(value: unknown): boolean {
   );
 }
 
+function isVoiceTranscriptSearchHit(value: unknown): boolean {
+  if (!isRecord(value)) {
+    return false;
+  }
+  if (!hasOnlyKeys(value, ["path", "line", "character", "preview"])) {
+    return false;
+  }
+  const rec = value as Record<string, unknown>;
+  if (typeof rec.path !== "string") {
+    return false;
+  }
+  if (!Number.isInteger(rec.line) || (rec.line as number) < 0) {
+    return false;
+  }
+  if (!Number.isInteger(rec.character) || (rec.character as number) < 0) {
+    return false;
+  }
+  if (typeof rec.preview !== "string") {
+    return false;
+  }
+  return true;
+}
+
+function isVoiceTranscriptSearchState(value: unknown): boolean {
+  if (!isRecord(value)) {
+    return false;
+  }
+  const keys = Object.keys(value);
+  if (!keys.every((k) =>
+    ["results", "activeIndex", "closed", "noHits"].includes(k),
+  )) {
+    return false;
+  }
+  if (value.results !== undefined) {
+    if (!Array.isArray(value.results)) {
+      return false;
+    }
+    for (const item of value.results) {
+      if (!isVoiceTranscriptSearchHit(item)) {
+        return false;
+      }
+    }
+  }
+  if (value.activeIndex !== undefined) {
+    if (
+      typeof value.activeIndex !== "number" ||
+      !Number.isInteger(value.activeIndex) ||
+      value.activeIndex < 0
+    ) {
+      return false;
+    }
+  }
+  if (value.closed !== undefined && typeof value.closed !== "boolean") {
+    return false;
+  }
+  if (value.noHits !== undefined && typeof value.noHits !== "boolean") {
+    return false;
+  }
+  return true;
+}
+
+function isVoiceTranscriptQuestionAnswer(value: unknown): boolean {
+  if (!isRecord(value)) {
+    return false;
+  }
+  if (!hasOnlyKeys(value, ["answerText"])) {
+    return false;
+  }
+  const rec = value as Record<string, unknown>;
+  if (typeof rec.answerText !== "string") {
+    return false;
+  }
+  if ([...rec.answerText].length > 8192) {
+    return false;
+  }
+  return true;
+}
+
+function isVoiceTranscriptClarifyOffer(value: unknown): boolean {
+  if (!isRecord(value)) {
+    return false;
+  }
+  if (!hasOnlyKeys(value, ["targetResolution"])) {
+    return false;
+  }
+  return typeof (value as Record<string, unknown>).targetResolution === "string";
+}
+
+function isVoiceTranscriptFileSelectionState(value: unknown): boolean {
+  if (!isRecord(value)) {
+    return false;
+  }
+  const keys = Object.keys(value);
+  if (!keys.every((k) =>
+    ["focusPath", "enterSession", "navigatingList"].includes(k),
+  )) {
+    return false;
+  }
+  const rec = value as Record<string, unknown>;
+  if (rec.focusPath !== undefined && typeof rec.focusPath !== "string") {
+    return false;
+  }
+  if (rec.enterSession !== undefined && typeof rec.enterSession !== "boolean") {
+    return false;
+  }
+  if (
+    rec.navigatingList !== undefined &&
+    typeof rec.navigatingList !== "boolean"
+  ) {
+    return false;
+  }
+  if (
+    rec.navigatingList === true &&
+    (typeof rec.focusPath !== "string" || rec.focusPath.trim() === "")
+  ) {
+    return false;
+  }
+  return true;
+}
+
+function isVoiceTranscriptWorkspaceHints(value: unknown): boolean {
+  if (!isRecord(value)) {
+    return false;
+  }
+  if (!hasOnlyKeys(value, ["needsFolder"])) {
+    return false;
+  }
+  return (value as Record<string, unknown>).needsFolder === true;
+}
+
 // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Validator is expected to be complex (exhaustive)
 export function isVoiceTranscriptCompletion(
   value: unknown,
@@ -424,13 +554,12 @@ export function isVoiceTranscriptCompletion(
   const allowedKeys = new Set([
     "success",
     "summary",
-    "transcriptOutcome",
     "uiDisposition",
-    "searchResults",
-    "activeSearchIndex",
-    "answerText",
-    "clarifyTargetResolution",
-    "fileSelectionFocusPath",
+    "search",
+    "question",
+    "clarify",
+    "fileSelection",
+    "workspace",
   ]);
   if (!Object.keys(value).every((k) => allowedKeys.has(k))) {
     return false;
@@ -446,32 +575,14 @@ export function isVoiceTranscriptCompletion(
   if (value.success !== true && value.summary !== undefined) {
     return false;
   }
-  if (value.transcriptOutcome !== undefined) {
-    if (value.success !== true) {
-      return false;
-    }
+  if (value.success !== true) {
     if (
-      value.transcriptOutcome !== "irrelevant" &&
-      value.transcriptOutcome !== "completed" &&
-      value.transcriptOutcome !== "clarify" &&
-      value.transcriptOutcome !== "clarify_control" &&
-      value.transcriptOutcome !== "search" &&
-      value.transcriptOutcome !== "selection" &&
-      value.transcriptOutcome !== "selection_control" &&
-      value.transcriptOutcome !== "file_selection" &&
-      value.transcriptOutcome !== "file_selection_control" &&
-      value.transcriptOutcome !== "needs_workspace_folder" &&
-      value.transcriptOutcome !== "answer"
+      value.search !== undefined ||
+      value.question !== undefined ||
+      value.clarify !== undefined ||
+      value.fileSelection !== undefined ||
+      value.workspace !== undefined
     ) {
-      return false;
-    }
-  }
-
-  if (value.clarifyTargetResolution !== undefined) {
-    if (value.success !== true) {
-      return false;
-    }
-    if (typeof value.clarifyTargetResolution !== "string") {
       return false;
     }
   }
@@ -489,73 +600,55 @@ export function isVoiceTranscriptCompletion(
     }
   }
 
-  if (value.searchResults !== undefined) {
-    if (value.success !== true) {
+  if (value.search !== undefined) {
+    if (value.success !== true || !isVoiceTranscriptSearchState(value.search)) {
       return false;
-    }
-    if (!Array.isArray(value.searchResults)) {
-      return false;
-    }
-    for (const item of value.searchResults) {
-      if (!isRecord(item)) {
-        return false;
-      }
-      if (!hasOnlyKeys(item, ["path", "line", "character", "preview"])) {
-        return false;
-      }
-      const rec = item as Record<string, unknown>;
-      if (typeof rec.path !== "string") {
-        return false;
-      }
-      if (!Number.isInteger(rec.line) || (rec.line as number) < 0) {
-        return false;
-      }
-      if (!Number.isInteger(rec.character) || (rec.character as number) < 0) {
-        return false;
-      }
-      if (typeof rec.preview !== "string") {
-        return false;
-      }
     }
   }
-  if (value.activeSearchIndex !== undefined) {
-    if (value.success !== true) {
+
+  if (value.question !== undefined) {
+    if (value.success !== true || !isVoiceTranscriptQuestionAnswer(value.question)) {
       return false;
     }
+    const q = value.question as { answerText?: string };
     if (
-      typeof value.activeSearchIndex !== "number" ||
-      !Number.isInteger(value.activeSearchIndex) ||
-      value.activeSearchIndex < 0
+      typeof q.answerText !== "string" ||
+      q.answerText.trim() === ""
     ) {
       return false;
     }
   }
-  if (value.answerText !== undefined) {
-    if (value.success !== true) {
+
+  if (value.clarify !== undefined) {
+    if (value.success !== true || !isVoiceTranscriptClarifyOffer(value.clarify)) {
       return false;
     }
-    if (typeof value.answerText !== "string") {
-      return false;
-    }
-    if ([...value.answerText].length > 8192) {
-      return false;
-    }
-  }
-  if (value.fileSelectionFocusPath !== undefined) {
-    if (value.success !== true) {
-      return false;
-    }
-    if (typeof value.fileSelectionFocusPath !== "string") {
-      return false;
-    }
-  }
-  if (value.transcriptOutcome === "file_selection_control") {
+    const c = value.clarify as { targetResolution?: string };
     if (
-      typeof value.fileSelectionFocusPath !== "string" ||
-      value.fileSelectionFocusPath.trim() === ""
+      typeof c.targetResolution !== "string" ||
+      c.targetResolution.trim() === ""
     ) {
       return false;
     }
   }
+
+  if (value.fileSelection !== undefined) {
+    if (
+      value.success !== true ||
+      !isVoiceTranscriptFileSelectionState(value.fileSelection)
+    ) {
+      return false;
+    }
+  }
+
+  if (value.workspace !== undefined) {
+    if (
+      value.success !== true ||
+      !isVoiceTranscriptWorkspaceHints(value.workspace)
+    ) {
+      return false;
+    }
+  }
+
   return true;
 }

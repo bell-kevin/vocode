@@ -54,10 +54,12 @@ func fileSelectionOpenPath(deps *SelectFileDeps, params protocol.VoiceTranscript
 	vs.PendingDirectiveApply = nil
 	vs.FileSelectionFocus = path
 	return protocol.VoiceTranscriptCompletion{
-		Success:                true,
-		Summary:                "open file",
-		TranscriptOutcome:      "file_selection_control",
-		UiDisposition:          "hidden",
-		FileSelectionFocusPath: path,
+		Success:       true,
+		Summary:       "open file",
+		UiDisposition: "hidden",
+		FileSelection: &protocol.VoiceTranscriptFileSelectionState{
+			FocusPath:      path,
+			NavigatingList: true,
+		},
 	}, ""
 }

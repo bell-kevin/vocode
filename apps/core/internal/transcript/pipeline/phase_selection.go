@@ -22,10 +22,9 @@ func runSelectionPhase(
 	if !ok {
 		persist(e, key, *vs)
 		return protocol.VoiceTranscriptCompletion{
-			Success:           true,
-			Summary:           "core transcript (stub)",
-			TranscriptOutcome: "completed",
-			UiDisposition:     "hidden",
+			Success:       true,
+			Summary:       "core transcript (stub)",
+			UiDisposition: "hidden",
 		}, true, ""
 	}
 	execRes, failure := selectflow.DispatchRoute(selectionDeps(e), params, vs, text, route, searchQuery)

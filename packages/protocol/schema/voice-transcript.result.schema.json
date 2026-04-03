@@ -14,70 +14,25 @@
       "description": "Human-readable summary when the agent ends the loop (control_done); for host UI.",
       "maxLength": 8192
     },
-    "transcriptOutcome": {
-      "type": "string",
-      "enum": [
-        "irrelevant",
-        "completed",
-        "clarify",
-        "clarify_control",
-        "search",
-        "selection",
-        "selection_control",
-        "file_selection",
-        "file_selection_control",
-        "needs_workspace_folder",
-        "answer"
-      ],
-      "description": "Daemon classification of this transcript. Omitted means completed (back-compat)."
-    },
     "uiDisposition": {
       "type": "string",
       "enum": ["shown", "skipped", "hidden"],
       "description": "Host UI directive: where (if anywhere) this completion should be logged."
     },
-    "answerText": {
-      "type": "string",
-      "description": "When transcriptOutcome=answer, the daemon returns a plain-text answer for the UI (no directives).",
-      "maxLength": 8192
+    "search": {
+      "$ref": "voice-transcript.search-state.schema.json"
     },
-    "searchResults": {
-      "type": "array",
-      "description": "When transcriptOutcome=search, the daemon returns a numbered list of search hits for voice navigation.",
-      "items": {
-        "type": "object",
-        "additionalProperties": false,
-        "properties": {
-          "path": {
-            "type": "string"
-          },
-          "line": {
-            "type": "integer",
-            "minimum": 0
-          },
-          "character": {
-            "type": "integer",
-            "minimum": 0
-          },
-          "preview": {
-            "type": "string"
-          }
-        },
-        "required": ["path", "line", "character", "preview"]
-      }
+    "question": {
+      "$ref": "voice-transcript.question-answer.schema.json"
     },
-    "activeSearchIndex": {
-      "type": "integer",
-      "minimum": 0,
-      "description": "0-based active index into searchResults for next/back navigation."
+    "clarify": {
+      "$ref": "voice-transcript.clarify-resolution.schema.json"
     },
-    "clarifyTargetResolution": {
-      "type": "string",
-      "description": "When entering clarify, which parent-flow resolution will run after the user answers (e.g. instruction, edit, question)."
+    "fileSelection": {
+      "$ref": "voice-transcript.file-selection-state.schema.json"
     },
-    "fileSelectionFocusPath": {
-      "type": "string",
-      "description": "After file_selection_control navigation, the workspace-jailed absolute path the host should focus in the file-selection UI."
+    "workspace": {
+      "$ref": "voice-transcript.workspace-hints.schema.json"
     }
   },
   "required": ["success"]

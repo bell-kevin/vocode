@@ -10,7 +10,6 @@ func HandleCreate(_ *SelectFileDeps, _ protocol.VoiceTranscriptParams, _ *sessio
 	return protocol.VoiceTranscriptCompletion{
 		Success:           true,
 		Summary:           "core transcript (stub)",
-		TranscriptOutcome: "completed",
 		UiDisposition:     "hidden",
 	}, ""
 }

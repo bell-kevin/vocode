@@ -26,10 +26,9 @@ func runFileSelectionPhase(
 		vs.BasePhase = session.BasePhaseMain
 		persist(e, key, *vs)
 		return protocol.VoiceTranscriptCompletion{
-			Success:           true,
-			Summary:           "File selection closed",
-			TranscriptOutcome: "completed",
-			UiDisposition:     "hidden",
+			Success:       true,
+			Summary:       "File selection closed",
+			UiDisposition: "hidden",
 		}, true, ""
 	}
 
@@ -37,10 +36,9 @@ func runFileSelectionPhase(
 		vs.BasePhase = session.BasePhaseMain
 		persist(e, key, *vs)
 		return protocol.VoiceTranscriptCompletion{
-			Success:           true,
-			Summary:           "No file hits in this session; use find file or your assistant file search to get a path list first.",
-			TranscriptOutcome: "completed",
-			UiDisposition:     "shown",
+			Success:       true,
+			Summary:       "No file hits in this session; use find file or your assistant file search to get a path list first.",
+			UiDisposition: "shown",
 		}, true, ""
 	}
 

@@ -83,12 +83,15 @@ func (e *Executor) Execute(
 	}
 	switch clsRes.Kind {
 	case agent.TranscriptIrrelevant:
-		return protocol.VoiceTranscriptCompletion{Success: true, TranscriptOutcome: "irrelevant", UiDisposition: "skipped"}, nil, gatheredIn, nil, true, ""
+		return protocol.VoiceTranscriptCompletion{Success: true, UiDisposition: "skipped"}, nil, gatheredIn, nil, true, ""
 	case agent.TranscriptQuestion:
 		ans := strings.TrimSpace(clsRes.AnswerText)
-		// Put the answer in both answerText (structured) and summary (UI fallback).
-		// Summary is what the panel shows even if answer-specific UI isn't available yet.
-		return protocol.VoiceTranscriptCompletion{Success: true, TranscriptOutcome: "answer", UiDisposition: "hidden", AnswerText: ans, Summary: ans}, nil, gatheredIn, nil, true, ""
+		return protocol.VoiceTranscriptCompletion{
+			Success:       true,
+			UiDisposition: "hidden",
+			Summary:       ans,
+			Question:      &protocol.VoiceTranscriptQuestionAnswer{AnswerText: ans},
+		}, nil, gatheredIn, nil, true, ""
 	case agent.TranscriptSearch:
 		query := strings.TrimSpace(clsRes.SearchQuery)
 		if query == "" {
@@ -103,17 +106,17 @@ func (e *Executor) Execute(
 	case agent.TranscriptFileSelection:
 		if !params.WorkspaceFolderOpen {
 			return protocol.VoiceTranscriptCompletion{
-				Success:           true,
-				Summary:           "Open a folder in VS Code to browse and change files by voice.",
-				TranscriptOutcome: "needs_workspace_folder",
-				UiDisposition:     "shown",
+				Success:       true,
+				Summary:       "Open a folder in VS Code to browse and change files by voice.",
+				UiDisposition: "shown",
+				Workspace:     &protocol.VoiceTranscriptWorkspaceHints{NeedsFolder: true},
 			}, nil, gatheredIn, nil, true, ""
 		}
 		return protocol.VoiceTranscriptCompletion{
-			Success:           true,
-			Summary:           "File selection",
-			TranscriptOutcome: "file_selection",
-			UiDisposition:     "hidden",
+			Success:       true,
+			Summary:       "File selection",
+			UiDisposition: "hidden",
+			FileSelection: &protocol.VoiceTranscriptFileSelectionState{EnterSession: true},
 		}, nil, gatheredIn, nil, true, ""
 	default:
 		// Model may pick "instruction" when the user clearly asked to find something in the repo
@@ -273,11 +276,10 @@ func (e *Executor) executeInstructionPath(
 			return protocol.VoiceTranscriptCompletion{Success: false}, nil, g, nil, true, err.Error()
 		}
 		return protocol.VoiceTranscriptCompletion{
-			Success:                 true,
-			Summary:                 q,
-			TranscriptOutcome:       "clarify",
-			UiDisposition:           "hidden",
-			ClarifyTargetResolution: targetRes,
+			Success:       true,
+			Summary:       q,
+			UiDisposition: "hidden",
+			Clarify:       &protocol.VoiceTranscriptClarifyOffer{TargetResolution: targetRes},
 		}, nil, g, nil, true, ""
 	}
 

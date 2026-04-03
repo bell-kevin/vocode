@@ -16,10 +16,9 @@ import (
 func Execute(e *run.Env, params protocol.VoiceTranscriptParams, opts *Opts) (protocol.VoiceTranscriptCompletion, bool, string) {
 	if e == nil || e.Ephemeral == nil || e.Sessions == nil {
 		return protocol.VoiceTranscriptCompletion{
-			Success:           true,
-			Summary:           "core transcript env not initialized",
-			TranscriptOutcome: "completed",
-			UiDisposition:     "hidden",
+			Success:       true,
+			Summary:       "core transcript env not initialized",
+			UiDisposition: "hidden",
 		}, true, ""
 	}
 
@@ -76,10 +75,9 @@ func tryClarifyTurn(
 		vs.Clarify = nil
 		persist(e, key, *vs)
 		return true, protocol.VoiceTranscriptCompletion{
-			Success:           true,
-			Summary:           "Clarification cancelled",
-			TranscriptOutcome: "clarify_control",
-			UiDisposition:     "hidden",
+			Success:       true,
+			Summary:       "Clarification cancelled",
+			UiDisposition: "hidden",
 		}
 	}
 
@@ -90,9 +88,8 @@ func tryClarifyTurn(
 	vs.Clarify = nil
 	persist(e, key, *vs)
 	return true, protocol.VoiceTranscriptCompletion{
-		Success:           true,
-		Summary:           "Clarification resolved",
-		TranscriptOutcome: "completed",
-		UiDisposition:     "hidden",
+		Success:       true,
+		Summary:       "Clarification resolved",
+		UiDisposition: "hidden",
 	}
 }

@@ -70,10 +70,9 @@ func (s *Service) SetHostApplyClient(
 func (s *Service) AcceptTranscript(params protocol.VoiceTranscriptParams) (protocol.VoiceTranscriptCompletion, bool, string) {
 	if s == nil || s.env == nil {
 		return protocol.VoiceTranscriptCompletion{
-			Success:           true,
-			Summary:           "core daemon not initialized yet",
-			TranscriptOutcome: "completed",
-			UiDisposition:     "hidden",
+			Success:       true,
+			Summary:       "core daemon not initialized yet",
+			UiDisposition: "hidden",
 		}, true, ""
 	}
 
@@ -106,9 +105,8 @@ func (s *Service) AcceptTranscript(params protocol.VoiceTranscriptParams) (proto
 	case s.queue <- job:
 	default:
 		return protocol.VoiceTranscriptCompletion{
-			Success:           false,
-			UiDisposition:     "hidden",
-			TranscriptOutcome: "completed",
+			Success:       false,
+			UiDisposition: "hidden",
 		}, true, "voice.transcript queue is full"
 	}
 	resp := <-respCh

@@ -45,10 +45,10 @@ func Execute(env *Env, params protocol.VoiceTranscriptParams) (protocol.VoiceTra
 			vs.FlowStack = agentcontext.PopWhileTopKind(vs.FlowStack, agentcontext.FlowKindClarify, agentcontext.FlowKindSelection)
 			env.persistSession(key, vs)
 			return protocol.VoiceTranscriptCompletion{
-				Success:           true,
-				Summary:           "Search session closed",
-				TranscriptOutcome: "completed",
-				UiDisposition:     "hidden",
+				Success:       true,
+				Summary:       "Search session closed",
+				Search:        &protocol.VoiceTranscriptSearchState{Closed: true},
+				UiDisposition: "hidden",
 			}, true, ""
 		case "cancel_clarify":
 			if ns, ok := agentcontext.FlowPopIfTop(vs.FlowStack, agentcontext.FlowKindClarify); ok {
@@ -56,10 +56,9 @@ func Execute(env *Env, params protocol.VoiceTranscriptParams) (protocol.VoiceTra
 			}
 			env.persistSession(key, vs)
 			return protocol.VoiceTranscriptCompletion{
-				Success:           true,
-				Summary:           "Clarification cancelled",
-				TranscriptOutcome: "completed",
-				UiDisposition:     "hidden",
+				Success:       true,
+				Summary:       "Clarification cancelled",
+				UiDisposition: "hidden",
 			}, true, ""
 		default:
 			return protocol.VoiceTranscriptCompletion{Success: false}, false, "unknown controlRequest"
@@ -75,10 +74,9 @@ func Execute(env *Env, params protocol.VoiceTranscriptParams) (protocol.VoiceTra
 			}
 			env.persistSession(key, vs)
 			return protocol.VoiceTranscriptCompletion{
-				Success:           true,
-				Summary:           "Clarification cancelled",
-				TranscriptOutcome: "clarify_control",
-				UiDisposition:     "hidden",
+				Success:       true,
+				Summary:       "Clarification cancelled",
+				UiDisposition: "hidden",
 			}, true, ""
 		}
 
@@ -115,10 +113,9 @@ func Execute(env *Env, params protocol.VoiceTranscriptParams) (protocol.VoiceTra
 			vs.FileSelectionFocus = ""
 			env.persistSession(key, vs)
 			return protocol.VoiceTranscriptCompletion{
-				Success:           true,
-				Summary:           "File selection closed",
-				TranscriptOutcome: "completed",
-				UiDisposition:     "hidden",
+				Success:       true,
+				Summary:       "File selection closed",
+				UiDisposition: "hidden",
 			}, true, ""
 		}
 	}
@@ -144,10 +141,10 @@ func Execute(env *Env, params protocol.VoiceTranscriptParams) (protocol.VoiceTra
 				vs.FlowStack = agentcontext.PopWhileTopKind(vs.FlowStack, agentcontext.FlowKindClarify, agentcontext.FlowKindSelection)
 				env.persistSession(key, vs)
 				return protocol.VoiceTranscriptCompletion{
-					Success:           true,
-					Summary:           "Search session closed",
-					TranscriptOutcome: "selection_control",
-					UiDisposition:     "hidden",
+					Success:       true,
+					Summary:       "Search session closed",
+					Search:        &protocol.VoiceTranscriptSearchState{Closed: true},
+					UiDisposition: "hidden",
 				}, true, ""
 			}
 			prevSearchIndex := vs.ActiveSearchIndex
@@ -167,12 +164,13 @@ func Execute(env *Env, params protocol.VoiceTranscriptParams) (protocol.VoiceTra
 			}
 			hit := vs.SearchResults[vs.ActiveSearchIndex]
 			res := protocol.VoiceTranscriptCompletion{
-				Success:           true,
-				Summary:           "search results",
-				TranscriptOutcome: "selection_control",
-				UiDisposition:     "hidden",
-				SearchResults:     voiceSessionHitsToWire(vs.SearchResults),
-				ActiveSearchIndex: ptrInt64(int64(vs.ActiveSearchIndex)),
+				Success:       true,
+				Summary:       "search results",
+				UiDisposition: "hidden",
+				Search: &protocol.VoiceTranscriptSearchState{
+					Results:     voiceSessionHitsToWire(vs.SearchResults),
+					ActiveIndex: ptrInt64(int64(vs.ActiveSearchIndex)),
+				},
 			}
 			dirs := []protocol.VoiceTranscriptDirective{
 				{
@@ -257,9 +255,9 @@ func Execute(env *Env, params protocol.VoiceTranscriptParams) (protocol.VoiceTra
 				agentcontext.FlowTopKind(vs.FlowStack),
 				len(vs.SearchResults) > 0,
 			)
-			if res.TranscriptOutcome == "clarify" && strings.TrimSpace(res.Summary) != "" {
+			if res.Clarify != nil && strings.TrimSpace(res.Summary) != "" {
 				parentFlow := agentcontext.FlowTopKind(vs.FlowStack)
-				target := strings.TrimSpace(res.ClarifyTargetResolution)
+				target := strings.TrimSpace(res.Clarify.TargetResolution)
 				if err := agentcontext.ValidateClarifyTargetResolution(parentFlow, target); err != nil {
 					env.persistSession(key, vs)
 					return protocol.VoiceTranscriptCompletion{Success: false}, true, err.Error()
@@ -377,22 +375,25 @@ func Execute(env *Env, params protocol.VoiceTranscriptParams) (protocol.VoiceTra
 		if !res.Success && strings.TrimSpace(reason) != "" {
 			return res, ok, reason
 		}
-		if res.TranscriptOutcome == "search" || res.TranscriptOutcome == "selection" {
-			if len(res.SearchResults) > 0 {
-				vs.SearchResults = wireHitsToVoiceSession(res.SearchResults)
-				if res.ActiveSearchIndex != nil {
-					vs.ActiveSearchIndex = int(*res.ActiveSearchIndex)
+		if res.Search != nil {
+			s := res.Search
+			if s.Closed || s.NoHits {
+				vs.SearchResults = nil
+				vs.ActiveSearchIndex = 0
+				syncSelectionStackForHits(&vs)
+				env.persistSession(key, vs)
+			} else if len(s.Results) > 0 {
+				vs.SearchResults = wireHitsToVoiceSession(s.Results)
+				if s.ActiveIndex != nil {
+					vs.ActiveSearchIndex = int(*s.ActiveIndex)
 				} else {
 					vs.ActiveSearchIndex = 0
 				}
-			} else {
-				vs.SearchResults = nil
-				vs.ActiveSearchIndex = 0
+				syncSelectionStackForHits(&vs)
+				env.persistSession(key, vs)
 			}
-			syncSelectionStackForHits(&vs)
-			env.persistSession(key, vs)
 		}
-		if res.TranscriptOutcome == "file_selection" && agentcontext.FlowTopKind(vs.FlowStack) != agentcontext.FlowKindFileSelection {
+		if res.FileSelection != nil && res.FileSelection.EnterSession && agentcontext.FlowTopKind(vs.FlowStack) != agentcontext.FlowKindFileSelection {
 			vs.FileSelectionPaths = nil
 			vs.FileSelectionIndex = 0
 			vs.FileSelectionFocus = ""
@@ -401,9 +402,9 @@ func Execute(env *Env, params protocol.VoiceTranscriptParams) (protocol.VoiceTra
 			}
 			env.persistSession(key, vs)
 		}
-		if res.TranscriptOutcome == "clarify" && strings.TrimSpace(res.Summary) != "" {
+		if res.Clarify != nil && strings.TrimSpace(res.Summary) != "" {
 			parentFlow := agentcontext.FlowTopKind(vs.FlowStack)
-			target := strings.TrimSpace(res.ClarifyTargetResolution)
+			target := strings.TrimSpace(res.Clarify.TargetResolution)
 			if err := agentcontext.ValidateClarifyTargetResolution(parentFlow, target); err != nil {
 				env.persistSession(key, vs)
 				return protocol.VoiceTranscriptCompletion{Success: false}, ok, err.Error()
@@ -444,19 +445,21 @@ func Execute(env *Env, params protocol.VoiceTranscriptParams) (protocol.VoiceTra
 		return protocol.VoiceTranscriptCompletion{Success: false}, true, "host apply failed: " + err.Error()
 	}
 
-	if res.TranscriptOutcome == "search" || res.TranscriptOutcome == "selection" {
-		if len(res.SearchResults) > 0 {
-			vs.SearchResults = wireHitsToVoiceSession(res.SearchResults)
-			if res.ActiveSearchIndex != nil {
-				vs.ActiveSearchIndex = int(*res.ActiveSearchIndex)
+	if res.Search != nil {
+		s := res.Search
+		if s.Closed || s.NoHits {
+			vs.SearchResults = nil
+			vs.ActiveSearchIndex = 0
+			syncSelectionStackForHits(&vs)
+		} else if len(s.Results) > 0 {
+			vs.SearchResults = wireHitsToVoiceSession(s.Results)
+			if s.ActiveIndex != nil {
+				vs.ActiveSearchIndex = int(*s.ActiveIndex)
 			} else {
 				vs.ActiveSearchIndex = 0
 			}
-		} else {
-			vs.SearchResults = nil
-			vs.ActiveSearchIndex = 0
+			syncSelectionStackForHits(&vs)
 		}
-		syncSelectionStackForHits(&vs)
 	}
 
 	env.persistSession(key, vs)

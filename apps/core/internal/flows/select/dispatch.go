@@ -56,25 +56,10 @@ func DispatchRoute(
 	}
 }
 
-func wireHitsToProtocol(in []session.SearchHit) []struct {
-	Path      string `json:"path"`
-	Line      int64  `json:"line"`
-	Character int64  `json:"character"`
-	Preview   string `json:"preview"`
-} {
-	out := make([]struct {
-		Path      string `json:"path"`
-		Line      int64  `json:"line"`
-		Character int64  `json:"character"`
-		Preview   string `json:"preview"`
-	}, 0, len(in))
+func wireHitsToProtocol(in []session.SearchHit) []protocol.VoiceTranscriptSearchHit {
+	out := make([]protocol.VoiceTranscriptSearchHit, 0, len(in))
 	for _, h := range in {
-		out = append(out, struct {
-			Path      string `json:"path"`
-			Line      int64  `json:"line"`
-			Character int64  `json:"character"`
-			Preview   string `json:"preview"`
-		}{
+		out = append(out, protocol.VoiceTranscriptSearchHit{
 			Path:      h.Path,
 			Line:      int64(h.Line),
 			Character: int64(h.Character),

@@ -63,8 +63,8 @@ func TestAcceptTranscript_searchControl_exitClearsSession(t *testing.T) {
 			if !ok || !res.Success || reason != "" {
 				t.Fatalf("got ok=%v success=%v reason=%q res=%+v", ok, res.Success, reason, res)
 			}
-			if res.TranscriptOutcome != "selection_control" {
-				t.Fatalf("expected outcome=selection_control (search exit), got %q", res.TranscriptOutcome)
+			if res.Search == nil || !res.Search.Closed {
+				t.Fatalf("expected search.closed (search exit), got %+v", res.Search)
 			}
 			if res.UiDisposition != "hidden" {
 				t.Fatalf("expected uiDisposition=hidden, got %q", res.UiDisposition)

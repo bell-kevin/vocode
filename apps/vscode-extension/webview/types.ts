@@ -44,20 +44,7 @@ export type HandledRow = {
   text: string;
   receivedAt: string;
   summary?: string;
-  transcriptOutcome?:
-    | "irrelevant"
-    | "completed"
-    | "clarify"
-    | "clarify_control"
-    | "search"
-    | "selection"
-    | "selection_control"
-    | "file_selection"
-    | "file_selection_control"
-    | "needs_workspace_folder"
-    | "answer";
-  answerText?: string;
   errorMessage?: string;
-  /** Irrelevant / non-actionable transcript (daemon transcriptOutcome irrelevant). */
+  /** Irrelevant / non-actionable transcript (`uiDisposition: skipped`). */
   skipped?: true;
 };

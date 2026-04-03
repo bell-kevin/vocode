@@ -17,123 +17,98 @@ test("isVoiceTranscriptCompletion accepts summary when success", () => {
   );
 });
 
-test("isVoiceTranscriptCompletion accepts transcriptOutcome when success", () => {
+test("isVoiceTranscriptCompletion accepts uiDisposition when success", () => {
   assert.equal(
     isVoiceTranscriptCompletion({
       success: true,
       summary: "Not a coding request.",
-      transcriptOutcome: "irrelevant",
       uiDisposition: "skipped",
     }),
     true,
   );
 });
 
-test("isVoiceTranscriptCompletion accepts selection_control outcome when success", () => {
+test("isVoiceTranscriptCompletion accepts search with results + activeIndex", () => {
   assert.equal(
     isVoiceTranscriptCompletion({
       success: true,
-      transcriptOutcome: "selection_control",
       uiDisposition: "hidden",
-      searchResults: [
-        { path: "c:\\\\x.ts", line: 0, character: 1, preview: "hit" },
-      ],
-      activeSearchIndex: 0,
+      search: {
+        results: [
+          { path: "c:\\\\x.ts", line: 0, character: 1, preview: "hit" },
+        ],
+        activeIndex: 0,
+      },
     }),
     true,
   );
 });
 
-test("isVoiceTranscriptCompletion accepts clarify_control outcome when success", () => {
+test("isVoiceTranscriptCompletion accepts search closed (control / cancel)", () => {
   assert.equal(
     isVoiceTranscriptCompletion({
       success: true,
-      transcriptOutcome: "clarify_control",
+      uiDisposition: "hidden",
+      search: { closed: true },
+      summary: "Search session closed",
+    }),
+    true,
+  );
+});
+
+test("isVoiceTranscriptCompletion accepts clarify offer + summary", () => {
+  assert.equal(
+    isVoiceTranscriptCompletion({
+      success: true,
       uiDisposition: "hidden",
       summary: "Clarification cancelled",
+      clarify: { targetResolution: "instruction" },
     }),
     true,
   );
 });
 
-test("isVoiceTranscriptCompletion accepts answer outcome with answerText", () => {
+test("isVoiceTranscriptCompletion accepts question group with answerText", () => {
   assert.equal(
     isVoiceTranscriptCompletion({
       success: true,
-      transcriptOutcome: "answer",
-      answerText: "About 10,957 or 10,958 depending on leap years.",
+      question: {
+        answerText: "About 10,957 or 10,958 depending on leap years.",
+      },
     }),
     true,
   );
 });
 
-test("isVoiceTranscriptCompletion accepts selection outcome with searchResults", () => {
+test("isVoiceTranscriptCompletion accepts workspace needsFolder", () => {
   assert.equal(
     isVoiceTranscriptCompletion({
       success: true,
-      transcriptOutcome: "selection",
-      searchResults: [
-        {
-          path: "c:\\\\x.ts",
-          line: 0,
-          character: 1,
-          preview: "function test() {}",
-        },
-      ],
-      activeSearchIndex: 0,
-    }),
-    true,
-  );
-});
-
-test("isVoiceTranscriptCompletion accepts needs_workspace_folder outcome", () => {
-  assert.equal(
-    isVoiceTranscriptCompletion({
-      success: true,
-      transcriptOutcome: "needs_workspace_folder",
       summary: "Open a folder first.",
       uiDisposition: "shown",
+      workspace: { needsFolder: true },
     }),
     true,
   );
 });
 
-test("isVoiceTranscriptCompletion accepts clarifyTargetResolution", () => {
+test("isVoiceTranscriptCompletion accepts clarify targetResolution", () => {
   assert.equal(
     isVoiceTranscriptCompletion({
       success: true,
-      transcriptOutcome: "clarify",
+      uiDisposition: "hidden",
       summary: "Which symbol?",
-      clarifyTargetResolution: "instruction",
+      clarify: { targetResolution: "instruction" },
     }),
     true,
   );
 });
 
-test("isVoiceTranscriptCompletion accepts search outcome with searchResults", () => {
-  assert.equal(
-    isVoiceTranscriptCompletion({
-      success: true,
-      transcriptOutcome: "search",
-      searchResults: [
-        {
-          path: "c:\\\\x.ts",
-          line: 0,
-          character: 1,
-          preview: "function test() {}",
-        },
-      ],
-      activeSearchIndex: 0,
-    }),
-    true,
-  );
-});
-
-test("isVoiceTranscriptCompletion rejects transcriptOutcome when not success", () => {
+test("isVoiceTranscriptCompletion rejects grouped fields when not success", () => {
   assert.equal(
     isVoiceTranscriptCompletion({
       success: false,
-      transcriptOutcome: "irrelevant",
+      search: { closed: true },
     }),
     false,
   );
@@ -173,24 +148,36 @@ test("isVoiceTranscriptCompletion rejects extra keys (unexpected property)", () 
   );
 });
 
-test("isVoiceTranscriptCompletion accepts file_selection_control with fileSelectionFocusPath", () => {
+test("isVoiceTranscriptCompletion accepts fileSelection navigatingList with focusPath", () => {
   assert.equal(
     isVoiceTranscriptCompletion({
       success: true,
-      transcriptOutcome: "file_selection_control",
       uiDisposition: "hidden",
-      fileSelectionFocusPath: "C:\\\\repo\\\\src\\\\main.ts",
+      fileSelection: {
+        focusPath: "C:\\\\repo\\\\src\\\\main.ts",
+        navigatingList: true,
+      },
     }),
     true,
   );
 });
 
-test("isVoiceTranscriptCompletion rejects file_selection_control without focus path", () => {
+test("isVoiceTranscriptCompletion rejects fileSelection navigatingList without focus path", () => {
   assert.equal(
     isVoiceTranscriptCompletion({
       success: true,
-      transcriptOutcome: "file_selection_control",
       uiDisposition: "hidden",
+      fileSelection: { navigatingList: true },
+    }),
+    false,
+  );
+});
+
+test("isVoiceTranscriptCompletion rejects question without non-empty answerText", () => {
+  assert.equal(
+    isVoiceTranscriptCompletion({
+      success: true,
+      question: { answerText: "   " },
     }),
     false,
   );

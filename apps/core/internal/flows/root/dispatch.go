@@ -20,9 +20,8 @@ type RootDeps struct {
 // IrrelevantSkipped is the completion when root has nothing actionable (no heuristic search).
 func IrrelevantSkipped() (protocol.VoiceTranscriptCompletion, string) {
 	return protocol.VoiceTranscriptCompletion{
-		Success:           true,
-		TranscriptOutcome: "irrelevant",
-		UiDisposition:     "skipped",
+		Success:       true,
+		UiDisposition: "skipped",
 	}, ""
 }
 
@@ -56,11 +55,10 @@ func DispatchRoute(
 	case "question":
 		ans := stubQuestionAnswer()
 		return protocol.VoiceTranscriptCompletion{
-			Success:           true,
-			TranscriptOutcome: "answer",
-			UiDisposition:     "hidden",
-			AnswerText:        ans,
-			Summary:           ans,
+			Success:       true,
+			UiDisposition: "hidden",
+			Summary:       ans,
+			Question:      &protocol.VoiceTranscriptQuestionAnswer{AnswerText: ans},
 		}, ""
 
 	case "irrelevant":
@@ -85,10 +83,9 @@ func ExecuteMainPhase(
 	text = strings.TrimSpace(text)
 	if text == "" {
 		return protocol.VoiceTranscriptCompletion{
-			Success:           true,
-			Summary:           "core transcript (stub)",
-			TranscriptOutcome: "completed",
-			UiDisposition:     "hidden",
+			Success:       true,
+			Summary:       "core transcript (stub)",
+			UiDisposition: "hidden",
 		}, ""
 	}
 

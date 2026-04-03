@@ -66,23 +66,18 @@ func workspaceSearch(
 		return protocol.VoiceTranscriptCompletion{Success: false}, nil, gatheredIn, nil, true, fmt.Sprintf("search failed: %v", err)
 	}
 	if len(hits) == 0 {
-		return protocol.VoiceTranscriptCompletion{Success: true, Summary: fmt.Sprintf("no matches for %q", query), TranscriptOutcome: "search", UiDisposition: "hidden"}, nil, gatheredIn, nil, true, ""
+		return protocol.VoiceTranscriptCompletion{
+			Success:       true,
+			Summary:       fmt.Sprintf("no matches for %q", query),
+			UiDisposition: "hidden",
+			Search:        &protocol.VoiceTranscriptSearchState{NoHits: true},
+		}, nil, gatheredIn, nil, true, ""
 	}
 
 	first := hits[0]
-	wireHits := make([]struct {
-		Path      string `json:"path"`
-		Line      int64  `json:"line"`
-		Character int64  `json:"character"`
-		Preview   string `json:"preview"`
-	}, 0, len(hits))
+	wireHits := make([]protocol.VoiceTranscriptSearchHit, 0, len(hits))
 	for _, h := range hits {
-		wireHits = append(wireHits, struct {
-			Path      string `json:"path"`
-			Line      int64  `json:"line"`
-			Character int64  `json:"character"`
-			Preview   string `json:"preview"`
-		}{
+		wireHits = append(wireHits, protocol.VoiceTranscriptSearchHit{
 			Path:      h.Path,
 			Line:      int64(h.Line0),
 			Character: int64(h.Char0),
@@ -141,12 +136,13 @@ func workspaceSearch(
 	pending := &agentcontext.DirectiveApplyBatch{ID: batchID, NumDirectives: 2}
 	z := int64(0)
 	return protocol.VoiceTranscriptCompletion{
-		Success:           true,
-		Summary:           fmt.Sprintf("found %d matches for %q; opened first", len(hits), query),
-		TranscriptOutcome: "selection",
-		UiDisposition:     "hidden",
-		SearchResults:     wireHits,
-		ActiveSearchIndex: &z,
+		Success:       true,
+		Summary:       fmt.Sprintf("found %d matches for %q; opened first", len(hits), query),
+		UiDisposition: "hidden",
+		Search: &protocol.VoiceTranscriptSearchState{
+			Results:     wireHits,
+			ActiveIndex: &z,
+		},
 	}, []protocol.VoiceTranscriptDirective{open, sel}, gatheredIn, pending, true, ""
 }
 

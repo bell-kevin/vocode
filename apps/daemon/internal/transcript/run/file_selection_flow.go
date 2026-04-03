@@ -20,7 +20,7 @@ var (
 	fileCreateDRe = regexp.MustCompile(`(?i)\bcreate\s+folder\s+(\S+)\s*$`)
 )
 
-// HandleFileSelectionUtterance implements file-selection flow: file_selection_control navigation and workspace directives.
+// HandleFileSelectionUtterance implements file-selection flow: file list navigation and workspace directives.
 func HandleFileSelectionUtterance(
 	params protocol.VoiceTranscriptParams,
 	vs *agentcontext.VoiceSession,
@@ -36,10 +36,9 @@ func HandleFileSelectionUtterance(
 	paths := vs.FileSelectionPaths
 	if len(paths) == 0 {
 		return protocol.VoiceTranscriptCompletion{
-			Success:           true,
-			Summary:           "Workspace has no files to navigate",
-			TranscriptOutcome: "irrelevant",
-			UiDisposition:     "hidden",
+			Success:       true,
+			Summary:       "Workspace has no files to navigate",
+			UiDisposition: "hidden",
 		}, nil, ""
 	}
 
@@ -58,7 +57,7 @@ func HandleFileSelectionUtterance(
 	text := strings.TrimSpace(params.Text)
 	tl := strings.ToLower(text)
 
-	// file_selection_control: reuse selection-style nav over the flat file list.
+	// List navigation over the flat file list.
 	if navKind, ord, ok := parseSelectionNav(text); ok && navKind != "exit" {
 		switch navKind {
 		case "next":
@@ -77,15 +76,16 @@ func HandleFileSelectionUtterance(
 		focus = paths[vs.FileSelectionIndex]
 		vs.FileSelectionFocus = focus
 		return protocol.VoiceTranscriptCompletion{
-			Success:                true,
-			Summary:                "file focus updated",
-			TranscriptOutcome:      "file_selection_control",
-			UiDisposition:          "hidden",
-			FileSelectionFocusPath: focus,
+			Success:       true,
+			Summary:       "file focus updated",
+			UiDisposition: "hidden",
+			FileSelection: &protocol.VoiceTranscriptFileSelectionState{
+				FocusPath:      focus,
+				NavigatingList: true,
+			},
 		}, nil, ""
 	}
 
-	// Heuristic ops (single utterance); ambiguous paths use clarify with registry targets.
 	if fileOpenRe.MatchString(tl) && !fileDeleteRe.MatchString(tl) {
 		return openFileDirectiveCompletion(focus)
 	}
@@ -106,10 +106,9 @@ func HandleFileSelectionUtterance(
 		}
 		vs.FileSelectionPaths = nil
 		return protocol.VoiceTranscriptCompletion{
-			Success:           true,
-			Summary:           "delete file",
-			TranscriptOutcome: "file_selection",
-			UiDisposition:     "shown",
+			Success:       true,
+			Summary:       "delete file",
+			UiDisposition: "shown",
 		}, []protocol.VoiceTranscriptDirective{d}, ""
 	}
 	if m := fileRenameRe.FindStringSubmatch(text); len(m) == 2 {
@@ -134,11 +133,10 @@ func HandleFileSelectionUtterance(
 		vs.FileSelectionFocus = dest
 		vs.FileSelectionPaths = nil
 		return protocol.VoiceTranscriptCompletion{
-			Success:                true,
-			Summary:                "rename (move)",
-			TranscriptOutcome:      "file_selection",
-			UiDisposition:          "shown",
-			FileSelectionFocusPath: dest,
+			Success:       true,
+			Summary:       "rename (move)",
+			UiDisposition: "shown",
+			FileSelection: &protocol.VoiceTranscriptFileSelectionState{FocusPath: dest},
 		}, []protocol.VoiceTranscriptDirective{d}, ""
 	}
 	if m := fileMoveRe.FindStringSubmatch(text); len(m) == 2 {
@@ -168,11 +166,10 @@ func HandleFileSelectionUtterance(
 			vs.FileSelectionFocus = destFile
 			vs.FileSelectionPaths = nil
 			return protocol.VoiceTranscriptCompletion{
-				Success:                true,
-				Summary:                "move file",
-				TranscriptOutcome:      "file_selection",
-				UiDisposition:          "shown",
-				FileSelectionFocusPath: destFile,
+				Success:       true,
+				Summary:       "move file",
+				UiDisposition: "shown",
+				FileSelection: &protocol.VoiceTranscriptFileSelectionState{FocusPath: destFile},
 			}, []protocol.VoiceTranscriptDirective{d}, ""
 		}
 		return protocol.VoiceTranscriptCompletion{Success: false}, nil, "move destination escapes workspace"
@@ -211,11 +208,10 @@ func HandleFileSelectionUtterance(
 		vs.FileSelectionFocus = newPath
 		vs.FileSelectionPaths = nil
 		return protocol.VoiceTranscriptCompletion{
-			Success:                true,
-			Summary:                "create file",
-			TranscriptOutcome:      "file_selection",
-			UiDisposition:          "shown",
-			FileSelectionFocusPath: newPath,
+			Success:       true,
+			Summary:       "create file",
+			UiDisposition: "shown",
+			FileSelection: &protocol.VoiceTranscriptFileSelectionState{FocusPath: newPath},
 		}, []protocol.VoiceTranscriptDirective{d}, ""
 	}
 	if m := fileCreateDRe.FindStringSubmatch(text); len(m) == 2 {
@@ -244,10 +240,9 @@ func HandleFileSelectionUtterance(
 		}
 		vs.FileSelectionPaths = nil
 		return protocol.VoiceTranscriptCompletion{
-			Success:           true,
-			Summary:           "create folder",
-			TranscriptOutcome: "file_selection",
-			UiDisposition:     "shown",
+			Success:       true,
+			Summary:       "create folder",
+			UiDisposition: "shown",
 		}, []protocol.VoiceTranscriptDirective{d}, ""
 	}
 
@@ -259,9 +254,8 @@ func HandleFileSelectionUtterance(
 	}
 
 	return protocol.VoiceTranscriptCompletion{
-		Success:           true,
-		TranscriptOutcome: "irrelevant",
-		UiDisposition:     "hidden",
+		Success:       true,
+		UiDisposition: "hidden",
 	}, nil, ""
 }
 
@@ -270,11 +264,10 @@ func clarifyFile(target, q string) (protocol.VoiceTranscriptCompletion, []protoc
 		return protocol.VoiceTranscriptCompletion{}, nil, err.Error()
 	}
 	return protocol.VoiceTranscriptCompletion{
-		Success:                 true,
-		Summary:                 q,
-		TranscriptOutcome:       "clarify",
-		UiDisposition:           "hidden",
-		ClarifyTargetResolution: target,
+		Success:       true,
+		Summary:       q,
+		UiDisposition: "hidden",
+		Clarify:       &protocol.VoiceTranscriptClarifyOffer{TargetResolution: target},
 	}, nil, ""
 }
 
@@ -292,10 +285,12 @@ func openFileDirectiveCompletion(path string) (protocol.VoiceTranscriptCompletio
 		},
 	}
 	return protocol.VoiceTranscriptCompletion{
-		Success:                true,
-		Summary:                "open file",
-		TranscriptOutcome:      "file_selection",
-		UiDisposition:          "hidden",
-		FileSelectionFocusPath: path,
+		Success:       true,
+		Summary:       "open file",
+		UiDisposition: "hidden",
+		FileSelection: &protocol.VoiceTranscriptFileSelectionState{
+			FocusPath:      path,
+			NavigatingList: true,
+		},
 	}, []protocol.VoiceTranscriptDirective{d}, ""
 }

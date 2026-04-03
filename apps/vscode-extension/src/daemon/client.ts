@@ -43,11 +43,12 @@ export class DaemonClient {
     if (method === "voice.transcript") {
       try {
         const rec = result as Record<string, unknown>;
+        const q = rec?.question as Record<string, unknown> | undefined;
         console.log("[vocode] voice.transcript result", {
           keys: typeof rec === "object" && rec ? Object.keys(rec) : [],
-          transcriptOutcome: rec?.transcriptOutcome,
-          hasAnswerText:
-            typeof rec?.answerText === "string" && rec.answerText.length > 0,
+          hasSearch: rec?.search !== undefined,
+          hasQuestionAnswer:
+            typeof q?.answerText === "string" && q.answerText.length > 0,
         });
       } catch {
         // ignore debug log failures

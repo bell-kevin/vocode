@@ -51,9 +51,8 @@ func fileSelectionDeletePath(deps *SelectFileDeps, params protocol.VoiceTranscri
 	vs.PendingDirectiveApply = nil
 	vs.FileSelectionPaths = nil
 	return protocol.VoiceTranscriptCompletion{
-		Success:           true,
-		Summary:           "delete file",
-		TranscriptOutcome: "file_selection",
-		UiDisposition:     "shown",
+		Success:       true,
+		Summary:       "delete file",
+		UiDisposition: "shown",
 	}, ""
 }

@@ -49,24 +49,25 @@ func selectFileSearchMiss(host flows.ID, vs *session.VoiceSession) protocol.Voic
 	switch host {
 	case flows.Root:
 		return protocol.VoiceTranscriptCompletion{
-			Success:           true,
-			TranscriptOutcome: "irrelevant",
-			UiDisposition:     "skipped",
+			Success:       true,
+			UiDisposition: "skipped",
 		}
 	case flows.SelectFile:
+		fs := &protocol.VoiceTranscriptFileSelectionState{FocusPath: vs.FileSelectionFocus}
+		if strings.TrimSpace(vs.FileSelectionFocus) != "" {
+			fs.NavigatingList = true
+		}
 		return protocol.VoiceTranscriptCompletion{
-			Success:                true,
-			Summary:                "file focus updated",
-			TranscriptOutcome:      "file_selection_control",
-			UiDisposition:          "hidden",
-			FileSelectionFocusPath: vs.FileSelectionFocus,
+			Success:       true,
+			Summary:       "file focus updated",
+			UiDisposition: "hidden",
+			FileSelection: fs,
 		}
 	default: // flows.Select
 		return protocol.VoiceTranscriptCompletion{
-			Success:           true,
-			Summary:           "core transcript (stub)",
-			TranscriptOutcome: "completed",
-			UiDisposition:     "hidden",
+			Success:       true,
+			Summary:       "core transcript (stub)",
+			UiDisposition: "hidden",
 		}
 	}
 }

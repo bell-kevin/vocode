@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vocoding.net/schemas/voice-transcript.question-answer.schema.json",
+  "title": "VoiceTranscriptQuestionAnswer",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "answerText": {
+      "type": "string",
+      "description": "Plain-text answer for a spoken question.",
+      "maxLength": 8192
+    }
+  }
+}

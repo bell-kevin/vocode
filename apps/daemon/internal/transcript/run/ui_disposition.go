@@ -25,7 +25,7 @@ func applyTranscriptUIDisposition(
 		return
 	}
 
-	if res.TranscriptOutcome == "irrelevant" &&
+	if strings.TrimSpace(res.UiDisposition) == "skipped" &&
 		(topFlow == agentcontext.FlowKindFileSelection ||
 			(topFlow == agentcontext.FlowKindSelection && hasSearchHits)) {
 		res.UiDisposition = "hidden"
@@ -33,31 +33,33 @@ func applyTranscriptUIDisposition(
 	}
 
 	if strings.TrimSpace(res.UiDisposition) == "" {
-		res.UiDisposition = inferTranscriptUIDisposition(res.TranscriptOutcome, hasSearchHits)
+		res.UiDisposition = inferTranscriptUIDisposition(res)
 	}
 }
 
-// inferTranscriptUIDisposition is the default mapping from transcriptOutcome → uiDisposition when
-// the executor or a flow handler leaves uiDisposition empty. Keep in sync with protocol docs and
-// the extension panel (main-panel-store fallback switch).
-func inferTranscriptUIDisposition(outcome string, hasActiveSearchHits bool) string {
-	switch strings.TrimSpace(outcome) {
-	case "", "completed":
-		return "shown"
-	case "answer":
-		return "hidden"
-	case "search", "selection", "selection_control",
-		"clarify", "clarify_control",
-		"file_selection", "file_selection_control":
-		return "hidden"
-	case "needs_workspace_folder":
-		return "shown"
-	case "irrelevant":
-		if hasActiveSearchHits {
-			return "hidden"
-		}
-		return "skipped"
-	default:
+// inferTranscriptUIDisposition is the default mapping when uiDisposition is empty. Keep in sync
+// with the extension panel.
+func inferTranscriptUIDisposition(res *protocol.VoiceTranscriptCompletion) string {
+	if res.Question != nil && strings.TrimSpace(res.Question.AnswerText) != "" {
 		return "hidden"
 	}
+	if res.Search != nil {
+		s := res.Search
+		if s.Closed || s.NoHits || len(s.Results) > 0 {
+			return "hidden"
+		}
+	}
+	if res.Clarify != nil && strings.TrimSpace(res.Clarify.TargetResolution) != "" {
+		return "hidden"
+	}
+	if res.FileSelection != nil {
+		fs := res.FileSelection
+		if fs.EnterSession || fs.NavigatingList || strings.TrimSpace(fs.FocusPath) != "" {
+			return "hidden"
+		}
+	}
+	if res.Workspace != nil && res.Workspace.NeedsFolder {
+		return "shown"
+	}
+	return "shown"
 }

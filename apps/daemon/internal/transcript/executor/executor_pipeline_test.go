@@ -294,8 +294,8 @@ func TestExecutor_FileSelection_RequiresWorkspaceFolder(t *testing.T) {
 	if len(dirs) != 0 || pending != nil {
 		t.Fatalf("expected no directives")
 	}
-	if res.TranscriptOutcome != "needs_workspace_folder" {
-		t.Fatalf("expected needs_workspace_folder, got %q", res.TranscriptOutcome)
+	if res.Workspace == nil || !res.Workspace.NeedsFolder {
+		t.Fatalf("expected workspace.needsFolder, got %+v", res.Workspace)
 	}
 }
 
@@ -330,8 +330,8 @@ func TestExecutor_ForceSearchQuery_skipsClassifierAndScopedEdit(t *testing.T) {
 		t.Fatalf("expected success, got ok=%v success=%v reason=%q", ok, res.Success, reason)
 	}
 	// No matches avoids requiring ripgrep to parse output; still proves classifier/edit path was skipped.
-	if res.TranscriptOutcome != "search" {
-		t.Fatalf("expected search outcome (no hits), got %q summary=%q", res.TranscriptOutcome, res.Summary)
+	if res.Search == nil || !res.Search.NoHits {
+		t.Fatalf("expected search.noHits (no hits), got %+v summary=%q", res.Search, res.Summary)
 	}
 	if len(dirs) != 0 {
 		t.Fatalf("expected no directives for empty search, got %d", len(dirs))
@@ -363,7 +363,7 @@ func TestExecutor_ClassifierQuestion_ReturnsAnswerOutcome(t *testing.T) {
 	if len(dirs) != 0 || pending != nil {
 		t.Fatalf("expected no directives for answer")
 	}
-	if res.TranscriptOutcome != "answer" || res.AnswerText != "Because." {
-		t.Fatalf("expected answer outcome, got outcome=%q answer=%q", res.TranscriptOutcome, res.AnswerText)
+	if res.Question == nil || res.Question.AnswerText != "Because." {
+		t.Fatalf("expected question.answerText, got %+v", res.Question)
 	}
 }

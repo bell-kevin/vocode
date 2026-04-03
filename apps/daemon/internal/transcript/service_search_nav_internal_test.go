@@ -50,14 +50,14 @@ func TestAcceptTranscript_searchControl_returnsSearchControlHiddenAndUpdatesInde
 	if !ok || !res.Success || reason != "" {
 		t.Fatalf("got ok=%v success=%v reason=%q res=%+v", ok, res.Success, reason, res)
 	}
-	if res.TranscriptOutcome != "selection_control" {
-		t.Fatalf("expected outcome=selection_control, got %q", res.TranscriptOutcome)
+	if res.Search == nil || len(res.Search.Results) == 0 {
+		t.Fatalf("expected search results in completion, got %+v", res.Search)
 	}
 	if res.UiDisposition != "hidden" {
 		t.Fatalf("expected uiDisposition=hidden, got %q", res.UiDisposition)
 	}
-	if res.ActiveSearchIndex == nil || *res.ActiveSearchIndex != 1 {
-		t.Fatalf("expected activeSearchIndex=1, got %+v", res.ActiveSearchIndex)
+	if res.Search.ActiveIndex == nil || *res.Search.ActiveIndex != 1 {
+		t.Fatalf("expected search.activeIndex=1, got %+v", res.Search.ActiveIndex)
 	}
 
 	loaded := voicesession.Load(svc.sessions, key, time.Hour, nil)

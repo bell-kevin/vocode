@@ -8,13 +8,7 @@ import (
 	protocol "vocoding.net/vocode/v2/packages/protocol/go"
 )
 
-func sessionHitsFromProtocol(in []struct {
-	Path      string `json:"path"`
-	Line      int64  `json:"line"`
-	Character int64  `json:"character"`
-	Preview   string `json:"preview"`
-},
-) []session.SearchHit {
+func sessionHitsFromProtocol(in []protocol.VoiceTranscriptSearchHit) []session.SearchHit {
 	out := make([]session.SearchHit, 0, len(in))
 	for _, h := range in {
 		out = append(out, session.SearchHit{
@@ -27,7 +21,7 @@ func sessionHitsFromProtocol(in []struct {
 	return out
 }
 
-// Apply mutates session state from a voice.transcript completion (search hits, phases, clarify overlay).
+// Apply mutates session state from grouped completion fields (and in-session file path lists).
 func Apply(
 	vs *session.VoiceSession,
 	params protocol.VoiceTranscriptParams,
@@ -37,12 +31,24 @@ func Apply(
 		return
 	}
 
-	switch res.TranscriptOutcome {
-	case "search", "selection", "selection_control":
-		if len(res.SearchResults) > 0 {
-			vs.SearchResults = sessionHitsFromProtocol(res.SearchResults)
-			if res.ActiveSearchIndex != nil {
-				i := int(*res.ActiveSearchIndex)
+	if res.Success && res.Clarify != nil && strings.TrimSpace(res.Clarify.TargetResolution) != "" && strings.TrimSpace(res.Summary) != "" {
+		if err := clarify.ValidateForBasePhase(vs.BasePhase, res.Clarify.TargetResolution); err != nil {
+			return
+		}
+		vs.Clarify = &session.ClarifyOverlay{
+			TargetResolution:   res.Clarify.TargetResolution,
+			Question:           strings.TrimSpace(res.Summary),
+			OriginalTranscript: strings.TrimSpace(params.Text),
+		}
+		return
+	}
+
+	if res.Search != nil {
+		s := res.Search
+		if len(s.Results) > 0 {
+			vs.SearchResults = sessionHitsFromProtocol(s.Results)
+			if s.ActiveIndex != nil {
+				i := int(*s.ActiveIndex)
 				if i < 0 {
 					i = 0
 				}
@@ -54,31 +60,23 @@ func Apply(
 				vs.ActiveSearchIndex = 0
 			}
 			vs.BasePhase = session.BasePhaseSelection
-		} else if res.SearchResults != nil {
+			return
+		}
+		if s.Closed || s.NoHits {
 			vs.SearchResults = nil
 			vs.ActiveSearchIndex = 0
 			vs.BasePhase = session.BasePhaseMain
+			return
 		}
+	}
 
-	case "file_selection", "file_selection_control":
+	fs := res.FileSelection
+	if fs != nil && (len(vs.FileSelectionPaths) > 0 || fs.EnterSession || strings.TrimSpace(fs.FocusPath) != "") {
 		vs.BasePhase = session.BasePhaseFileSelection
-		if res.FileSelectionFocusPath != "" {
-			vs.FileSelectionFocus = res.FileSelectionFocusPath
+		if p := strings.TrimSpace(fs.FocusPath); p != "" {
+			vs.FileSelectionFocus = p
 		}
 		vs.SearchResults = nil
 		vs.ActiveSearchIndex = 0
-
-	case "clarify":
-		if strings.TrimSpace(res.Summary) == "" {
-			return
-		}
-		if err := clarify.ValidateForBasePhase(vs.BasePhase, res.ClarifyTargetResolution); err != nil {
-			return
-		}
-		vs.Clarify = &session.ClarifyOverlay{
-			TargetResolution:   res.ClarifyTargetResolution,
-			Question:           strings.TrimSpace(res.Summary),
-			OriginalTranscript: strings.TrimSpace(params.Text),
-		}
 	}
 }

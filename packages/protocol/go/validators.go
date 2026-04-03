@@ -255,49 +255,65 @@ func (r VoiceTranscriptCompletion) Validate() error {
 	if !r.Success && r.Summary != "" {
 		return errors.New("voice transcript result must not include summary when success=false")
 	}
-	if !r.Success && strings.TrimSpace(r.TranscriptOutcome) != "" {
-		return errors.New("voice transcript result must not include transcriptOutcome when success=false")
+	if !r.Success {
+		if r.Search != nil || r.Question != nil || r.Clarify != nil || r.FileSelection != nil || r.Workspace != nil {
+			return errors.New("voice transcript result: grouped fields not allowed when success=false")
+		}
 	}
 	if len([]rune(r.Summary)) > 8192 {
 		return errors.New("voice transcript result: summary exceeds max length")
 	}
 
-	out := strings.TrimSpace(r.TranscriptOutcome)
-	if out != "" && out != "irrelevant" && out != "completed" && out != "clarify" && out != "clarify_control" &&
-		out != "search" && out != "selection" && out != "selection_control" &&
-		out != "file_selection" && out != "file_selection_control" && out != "needs_workspace_folder" && out != "answer" {
-		return fmt.Errorf("voice transcript result: invalid transcriptOutcome %q", r.TranscriptOutcome)
-	}
-	if out == "answer" {
-		if strings.TrimSpace(r.AnswerText) == "" {
-			return errors.New("voice transcript result: answer requires answerText")
+	if r.Question != nil && r.Success {
+		if strings.TrimSpace(r.Question.AnswerText) == "" {
+			return errors.New("voice transcript result: question.answerText is required when question is set")
 		}
-		if len([]rune(r.AnswerText)) > 8192 {
-			return errors.New("voice transcript result: answerText exceeds max length")
+		if len([]rune(r.Question.AnswerText)) > 8192 {
+			return errors.New("voice transcript result: question.answerText exceeds max length")
 		}
 	}
-	if out == "search" || out == "selection" || out == "selection_control" {
-		if r.SearchResults != nil && len(r.SearchResults) > 0 {
-			for _, h := range r.SearchResults {
-				if strings.TrimSpace(h.Path) == "" {
-					return errors.New("voice transcript result: searchResults[].path is required")
-				}
-				if h.Line < 0 || h.Character < 0 {
-					return errors.New("voice transcript result: searchResults[] requires non-negative line/character")
-				}
-				if strings.Contains(h.Preview, "\u0000") {
-					return errors.New("voice transcript result: searchResults[].preview contains NUL")
-				}
+
+	if r.Search != nil {
+		if !r.Success {
+			return errors.New("voice transcript result: search requires success=true")
+		}
+		s := r.Search
+		for _, h := range s.Results {
+			if strings.TrimSpace(h.Path) == "" {
+				return errors.New("voice transcript result: search.results[].path is required")
+			}
+			if h.Line < 0 || h.Character < 0 {
+				return errors.New("voice transcript result: search.results[] requires non-negative line/character")
+			}
+			if strings.Contains(h.Preview, "\u0000") {
+				return errors.New("voice transcript result: search.results[].preview contains NUL")
 			}
 		}
-		if r.ActiveSearchIndex != nil && *r.ActiveSearchIndex < 0 {
-			return errors.New("voice transcript result: activeSearchIndex must be non-negative")
+		if s.ActiveIndex != nil {
+			if *s.ActiveIndex < 0 {
+				return errors.New("voice transcript result: search.activeIndex must be non-negative")
+			}
 		}
 	}
-	if out == "file_selection_control" {
-		if strings.TrimSpace(r.FileSelectionFocusPath) == "" {
-			return errors.New("voice transcript result: file_selection_control requires fileSelectionFocusPath")
+
+	if r.Clarify != nil && r.Success {
+		if strings.TrimSpace(r.Clarify.TargetResolution) == "" {
+			return errors.New("voice transcript result: clarify.targetResolution is required when clarify is set")
 		}
 	}
+
+	if r.FileSelection != nil && r.Success {
+		fs := r.FileSelection
+		if fs.NavigatingList && strings.TrimSpace(fs.FocusPath) == "" {
+			return errors.New("voice transcript result: fileSelection.navigatingList requires focusPath")
+		}
+	}
+
+	if r.Workspace != nil && r.Success {
+		if !r.Workspace.NeedsFolder {
+			return errors.New("voice transcript result: workspace object requires needsFolder=true")
+		}
+	}
+
 	return nil
 }

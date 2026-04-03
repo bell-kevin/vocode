@@ -27,39 +27,36 @@ func HandleControl(host flows.ID, _ protocol.VoiceTranscriptParams, vs *session.
 	case flows.Select:
 		closeSelectionPhase(vs)
 		return protocol.VoiceTranscriptCompletion{
-			Success:           true,
-			Summary:           "Search session closed",
-			TranscriptOutcome: "selection_control",
-			UiDisposition:     "hidden",
+			Success:       true,
+			Summary:       "Search session closed",
+			Search:        &protocol.VoiceTranscriptSearchState{Closed: true},
+			UiDisposition: "hidden",
 		}, ""
 
 	case flows.SelectFile:
 		closeFileSelectionPhase(vs)
 		return protocol.VoiceTranscriptCompletion{
-			Success:           true,
-			Summary:           "File selection closed",
-			TranscriptOutcome: "completed",
-			UiDisposition:     "hidden",
+			Success:       true,
+			Summary:       "File selection closed",
+			UiDisposition: "hidden",
 		}, ""
 
 	default: // flows.Root
 		return protocol.VoiceTranscriptCompletion{
-			Success:           true,
-			Summary:           "core transcript (stub)",
-			TranscriptOutcome: "completed",
-			UiDisposition:     "hidden",
+			Success:       true,
+			Summary:       "core transcript (stub)",
+			UiDisposition: "hidden",
 		}, ""
 	}
 }
 
 func nonExitControlIrrelevant(host flows.ID, vs *session.VoiceSession) protocol.VoiceTranscriptCompletion {
 	c := protocol.VoiceTranscriptCompletion{
-		Success:           true,
-		TranscriptOutcome: "irrelevant",
-		UiDisposition:     "skipped",
+		Success:       true,
+		UiDisposition: "skipped",
 	}
-	if host == flows.SelectFile {
-		c.FileSelectionFocusPath = vs.FileSelectionFocus
+	if host == flows.SelectFile && strings.TrimSpace(vs.FileSelectionFocus) != "" {
+		c.FileSelection = &protocol.VoiceTranscriptFileSelectionState{FocusPath: vs.FileSelectionFocus}
 	}
 	return c
 }

@@ -9,30 +9,32 @@ import (
 
 func TestInferTranscriptUIDisposition(t *testing.T) {
 	t.Parallel()
-	if inferTranscriptUIDisposition("completed", false) != "shown" {
-		t.Fatal("completed → shown")
+	if inferTranscriptUIDisposition(&protocol.VoiceTranscriptCompletion{}) != "shown" {
+		t.Fatal("minimal success completion → shown")
 	}
-	if inferTranscriptUIDisposition("file_selection_control", false) != "hidden" {
-		t.Fatal("file_selection_control → hidden")
+	if inferTranscriptUIDisposition(&protocol.VoiceTranscriptCompletion{
+		FileSelection: &protocol.VoiceTranscriptFileSelectionState{NavigatingList: true, FocusPath: "/x"},
+	}) != "hidden" {
+		t.Fatal("fileSelection navigation → hidden")
 	}
-	if inferTranscriptUIDisposition("irrelevant", true) != "hidden" {
-		t.Fatal("irrelevant with active search hits → hidden")
-	}
-	if inferTranscriptUIDisposition("irrelevant", false) != "skipped" {
-		t.Fatal("irrelevant without search → skipped")
+	if inferTranscriptUIDisposition(&protocol.VoiceTranscriptCompletion{
+		Search: &protocol.VoiceTranscriptSearchState{
+			Results: []protocol.VoiceTranscriptSearchHit{{Path: "p", Line: 0, Character: 0, Preview: "x"}},
+		},
+	}) != "hidden" {
+		t.Fatal("search hits → hidden")
 	}
 }
 
-func TestApplyTranscriptUIDisposition_irrelevantInFileFlow(t *testing.T) {
+func TestApplyTranscriptUIDisposition_skippedInFileFlow(t *testing.T) {
 	t.Parallel()
 	res := protocol.VoiceTranscriptCompletion{
-		Success:           true,
-		TranscriptOutcome: "irrelevant",
-		UiDisposition:     "",
+		Success:       true,
+		UiDisposition: "skipped",
 	}
 	applyTranscriptUIDisposition(&res, agentcontext.FlowKindFileSelection, false)
 	if res.UiDisposition != "hidden" {
-		t.Fatalf("file_selection irrelevant should be hidden, got %q", res.UiDisposition)
+		t.Fatalf("skipped in file flow should become hidden, got %q", res.UiDisposition)
 	}
 }
 

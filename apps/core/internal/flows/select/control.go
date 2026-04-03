@@ -13,9 +13,8 @@ func HandleSelectControl(deps *SelectionDeps, params protocol.VoiceTranscriptPar
 	op, pick, ok := listNavOp(text)
 	if !ok {
 		return protocol.VoiceTranscriptCompletion{
-			Success:           true,
-			TranscriptOutcome: "irrelevant",
-			UiDisposition:     "skipped",
+			Success:       true,
+			UiDisposition: "skipped",
 		}, ""
 	}
 	applySelectControlOp(vs, op, pick)
@@ -44,12 +43,12 @@ func applySelectControlOp(vs *session.VoiceSession, op string, pick1Based int) {
 func selectApplyHostForActiveHit(deps *SelectionDeps, params protocol.VoiceTranscriptParams, vs *session.VoiceSession) (protocol.VoiceTranscriptCompletion, string) {
 	if len(vs.SearchResults) == 0 {
 		return protocol.VoiceTranscriptCompletion{
-			Success:           true,
-			Summary:           "search results",
-			TranscriptOutcome: "selection_control",
-			UiDisposition:     "hidden",
-			SearchResults:     wireHitsToProtocol(vs.SearchResults),
-			ActiveSearchIndex: ptrInt64(int64(vs.ActiveSearchIndex)),
+			Success:       true,
+			Summary:       "search results",
+			UiDisposition: "hidden",
+			Search: &protocol.VoiceTranscriptSearchState{
+				Closed: true,
+			},
 		}, ""
 	}
 	if deps.HostApply == nil {
@@ -78,12 +77,13 @@ func selectApplyHostForActiveHit(deps *SelectionDeps, params protocol.VoiceTrans
 	}
 	vs.PendingDirectiveApply = nil
 	return protocol.VoiceTranscriptCompletion{
-		Success:           true,
-		Summary:           "search results",
-		TranscriptOutcome: "selection_control",
-		UiDisposition:     "hidden",
-		SearchResults:     wireHitsToProtocol(vs.SearchResults),
-		ActiveSearchIndex: ptrInt64(int64(vs.ActiveSearchIndex)),
+		Success:       true,
+		Summary:       "search results",
+		UiDisposition: "hidden",
+		Search: &protocol.VoiceTranscriptSearchState{
+			Results:     wireHitsToProtocol(vs.SearchResults),
+			ActiveIndex: ptrInt64(int64(vs.ActiveSearchIndex)),
+		},
 	}, ""
 }
 

@@ -97,10 +97,7 @@ export async function runDaemonTranscriptForPendingId(
 
     const result = await client.transcript(paramsWithSymbols);
 
-    if (
-      result.success &&
-      result.transcriptOutcome === "needs_workspace_folder"
-    ) {
+    if (result.success && result.workspace?.needsFolder === true) {
       const open = "Open Folder";
       const pick = await vscode.window.showInformationMessage(
         result.summary?.trim() || "Open a folder to use voice file selection.",
@@ -120,11 +117,12 @@ export async function runDaemonTranscriptForPendingId(
 
     mainPanelStore.markHandled(pendingId, {
       summary: result.summary?.trim() || undefined,
-      transcriptOutcome: result.transcriptOutcome,
       uiDisposition: result.uiDisposition,
-      searchResults: result.searchResults,
-      activeSearchIndex: result.activeSearchIndex ?? null,
-      answerText: result.answerText ?? null,
+      search: result.search,
+      question: result.question,
+      clarify: result.clarify,
+      fileSelection: result.fileSelection,
+      workspace: result.workspace,
       contextSessionId: paramsWithSymbols.contextSessionId,
     });
   } catch (err) {

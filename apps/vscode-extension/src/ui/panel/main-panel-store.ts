@@ -1,3 +1,11 @@
+import type {
+  VoiceTranscriptClarifyOffer,
+  VoiceTranscriptFileSelectionState,
+  VoiceTranscriptQuestionAnswer,
+  VoiceTranscriptSearchState,
+  VoiceTranscriptWorkspaceHints,
+} from "@vocode/protocol";
+
 /**
  * Observable state for the main voice sidebar webview (Live / Applying / Recent / Skipped,
  * partial hypotheses, listening flag, audio meter). Daemon transcript application lives in
@@ -7,6 +15,58 @@ const DEFAULT_MAX_HANDLED = 30;
 const WAVEFORM_SAMPLES = 64;
 /** STT sometimes sends empty/whitespace partials between words; debounce clearing so the Live card does not flicker off. */
 const DEFAULT_PARTIAL_CLEAR_DEBOUNCE_MS = 180;
+
+/** Mirrors daemon inferTranscriptUIDisposition when completion omits uiDisposition. */
+function inferVoiceTranscriptUiDisposition(opts: {
+  search?: VoiceTranscriptSearchState;
+  question?: VoiceTranscriptQuestionAnswer;
+  clarify?: VoiceTranscriptClarifyOffer;
+  fileSelection?: VoiceTranscriptFileSelectionState;
+  workspace?: VoiceTranscriptWorkspaceHints;
+}): "shown" | "skipped" | "hidden" {
+  const ans = opts.question?.answerText?.trim();
+  if (ans) {
+    return "hidden";
+  }
+  const s = opts.search;
+  if (s) {
+    if (s.closed || s.noHits || (s.results && s.results.length > 0)) {
+      return "hidden";
+    }
+  }
+  if (
+    opts.clarify &&
+    typeof opts.clarify.targetResolution === "string" &&
+    opts.clarify.targetResolution.trim() !== ""
+  ) {
+    return "hidden";
+  }
+  const fs = opts.fileSelection;
+  if (fs) {
+    if (
+      fs.enterSession ||
+      fs.navigatingList ||
+      (typeof fs.focusPath === "string" && fs.focusPath.trim() !== "")
+    ) {
+      return "hidden";
+    }
+  }
+  if (opts.workspace?.needsFolder === true) {
+    return "shown";
+  }
+  return "shown";
+}
+
+export type TranscriptHandledOptions = {
+  summary?: string;
+  uiDisposition?: "shown" | "skipped" | "hidden";
+  contextSessionId?: string;
+  search?: VoiceTranscriptSearchState;
+  question?: VoiceTranscriptQuestionAnswer;
+  clarify?: VoiceTranscriptClarifyOffer;
+  fileSelection?: VoiceTranscriptFileSelectionState;
+  workspace?: VoiceTranscriptWorkspaceHints;
+};
 
 /** Committed voice text not yet finished processing through the daemon + apply pipeline. */
 export type PendingStatus = "queued" | "processing";
@@ -36,7 +96,7 @@ export type MainPanelSnapshot = {
     }[];
     readonly activeIndex: number;
   };
-  /** Latest question answer (transcriptOutcome=answer). */
+  /** Latest question answer (`VoiceTranscriptCompletion.question`). */
   readonly answerState?: {
     readonly question: string;
     readonly answerText: string;
@@ -55,19 +115,6 @@ export type MainPanelSnapshot = {
     readonly text: string;
     readonly receivedAt: Date;
     readonly summary?: string;
-    readonly transcriptOutcome?:
-      | "irrelevant"
-      | "completed"
-      | "clarify"
-      | "clarify_control"
-      | "search"
-      | "selection"
-      | "selection_control"
-      | "file_selection"
-      | "file_selection_control"
-      | "needs_workspace_folder"
-      | "answer";
-    readonly answerText?: string;
     readonly errorMessage?: string;
     /** Agent marked transcript as irrelevant / non-actionable; listed in the Skipped section. */
     readonly skipped?: true;
@@ -97,19 +144,6 @@ export class MainPanelStore {
     text: string;
     receivedAt: Date;
     summary?: string;
-    transcriptOutcome?:
-      | "irrelevant"
-      | "completed"
-      | "clarify"
-      | "clarify_control"
-      | "search"
-      | "selection"
-      | "selection_control"
-      | "file_selection"
-      | "file_selection_control"
-      | "needs_workspace_folder"
-      | "answer";
-    answerText?: string;
     errorMessage?: string;
     skipped?: true;
   }[] = [];
@@ -389,34 +423,7 @@ export class MainPanelStore {
   }
 
   // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: intentionally exhaustive state reducer
-  markHandled(
-    id: number,
-    options?: {
-      summary?: string;
-      transcriptOutcome?:
-        | "irrelevant"
-        | "completed"
-        | "clarify"
-        | "clarify_control"
-        | "search"
-        | "selection"
-        | "selection_control"
-        | "file_selection"
-        | "file_selection_control"
-        | "needs_workspace_folder"
-        | "answer";
-      uiDisposition?: "shown" | "skipped" | "hidden";
-      searchResults?: readonly {
-        path: string;
-        line: number;
-        character: number;
-        preview: string;
-      }[];
-      activeSearchIndex?: number | null;
-      answerText?: string | null;
-      contextSessionId?: string;
-    },
-  ): void {
+  markHandled(id: number, options?: TranscriptHandledOptions): void {
     const index = this.pending.findIndex((p) => p.id === id);
     if (index === -1) {
       return;
@@ -424,8 +431,8 @@ export class MainPanelStore {
     const [removed] = this.pending.splice(index, 1);
     const summary = options?.summary?.trim();
     const skipped =
-      options?.transcriptOutcome === "irrelevant" ? (true as const) : undefined;
-    if (options?.transcriptOutcome === "clarify" && summary) {
+      options?.uiDisposition === "skipped" ? (true as const) : undefined;
+    if (options?.clarify?.targetResolution?.trim() && summary) {
       this.clarifyPrompt = {
         question: summary,
         originalTranscript: removed.text,
@@ -440,39 +447,27 @@ export class MainPanelStore {
       this.emit();
       return;
     }
-    if (
-      options?.transcriptOutcome === "search" ||
-      options?.transcriptOutcome === "selection"
-    ) {
-      if (options.searchResults && options.searchResults.length > 0) {
-        const prevCtx = this.searchState?.contextSessionId;
-        this.searchState = {
-          results: options.searchResults,
-          activeIndex: Math.max(0, options.activeSearchIndex ?? 0),
-          contextSessionId: options.contextSessionId ?? prevCtx,
-        };
-      }
-    } else if (options?.transcriptOutcome === "selection_control") {
-      if (options.searchResults && options.searchResults.length > 0) {
-        const prevCtx = this.searchState?.contextSessionId;
-        this.searchState = {
-          results: options.searchResults,
-          activeIndex: Math.max(0, options.activeSearchIndex ?? 0),
-          contextSessionId: options.contextSessionId ?? prevCtx,
-        };
-      } else {
-        // Daemon closes search (e.g. "cancel") without resending the hit list.
+    if (options?.search) {
+      const s = options.search;
+      if (s.closed || s.noHits) {
         this.searchState = undefined;
+      } else if (s.results && s.results.length > 0) {
+        const prevCtx = this.searchState?.contextSessionId;
+        this.searchState = {
+          results: s.results,
+          activeIndex: Math.max(0, s.activeIndex ?? 0),
+          contextSessionId: options.contextSessionId ?? prevCtx,
+        };
       }
     }
-    // Accept explicit transcriptOutcome="answer". If answerText is missing, fall back to summary
-    // (daemon also copies answerText into summary for UI compatibility).
-    if (
-      options?.transcriptOutcome === "answer" ||
-      options?.answerText?.trim()
-    ) {
-      const ans = options?.answerText?.trim() ?? summary;
+
+    let filledAnswer = false;
+    if (options?.question) {
+      const ans =
+        options.question.answerText?.trim() ??
+        (summary !== undefined && summary !== "" ? summary : undefined);
       if (ans) {
+        filledAnswer = true;
         this.answerState = { question: removed.text, answerText: ans };
         this.qaHistory.unshift({
           question: removed.text,
@@ -484,39 +479,24 @@ export class MainPanelStore {
         }
       }
     }
-    const disp: "shown" | "skipped" | "hidden" = (() => {
-      if (options?.uiDisposition) return options.uiDisposition;
-      // Back-compat fallback if daemon doesn't send uiDisposition yet.
-      switch (options?.transcriptOutcome) {
-        case "irrelevant":
-          return "skipped";
-        case "search":
-        case "selection":
-        case "selection_control":
-        case "file_selection":
-        case "file_selection_control":
-        case "clarify":
-        case "clarify_control":
-        case "answer":
-          return "hidden";
-        case "needs_workspace_folder":
-          return "shown";
-        default:
-          return "shown";
-      }
-    })();
+
+    const disp: "shown" | "skipped" | "hidden" =
+      options?.uiDisposition ??
+      inferVoiceTranscriptUiDisposition({
+        search: options?.search,
+        question: options?.question,
+        clarify: options?.clarify,
+        fileSelection: options?.fileSelection,
+        workspace: options?.workspace,
+      });
 
     // Don't put answers into Recent — they belong in Chat.
-    const shouldLogToRecent =
-      disp !== "hidden" && options?.transcriptOutcome !== "answer";
+    const shouldLogToRecent = disp !== "hidden" && !filledAnswer;
     if (shouldLogToRecent) {
       this.recentHandled.unshift({
         text: removed.text,
         receivedAt: removed.receivedAt,
         ...(summary ? { summary } : {}),
-        ...(options?.transcriptOutcome
-          ? { transcriptOutcome: options.transcriptOutcome }
-          : {}),
         ...(disp === "skipped" || skipped ? { skipped: true as const } : {}),
       });
     }
@@ -534,32 +514,7 @@ export class MainPanelStore {
   // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: intentionally exhaustive state reducer
   recordCompletedTranscript(
     text: string,
-    options?: {
-      summary?: string;
-      errorMessage?: string;
-      transcriptOutcome?:
-        | "irrelevant"
-        | "completed"
-        | "clarify"
-        | "clarify_control"
-        | "search"
-        | "selection"
-        | "selection_control"
-        | "file_selection"
-        | "file_selection_control"
-        | "needs_workspace_folder"
-        | "answer";
-      uiDisposition?: "shown" | "skipped" | "hidden";
-      searchResults?: readonly {
-        path: string;
-        line: number;
-        character: number;
-        preview: string;
-      }[];
-      activeSearchIndex?: number | null;
-      answerText?: string | null;
-      contextSessionId?: string;
-    },
+    options?: TranscriptHandledOptions & { errorMessage?: string },
   ): void {
     const normalized = text.trim();
     if (!normalized) {
@@ -570,39 +525,30 @@ export class MainPanelStore {
     const skipped =
       err !== undefined && err !== ""
         ? undefined
-        : options?.transcriptOutcome === "irrelevant"
+        : options?.uiDisposition === "skipped"
           ? (true as const)
           : undefined;
-    if (
-      options?.transcriptOutcome === "search" ||
-      options?.transcriptOutcome === "selection"
-    ) {
-      if (options.searchResults && options.searchResults.length > 0) {
-        const prevCtx = this.searchState?.contextSessionId;
-        this.searchState = {
-          results: options.searchResults,
-          activeIndex: Math.max(0, options.activeSearchIndex ?? 0),
-          contextSessionId: options.contextSessionId ?? prevCtx,
-        };
-      }
-    } else if (options?.transcriptOutcome === "selection_control") {
-      if (options.searchResults && options.searchResults.length > 0) {
-        const prevCtx = this.searchState?.contextSessionId;
-        this.searchState = {
-          results: options.searchResults,
-          activeIndex: Math.max(0, options.activeSearchIndex ?? 0),
-          contextSessionId: options.contextSessionId ?? prevCtx,
-        };
-      } else {
+    if (options?.search) {
+      const s = options.search;
+      if (s.closed || s.noHits) {
         this.searchState = undefined;
+      } else if (s.results && s.results.length > 0) {
+        const prevCtx = this.searchState?.contextSessionId;
+        this.searchState = {
+          results: s.results,
+          activeIndex: Math.max(0, s.activeIndex ?? 0),
+          contextSessionId: options.contextSessionId ?? prevCtx,
+        };
       }
     }
-    if (
-      options?.transcriptOutcome === "answer" ||
-      options?.answerText?.trim()
-    ) {
-      const ans = options?.answerText?.trim() ?? summary;
+
+    let filledAnswer = false;
+    if (options?.question) {
+      const ans =
+        options.question.answerText?.trim() ??
+        (summary !== undefined && summary !== "" ? summary : undefined);
       if (ans) {
+        filledAnswer = true;
         this.answerState = { question: normalized, answerText: ans };
         this.qaHistory.unshift({
           question: normalized,
@@ -614,31 +560,19 @@ export class MainPanelStore {
         }
       }
     }
-    const disp: "shown" | "skipped" | "hidden" = (() => {
-      if (options?.uiDisposition) return options.uiDisposition;
-      // Back-compat fallback if daemon doesn't send uiDisposition yet.
-      switch (options?.transcriptOutcome) {
-        case "irrelevant":
-          return "skipped";
-        case "search":
-        case "selection":
-        case "selection_control":
-        case "file_selection":
-        case "file_selection_control":
-        case "clarify":
-        case "clarify_control":
-        case "answer":
-          return "hidden";
-        case "needs_workspace_folder":
-          return "shown";
-        default:
-          return "shown";
-      }
-    })();
+
+    const disp: "shown" | "skipped" | "hidden" =
+      options?.uiDisposition ??
+      inferVoiceTranscriptUiDisposition({
+        search: options?.search,
+        question: options?.question,
+        clarify: options?.clarify,
+        fileSelection: options?.fileSelection,
+        workspace: options?.workspace,
+      });
 
     // Don't put answers into Recent — they belong in Chat.
-    const shouldLogToRecent =
-      disp !== "hidden" && options?.transcriptOutcome !== "answer";
+    const shouldLogToRecent = disp !== "hidden" && !filledAnswer;
     if (shouldLogToRecent) {
       this.recentHandled.unshift({
         text: normalized,
@@ -648,9 +582,6 @@ export class MainPanelStore {
           : summary
             ? { summary }
             : {}),
-        ...(options?.transcriptOutcome
-          ? { transcriptOutcome: options.transcriptOutcome }
-          : {}),
         ...(disp === "skipped" || skipped ? { skipped: true as const } : {}),
       });
     }

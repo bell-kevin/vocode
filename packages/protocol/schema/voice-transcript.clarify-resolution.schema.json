@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vocoding.net/schemas/voice-transcript.clarify-resolution.schema.json",
+  "title": "VoiceTranscriptClarifyOffer",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "targetResolution": {
+      "type": "string",
+      "description": "After the user answers, which parent-flow resolution runs (e.g. instruction, edit, select)."
+    }
+  }
+}

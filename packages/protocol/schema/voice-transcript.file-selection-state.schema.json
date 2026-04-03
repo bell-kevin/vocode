@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vocoding.net/schemas/voice-transcript.file-selection-state.schema.json",
+  "title": "VoiceTranscriptFileSelectionState",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "focusPath": {
+      "type": "string",
+      "description": "Workspace-jailed absolute path the host should focus in the file-selection UI."
+    },
+    "enterSession": {
+      "type": "boolean",
+      "description": "Enter file-selection flow before a path list exists (e.g. classifier chose file mode)."
+    },
+    "navigatingList": {
+      "type": "boolean",
+      "description": "True when this completion updates numbered file-list navigation; focusPath should be set."
+    }
+  }
+}
