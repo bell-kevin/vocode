@@ -2,7 +2,7 @@
 // plus flow-specific routes), validation, and small flow helpers.
 //
 // Package globalflow (flows/global) implements handlers for global route ids: control,
-// workspace_select, select_file, irrelevant — used from rootflow, selectflow, and selectfileflow dispatchers.
+// workspace_select, select_file, command, irrelevant — used from rootflow, selectflow, and selectfileflow dispatchers.
 //
 // Subpackage router classifies transcripts to a route id (via the configured model client).
 // selectflow/selectfileflow use dispatch.go for wiring and control.go for flow-local control routes

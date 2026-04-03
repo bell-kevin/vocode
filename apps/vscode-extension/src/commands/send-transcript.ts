@@ -39,15 +39,6 @@ async function sendTranscript(
     return;
   }
 
-  const editor = vscode.window.activeTextEditor;
-  if (!editor) {
-    const message =
-      "Open a text editor so Vocode can run actions against the active file.";
-    services.mainPanelStore.markError(pendingId, message);
-    void vscode.window.showWarningMessage(message);
-    return;
-  }
-
   services.voiceStatus.setProcessing();
   services.mainPanelStore.markProcessing(pendingId);
 
@@ -55,7 +46,7 @@ async function sendTranscript(
     await runDaemonTranscriptForPendingId(
       services,
       client,
-      editor,
+      vscode.window.activeTextEditor,
       pendingId,
       sendText,
     );

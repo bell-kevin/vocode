@@ -27,7 +27,8 @@ func HandleCreate(deps *SelectionDeps, params protocol.VoiceTranscriptParams, vs
 	}
 	active := strings.TrimSpace(params.ActiveFile)
 	if active == "" {
-		return protocol.VoiceTranscriptCompletion{Success: false}, "create: activeFile required"
+		return protocol.VoiceTranscriptCompletion{Success: false},
+			"Open a file in the editor first. Create adds new content to the active editor buffer."
 	}
 	if deps.ExtensionHost == nil {
 		return protocol.VoiceTranscriptCompletion{Success: false}, "extension host not configured"

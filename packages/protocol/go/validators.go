@@ -252,12 +252,12 @@ func validateNavigationAction(n *NavigationAction) error {
 }
 
 func (r VoiceTranscriptCompletion) Validate() error {
-	if !r.Success && r.Summary != "" {
-		return errors.New("voice transcript result must not include summary when success=false")
-	}
 	if !r.Success {
 		if r.Search != nil || r.Question != nil || r.Clarify != nil || r.FileSelection != nil || r.Workspace != nil {
 			return errors.New("voice transcript result: grouped fields not allowed when success=false")
+		}
+		if strings.TrimSpace(r.UiDisposition) != "" {
+			return errors.New("voice transcript result: uiDisposition must be omitted when success=false")
 		}
 	}
 	if len([]rune(r.Summary)) > 8192 {

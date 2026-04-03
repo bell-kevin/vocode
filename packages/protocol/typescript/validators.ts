@@ -93,6 +93,7 @@ function isCommandDirective(value: unknown): value is CommandDirective {
     !hasOnlyKeys(value as Record<string, unknown>, [
       "command",
       "args",
+      "workingDirectory",
       "timeoutMs",
     ])
   ) {
@@ -108,6 +109,11 @@ function isCommandDirective(value: unknown): value is CommandDirective {
     if (!Array.isArray(args) || !args.every((x) => typeof x === "string")) {
       return false;
     }
+  }
+
+  const wd = (value as Record<string, unknown>).workingDirectory;
+  if (wd !== undefined && typeof wd !== "string") {
+    return false;
   }
 
   const timeoutMs = (value as Record<string, unknown>).timeoutMs;
@@ -618,9 +624,6 @@ export function isVoiceTranscriptCompletion(
     if ([...value.summary].length > 8192) {
       return false;
     }
-  }
-  if (value.success !== true && value.summary !== undefined) {
-    return false;
   }
   if (value.success !== true) {
     if (

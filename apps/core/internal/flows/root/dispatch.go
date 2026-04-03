@@ -61,6 +61,19 @@ func DispatchRoute(
 		}
 		return workspaceselectflow.HandleCreate(deps.Editor, params, vs, text)
 
+	case "command":
+		if deps == nil || deps.Editor == nil {
+			return IrrelevantSkipped()
+		}
+		e := deps.Editor
+		cd := global.CommandDeps{
+			HostApply:     e.HostApply,
+			ExtensionHost: e.ExtensionHost,
+			EditModel:     e.EditModel,
+			NewBatchID:    e.NewBatchID,
+		}
+		return global.HandleCommand(&cd, params, vs, text)
+
 	case "question":
 		return HandleQuestion(deps, params, text)
 

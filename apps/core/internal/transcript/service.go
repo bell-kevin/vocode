@@ -147,7 +147,7 @@ func (s *Service) tryImmediateAfterClassify(params protocol.VoiceTranscriptParam
 	}
 
 	flowID := basePhaseToFlow(vs.BasePhase)
-	fr, clsErr := classifySpoken(s.env.FlowRouter, flowID, params.Text)
+	fr, clsErr := classifySpoken(s.env.FlowRouter, flowID, params.Text, params)
 	if clsErr != nil || strings.TrimSpace(fr.Route) == "" {
 		return false, protocol.VoiceTranscriptCompletion{}, true, ""
 	}
@@ -178,11 +178,11 @@ func basePhaseToFlow(phase session.BasePhase) flows.ID {
 	}
 }
 
-func classifySpoken(r *router.FlowRouter, flow flows.ID, text string) (router.Result, error) {
+func classifySpoken(r *router.FlowRouter, flow flows.ID, text string, params protocol.VoiceTranscriptParams) (router.Result, error) {
 	if r == nil {
 		return router.Result{}, nil
 	}
-	return r.ClassifyFlow(context.Background(), router.Context{Flow: flow, Instruction: text})
+	return r.ClassifyFlow(context.Background(), router.ContextForClassification(flow, text, params))
 }
 
 func (s *Service) runWorker() {

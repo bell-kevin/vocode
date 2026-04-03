@@ -129,11 +129,22 @@ test("isVoiceTranscriptCompletion rejects grouped fields when not success", () =
   );
 });
 
-test("isVoiceTranscriptCompletion rejects summary when not success", () => {
+test("isVoiceTranscriptCompletion allows summary when not success (error message)", () => {
   assert.equal(
     isVoiceTranscriptCompletion({
       success: false,
       summary: "oops",
+    }),
+    true,
+  );
+});
+
+test("isVoiceTranscriptCompletion rejects uiDisposition when not success", () => {
+  assert.equal(
+    isVoiceTranscriptCompletion({
+      success: false,
+      summary: "err",
+      uiDisposition: "hidden",
     }),
     false,
   );

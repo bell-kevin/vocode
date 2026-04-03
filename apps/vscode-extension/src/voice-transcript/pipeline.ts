@@ -147,15 +147,6 @@ export function attachTranscriptPipeline(
       return;
     }
 
-    const editor = vscode.window.activeTextEditor;
-    if (!editor) {
-      const message =
-        "Open a text editor so Vocode can run actions against the active file.";
-      mainPanelStore.markError(pendingId, message);
-      void vscode.window.showWarningMessage(message);
-      return;
-    }
-
     const text = clarifyTextToSend ?? evt.text;
 
     if (inFlightTranscripts === 0) {
@@ -170,7 +161,7 @@ export function attachTranscriptPipeline(
         await runDaemonTranscriptForPendingId(
           services,
           client,
-          editor,
+          vscode.window.activeTextEditor,
           pendingId,
           text,
         );

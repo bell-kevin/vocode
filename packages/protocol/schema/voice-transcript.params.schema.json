@@ -19,6 +19,10 @@
           "type": "string",
           "description": "Absolute workspace folder when one is open; otherwise the host may send the active file's parent directory so relative paths still resolve (single-file windows)."
         },
+        "hostPlatform": {
+          "type": "string",
+          "description": "Node process.platform from the host (e.g. win32, darwin, linux). Used to choose shell invocation for voice command execution."
+        },
         "workspaceFolderOpen": {
           "type": "boolean",
           "description": "True when vscode.workspace.workspaceFolders is non-empty. Used to gate file-selection / explorer voice flows (VS Code\u2013aligned: open a folder first)."

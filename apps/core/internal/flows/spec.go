@@ -42,6 +42,7 @@ var globalRoutes = []Route{
 	{ID: "workspace_select", Description: "User wants to find or select a symbol, identifier, or text in the codebase (by name or contents), not by file path alone. Prefer search_query = that name; optional search_symbol_kind = function, class, variable, etc.", Execution: ExecutionSerialized},
 	{ID: "select_file", Description: "User wants to find or select files or folders by file or folder name (basename only), not by path and not by searching inside file contents. search_query is a single name segment (e.g. game.js, Res) — no slashes, no absolute path.", Execution: ExecutionSerialized},
 	{ID: "create", Description: "User wants to add new content to the file they have open in the editor (e.g. a function, variable, comment, or append at the end). Where it goes is resolved later. Not a new path on disk.", Execution: ExecutionSerialized},
+	{ID: "command", Description: "User wants the assistant to run a terminal/shell action (install dependencies, start the dev server, scaffold a project with npx/pnpm, run tests, git commands, etc.). Not a question about how something works, and not editing the open file buffer.", Execution: ExecutionSerialized},
 	{ID: "control", Description: "User wants to exit or steer the flow (cancel, go back, stop, etc.).", Execution: ExecutionImmediate},
 	{ID: "irrelevant", Description: "Nothing here matches what the user is trying to do in this flow.", Execution: ExecutionImmediate},
 }

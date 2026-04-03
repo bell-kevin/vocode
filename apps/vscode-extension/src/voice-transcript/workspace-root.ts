@@ -48,3 +48,17 @@ export function transcriptWorkspaceRoot(
   }
   return path.dirname(active);
 }
+
+/**
+ * Workspace root for transcript RPC when no text editor is focused.
+ * Uses the first workspace folder (multi-root: first entry until a folder picker exists).
+ * Returns undefined when no folder is open — single-file windows still need an active file
+ * for a meaningful root via {@link transcriptWorkspaceRoot}.
+ */
+export function transcriptWorkspaceRootWithoutActiveEditor(): string | undefined {
+  const folders = vscode.workspace.workspaceFolders;
+  if (!folders?.length) {
+    return undefined;
+  }
+  return folders[0].uri.fsPath.trim();
+}

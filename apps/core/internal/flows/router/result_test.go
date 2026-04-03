@@ -38,4 +38,9 @@ func TestResultValidate(t *testing.T) {
 	if err := (Result{Flow: flows.SelectFile, Route: "create_entry"}).Validate(); err != nil {
 		t.Fatal(err)
 	}
+	for _, fid := range []flows.ID{flows.Root, flows.WorkspaceSelect, flows.SelectFile} {
+		if err := (Result{Flow: fid, Route: "command", SearchQuery: ""}).Validate(); err != nil {
+			t.Fatalf("flow %q command: %v", fid, err)
+		}
+	}
 }

@@ -31,6 +31,7 @@ Rules:
 - For "select_file", set "search_query" to a single file or folder name only (basename): e.g. game.js, README.md, Res. No slashes, no path segments, no absolute paths — never paste activeFile or any full system path. STT may say "dot" for a period in the name — rewrite to real punctuation in that one segment only. Set "search_symbol_kind" to "".
 - For "workspace_select" and "select_file", "search_query" must be non-empty.
 - For all other routes, set "search_query" to "" and "search_symbol_kind" to "".
+- "command" vs "question": use "command" when they want something executed in the terminal (install, run, build, test, git, npx/pnpm scaffold, start dev server). Use "question" when they want an explanation or how-to without running a command.
 - No other keys. No markdown.
 `)
 	if flow == flows.WorkspaceSelect {
@@ -57,12 +58,18 @@ func ClassifierUserJSON(in Context) ([]byte, error) {
 		Instruction          string   `json:"instruction"`
 		ActiveFile           string   `json:"activeFile,omitempty"`
 		HasNonemptySelection bool     `json:"hasNonemptySelection,omitempty"`
+		WorkspaceRoot        string   `json:"workspaceRoot,omitempty"`
+		HostPlatform         string   `json:"hostPlatform,omitempty"`
+		WorkspaceFolderOpen  bool     `json:"workspaceFolderOpen,omitempty"`
 	}
 	p := payload{
 		Flow:                 in.Flow,
 		Instruction:          strings.TrimSpace(in.Instruction),
 		ActiveFile:           strings.TrimSpace(in.ActiveFile),
 		HasNonemptySelection: in.HasNonemptySelection,
+		WorkspaceRoot:        strings.TrimSpace(in.WorkspaceRoot),
+		HostPlatform:         strings.TrimSpace(in.HostPlatform),
+		WorkspaceFolderOpen:  in.WorkspaceFolderOpen,
 	}
 	return json.MarshalIndent(p, "", "  ")
 }
@@ -79,7 +86,7 @@ func ClassifierResponseJSONSchema(flow flows.ID) map[string]any {
 			},
 			"search_query": map[string]any{
 				"type":        "string",
-				"description": "workspace_select: symbol/identifier name or exact literal substring to find in file contents. select_file: single file or folder basename only (no slashes, no absolute path). create_entry, create, move, rename, delete, control, irrelevant: always empty.",
+				"description": "workspace_select: symbol/identifier name or exact literal substring to find in file contents. select_file: single file or folder basename only (no slashes, no absolute path). command, create_entry, create, move, rename, delete, control, irrelevant, question: always empty.",
 			},
 			"search_symbol_kind": map[string]any{
 				"type":        "string",

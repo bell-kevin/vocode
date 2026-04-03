@@ -11,7 +11,7 @@
     },
     "summary": {
       "type": "string",
-      "description": "Human-readable summary when the agent ends the loop (control_done); for host UI.",
+      "description": "Human-readable text for host UI. When success=true, end-of-loop summary; when success=false, optional error or refusal message (e.g. insufficient context).",
       "maxLength": 8192
     },
     "uiDisposition": {

@@ -21,7 +21,8 @@ func HandleEdit(deps *SelectionDeps, params protocol.VoiceTranscriptParams, vs *
 	}
 	active := strings.TrimSpace(params.ActiveFile)
 	if active == "" {
-		return protocol.VoiceTranscriptCompletion{Success: false}, "edit: activeFile required"
+		return protocol.VoiceTranscriptCompletion{Success: false},
+			"Open a file in the editor first. Edit changes code in the active editor."
 	}
 	if deps.ExtensionHost == nil {
 		return protocol.VoiceTranscriptCompletion{Success: false}, "extension host not configured"

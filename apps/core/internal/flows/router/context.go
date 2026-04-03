@@ -14,6 +14,9 @@ type Context struct {
 	Instruction          string
 	ActiveFile           string
 	HasNonemptySelection bool
+	WorkspaceRoot        string
+	HostPlatform         string
+	WorkspaceFolderOpen  bool
 }
 
 // ContextForClassification builds router context from host params (editor/selection awareness for the model).
@@ -23,6 +26,9 @@ func ContextForClassification(flow flows.ID, instruction string, p protocol.Voic
 		Instruction:          strings.TrimSpace(instruction),
 		ActiveFile:           strings.TrimSpace(p.ActiveFile),
 		HasNonemptySelection: hasNonemptyEditorSelection(p),
+		WorkspaceRoot:        strings.TrimSpace(p.WorkspaceRoot),
+		HostPlatform:         strings.TrimSpace(p.HostPlatform),
+		WorkspaceFolderOpen:  p.WorkspaceFolderOpen,
 	}
 }
 

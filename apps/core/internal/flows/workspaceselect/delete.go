@@ -15,7 +15,8 @@ import (
 func HandleDelete(deps *SelectionDeps, params protocol.VoiceTranscriptParams, vs *session.VoiceSession, _ string) (protocol.VoiceTranscriptCompletion, string) {
 	active := strings.TrimSpace(params.ActiveFile)
 	if active == "" {
-		return protocol.VoiceTranscriptCompletion{Success: false}, "delete: activeFile required"
+		return protocol.VoiceTranscriptCompletion{Success: false},
+			"Open a file in the editor first. Delete removes text or a target in the active file."
 	}
 	if deps == nil || deps.ExtensionHost == nil {
 		return protocol.VoiceTranscriptCompletion{Success: false}, "extension host not configured"

@@ -10,6 +10,10 @@
       "type": "array",
       "items": { "type": "string" }
     },
+    "workingDirectory": {
+      "type": "string",
+      "description": "Optional absolute directory passed to spawn cwd; when set, the child process starts in this folder."
+    },
     "timeoutMs": { "type": "integer" }
   },
   "required": ["command"]

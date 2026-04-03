@@ -26,6 +26,7 @@ export async function sendTranscriptControlRequest(
 
   const params: VoiceTranscriptParams = {
     controlRequest: kind,
+    hostPlatform: process.platform,
     activeFile: activeFile || undefined,
     ...(activeFile ? { focusedWorkspacePath: activeFile } : {}),
     workspaceRoot: transcriptWorkspaceRoot(activeFile),

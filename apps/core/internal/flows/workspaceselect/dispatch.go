@@ -54,6 +54,17 @@ func DispatchRoute(
 		return HandleEdit(deps, params, vs, text)
 	case "create":
 		return HandleCreate(deps, params, vs, text)
+	case "command":
+		if deps == nil {
+			return global.HandleIrrelevant(vs, flows.WorkspaceSelect)
+		}
+		cd := global.CommandDeps{
+			HostApply:     deps.HostApply,
+			ExtensionHost: deps.ExtensionHost,
+			EditModel:     deps.EditModel,
+			NewBatchID:    deps.NewBatchID,
+		}
+		return global.HandleCommand(&cd, params, vs, text)
 	case "rename":
 		return HandleRename(deps, params, vs, text)
 	case "delete":
