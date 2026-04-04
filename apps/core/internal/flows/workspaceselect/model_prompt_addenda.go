@@ -9,4 +9,5 @@ React Native / Expo: When activeFile or the code you are editing (targetText or 
 - For tappable UI use Pressable, TouchableOpacity, or Button from "react-native" (or the same primitives already used in the file). Handlers must be onPress (and other RN touch props), never onClick.
 - Keep layout and styling idiomatic for React Native (flex, StyleSheet, existing themed components) unless that section of the file clearly targets web-only JSX.
 - Do not use the global React import; prefer destructured imports from "react" or "react-native".
+- Do not add imports unless specifically asked
 `

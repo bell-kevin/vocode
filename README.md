@@ -157,7 +157,7 @@ pnpm --filter @vocode/core build
 This creates:
 
 ```
-apps/core/bin/<platform-arch>/vocode-cored(.exe)
+apps/vscode-extension/bin/<platform-arch>/vocode-cored(.exe)
 ```
 
 4. Run the extension
@@ -285,19 +285,16 @@ The extension is just:
 
 ### 📦 Core binary build
 
-`vocode-cored` is built per platform under `apps/core`:
+`vocode-cored` is built per platform into the VS Code extension package (same path the packaged VSIX uses):
 
 ```
-apps/core/bin/
+apps/vscode-extension/bin/
   win32-x64/vocode-cored.exe
   darwin-arm64/vocode-cored
   linux-x64/vocode-cored
 ```
 
-The extension automatically resolves:
-
-- dev path (monorepo)
-- bundled path (production)
+The extension resolves `extension/bin/<platform-arch>/` first, with a fallback to legacy `apps/core/bin/` if present.
 
 ---
 

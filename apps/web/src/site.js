@@ -4,10 +4,10 @@ export const SITE = {
   /** Short line under logo in nav / meta */
   shortTagline: "Voice-first agentic programming",
   marketplaceUrl:
-    "https://marketplace.visualstudio.com/items?itemName=publisher.extension-id",
+    "https://marketplace.visualstudio.com/items?itemName=SpencerLS.vocode",
   githubUrl: "https://github.com/Spencer1O1/vocode",
   docsUrl: "https://github.com/Spencer1O1/vocode#readme",
-  marketplaceId: "publisher.extension-id",
+  marketplaceId: "SpencerLS.vocode",
 };
 
 export const INSTALL_CLI = {

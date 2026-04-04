@@ -51,7 +51,7 @@ jobs:
         run: pnpm --filter @vocode/web build
 
       - name: Build VS Code extension
-        run: pnpm --filter @vocode/vscode-extension build
+        run: pnpm --filter vocode build
 
       - name: Build core (vocode-cored)
         run: pnpm --filter @vocode/core build

@@ -4,5 +4,7 @@
       "path": "."
     }
   ],
-  "settings": {}
+  "settings": {
+    "vocode.daemonOpenaiModel": "gpt-4.1"
+  }
 }

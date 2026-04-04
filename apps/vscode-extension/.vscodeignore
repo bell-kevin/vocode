@@ -1,0 +1,9 @@
+# Default is to ship the whole folder; exclude dev sources first, then un-ignore payloads.
+**/*
+!package.json
+!LICENSE
+!README.md
+!dist/**
+!media/**
+!bin/**
+!tools/**

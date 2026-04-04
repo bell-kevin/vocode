@@ -16,7 +16,20 @@ export function getPlatformBinarySubdir(): string {
   return `${process.platform}-${process.arch}`;
 }
 
-export function getDevDaemonPath(context: vscode.ExtensionContext): string {
+/** Go build writes here (see scripts/dev/build-core.mjs); same path is used in the packaged VSIX. */
+export function getBundledDaemonPath(context: vscode.ExtensionContext): string {
+  return path.join(
+    context.extensionPath,
+    "bin",
+    getPlatformBinarySubdir(),
+    getPlatformBinaryName(),
+  );
+}
+
+/** Legacy layout if someone still has apps/core/bin from an older build. */
+export function getLegacyCoreDaemonPath(
+  context: vscode.ExtensionContext,
+): string {
   return path.resolve(
     context.extensionPath,
     "..",
@@ -29,26 +42,17 @@ export function getDevDaemonPath(context: vscode.ExtensionContext): string {
   );
 }
 
-export function getProdDaemonPath(context: vscode.ExtensionContext): string {
-  return path.join(
-    context.extensionPath,
-    "bin",
-    getPlatformBinarySubdir(),
-    getPlatformBinaryName(),
-  );
-}
-
 export function resolveDaemonPath(context: vscode.ExtensionContext): string {
-  const devPath = getDevDaemonPath(context);
-  if (fs.existsSync(devPath)) {
-    console.log(`[vocode] using dev daemon: ${devPath}`);
-    return devPath;
+  const bundled = getBundledDaemonPath(context);
+  if (fs.existsSync(bundled)) {
+    console.log(`[vocode] using daemon: ${bundled}`);
+    return bundled;
   }
 
-  const prodPath = getProdDaemonPath(context);
-  if (fs.existsSync(prodPath)) {
-    console.log(`[vocode] using bundled daemon: ${prodPath}`);
-    return prodPath;
+  const legacy = getLegacyCoreDaemonPath(context);
+  if (fs.existsSync(legacy)) {
+    console.log(`[vocode] using legacy apps/core/bin daemon: ${legacy}`);
+    return legacy;
   }
 
   throw new Error(

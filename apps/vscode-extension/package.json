@@ -1,12 +1,26 @@
 {
-  "name": "@vocode/vscode-extension",
+  "name": "vocode",
   "displayName": "Vocode",
   "description": "Voice-driven coding assistant for VS Code",
   "version": "0.0.1",
-  "private": true,
-  "publisher": "our-publisher-id",
+  "private": false,
+  "publisher": "SpencerLS",
+  "license": "AGPL-3.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Spencer1O1/vocode.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Spencer1O1/vocode/issues"
+  },
+  "keywords": [
+    "voice",
+    "speech",
+    "ai",
+    "assistant"
+  ],
   "engines": {
-    "vscode": "^1.96.0"
+    "vscode": "^1.110.0"
   },
   "categories": [
     "AI"
@@ -191,14 +205,18 @@
     "test": "pnpm build && node --test \"dist/**/*.test.js\"",
     "lint": "biome check src",
     "lint:fix": "biome check --write src",
-    "typecheck": "tsc -p tsconfig.json --noEmit"
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "vscode:stage-assets": "node scripts/stage-marketplace-assets.cjs",
+    "vscode:prepublish": "pnpm --dir ../.. --filter @vocode/protocol build && pnpm --dir ../.. --filter @vocode/core build && pnpm build && pnpm vscode:stage-assets",
+    "vscode:package": "pnpm exec vsce package --no-dependencies --follow-symlinks"
   },
   "devDependencies": {
+    "@vscode/vsce": "^3.7.1",
+    "@vocode/protocol": "workspace:*",
     "@vocode/ui": "workspace:*",
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
     "@vitejs/plugin-react": "^4.3.4",
-    "@vocode/protocol": "workspace:*",
     "@types/node": "^22.15.0",
     "@types/vscode": "^1.110.0",
     "react": "^18.3.1",
