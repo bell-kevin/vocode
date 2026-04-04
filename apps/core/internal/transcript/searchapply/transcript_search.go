@@ -39,7 +39,7 @@ type workspaceSymbolHost interface {
 // SearchFromQuery runs LSP workspace symbol search (when ExtensionHost is set), then ripgrep fallback
 // with derived literals. symbolKind is an optional classifier hint forwarded to the host (empty = no LSP kind filter).
 func (e *TranscriptSearch) SearchFromQuery(params protocol.VoiceTranscriptParams, q, symbolKind string, vs *session.VoiceSession) (protocol.VoiceTranscriptCompletion, bool, string) {
-	q = strings.TrimSpace(q)
+	q = search.TrimSttTrailingSentenceDot(strings.TrimSpace(q))
 	if q == "" {
 		return protocol.VoiceTranscriptCompletion{}, false, ""
 	}

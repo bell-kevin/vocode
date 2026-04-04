@@ -213,6 +213,59 @@ func TestPathFragmentSearch_shortQueryAppPrefersInnerAppDirNotParentSubstring(t 
 	}
 }
 
+func TestPathFragmentSearch_bareFragmentMatchesDirNotStemExtFile(t *testing.T) {
+	root := t.TempDir()
+	appDir := filepath.Join(root, "app")
+	if err := os.MkdirAll(appDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	appTS := filepath.Join(root, "app.ts")
+	if err := os.WriteFile(appTS, []byte("// x\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	got, err := PathFragmentMatches(root, "app", 20)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 1 || !got[0].IsDir || filepath.Clean(got[0].Path) != filepath.Clean(appDir) {
+		t.Fatalf("want only app/ dir, got %#v", got)
+	}
+}
+
+func TestPathFragmentSearch_extensionQueryMatchesFileNotDirectory(t *testing.T) {
+	root := t.TempDir()
+	appDir := filepath.Join(root, "app")
+	if err := os.MkdirAll(appDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	appTS := filepath.Join(root, "app.ts")
+	if err := os.WriteFile(appTS, []byte("// x\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	got, err := PathFragmentMatches(root, "app.ts", 20)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 1 || got[0].IsDir || filepath.Clean(got[0].Path) != filepath.Clean(appTS) {
+		t.Fatalf("want only app.ts file, got %#v", got)
+	}
+}
+
+func TestPathFragmentSearch_sttTrailingDotOnFileQuery(t *testing.T) {
+	root := t.TempDir()
+	want := filepath.Join(root, "index.tsx")
+	if err := os.WriteFile(want, []byte("export {}\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	got, err := PathFragmentMatches(root, "index.tsx.", 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 1 || got[0].Path != filepath.Clean(want) || got[0].IsDir {
+		t.Fatalf("got %v want file [%s]", got, filepath.Clean(want))
+	}
+}
+
 func TestPathFragmentSearch_skipsNodeModules(t *testing.T) {
 	root := t.TempDir()
 	nm := filepath.Join(root, "node_modules", "pkg")

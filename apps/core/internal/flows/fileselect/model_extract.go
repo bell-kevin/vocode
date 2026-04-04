@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"vocoding.net/vocode/v2/apps/core/internal/agent"
+	"vocoding.net/vocode/v2/apps/core/internal/search"
 	"vocoding.net/vocode/v2/apps/core/internal/workspace"
 	protocol "vocoding.net/vocode/v2/packages/protocol/go"
 )
@@ -126,7 +127,7 @@ If the user is renaming a source file and you can infer the main exported or pri
 	if err := json.Unmarshal([]byte(strings.TrimSpace(out)), &parsed); err != nil {
 		return "", "", fmt.Errorf("decode rename extract json: %w", err)
 	}
-	return strings.TrimSpace(parsed.NewBaseName), strings.TrimSpace(parsed.LspNewName), nil
+	return search.TrimSttTrailingSentenceDot(strings.TrimSpace(parsed.NewBaseName)), strings.TrimSpace(parsed.LspNewName), nil
 }
 
 // extractCreateEntryFileName returns a single new file or folder basename from the transcript (no path segments).
@@ -170,7 +171,7 @@ Return JSON only: fileName is one path segment (basename). Map spoken punctuatio
 	if err := json.Unmarshal([]byte(strings.TrimSpace(out)), &parsed); err != nil {
 		return "", fmt.Errorf("decode create entry extract json: %w", err)
 	}
-	return strings.TrimSpace(parsed.FileName), nil
+	return search.TrimSttTrailingSentenceDot(strings.TrimSpace(parsed.FileName)), nil
 }
 
 // extractMoveDestination asks the model for a workspace-relative destination path (not raw transcript slicing).
@@ -222,5 +223,5 @@ You decide where to move the selected file or folder. Return JSON only: { "desti
 	if err := json.Unmarshal([]byte(strings.TrimSpace(out)), &parsed); err != nil {
 		return "", fmt.Errorf("decode move extract json: %w", err)
 	}
-	return strings.TrimSpace(parsed.Destination), nil
+	return search.TrimSttTrailingSentenceDot(strings.TrimSpace(parsed.Destination)), nil
 }

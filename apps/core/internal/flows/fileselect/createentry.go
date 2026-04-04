@@ -7,6 +7,7 @@ import (
 	"regexp"
 	"strings"
 
+	"vocoding.net/vocode/v2/apps/core/internal/search"
 	"vocoding.net/vocode/v2/apps/core/internal/transcript/searchapply"
 	"vocoding.net/vocode/v2/apps/core/internal/transcript/session"
 	protocol "vocoding.net/vocode/v2/packages/protocol/go"
@@ -169,5 +170,5 @@ func sanitizeNewFileName(text string) string {
 	if strings.ContainsAny(base, `/\:`) {
 		return ""
 	}
-	return base
+	return search.TrimSttTrailingSentenceDot(base)
 }

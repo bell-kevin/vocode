@@ -23,3 +23,9 @@ func TestSanitizeNewFileName_rejectsDotDot(t *testing.T) {
 		t.Fatalf("got %q", g)
 	}
 }
+
+func TestSanitizeNewFileName_trimsSttTrailingDotOnExtension(t *testing.T) {
+	if g := sanitizeNewFileName(`index.tsx.`); g != "index.tsx" {
+		t.Fatalf("got %q want index.tsx", g)
+	}
+}

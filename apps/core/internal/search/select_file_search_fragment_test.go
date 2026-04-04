@@ -25,6 +25,9 @@ func TestNormalizeSelectFileSearchQuery_basenameOnly(t *testing.T) {
 	if g := NormalizeSelectFileSearchQuery(root, "game.js"); g != "game.js" {
 		t.Fatalf("basename: got %q", g)
 	}
+	if g := NormalizeSelectFileSearchQuery(root, "index.tsx."); g != "index.tsx" {
+		t.Fatalf("stt trailing dot: got %q want index.tsx", g)
+	}
 	if g := NormalizeSelectFileSearchQuery(root, root); g != filepath.Base(root) {
 		t.Fatalf("abs workspace dir: got %q want %q", g, filepath.Base(root))
 	}

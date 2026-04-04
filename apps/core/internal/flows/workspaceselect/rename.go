@@ -3,6 +3,7 @@ package workspaceselectflow
 import (
 	"strings"
 
+	"vocoding.net/vocode/v2/apps/core/internal/search"
 	"vocoding.net/vocode/v2/apps/core/internal/transcript/session"
 	protocol "vocoding.net/vocode/v2/packages/protocol/go"
 )
@@ -95,5 +96,5 @@ func ParseSpokenRenameNewName(text string) (string, bool) {
 	if strings.ContainsAny(newName, " \t\r\n") {
 		return "", false
 	}
-	return newName, true
+	return search.TrimSttTrailingSentenceDot(newName), true
 }

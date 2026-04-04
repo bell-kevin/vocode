@@ -27,5 +27,6 @@ func NormalizeSelectFileSearchQuery(root, q string) string {
 	if base == "." || base == ".." {
 		return ""
 	}
+	base = TrimSttTrailingSentenceDot(base)
 	return filepath.ToSlash(base)
 }
