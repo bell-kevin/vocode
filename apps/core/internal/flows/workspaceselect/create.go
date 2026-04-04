@@ -119,7 +119,7 @@ func callFileCreatePlanModel(ctx context.Context, m agent.ModelClient, instructi
 			},
 			"newText": map[string]any{
 				"type":        "string",
-				"description": "Only the new block to insert; must reflect what the classifier already gated (type of addition). No markdown fences.",
+				"description": "Only the new block to insert; must reflect what the classifier already gated (type of addition). No markdown fences. In React Native/Expo files use RN components and onPress, never HTML tags or onClick.",
 			},
 		},
 	}
@@ -152,7 +152,7 @@ If two readings are possible, prefer the one that matches common editor behavior
 For "beginning" or "end", set line to 0. For "before_line" or "after_line", line must be a valid 1-based line number from the snippet (totalLines is the line count).
 
 newText is ONLY the new block to add — no markdown fences or explanation. Match indentation to neighboring lines when obvious from the snippet.
-`)
+`) + reactNativeExpoRules
 	out, err := m.Call(ctx, agent.CompletionRequest{
 		System:     sys,
 		User:       string(userBytes),

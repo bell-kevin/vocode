@@ -123,7 +123,7 @@ func callScopedEditModel(ctx context.Context, m agent.ModelClient, instruction, 
 		"properties": map[string]any{
 			"replacementText": map[string]any{
 				"type":        "string",
-				"description": "Replacement for targetText only; must match language, libraries, and idioms evident in targetText and the file path.",
+				"description": "Replacement for targetText only; must match language, libraries, and idioms evident in targetText and the file path. In React Native/Expo files use RN components and onPress, never HTML tags or onClick.",
 			},
 		},
 	}
@@ -158,7 +158,7 @@ Infer language, runtime, and libraries from targetText together with the file pa
 replacementText should read as if the same author wrote it: consistent naming, imports-style, and structure with the rest of targetText.
 
 Respond with one JSON object: {"replacementText":"..."}. Only change what the instruction requires within the semantic scope of the replacement; no markdown fences or extra keys.
-`)
+`) + reactNativeExpoRules
 	out, err := m.Call(ctx, agent.CompletionRequest{
 		System:     sys,
 		User:       string(userBytes),

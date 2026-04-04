@@ -8,10 +8,7 @@ import { ClarifyPanel, MainPanel, SearchPanel, SettingsPanel } from "./panels";
 import { ProcessingStrip } from "./panels/processing-strip";
 import type { PanelState } from "./types";
 import { emptyState, normalizePanelState } from "./util";
-import {
-  VoiceVisualization,
-  type VoiceUiStatus,
-} from "./voice-visualization";
+import { type VoiceUiStatus, VoiceVisualization } from "./voice-visualization";
 
 type PanelView = "main" | "settings" | "clarify" | "search";
 
