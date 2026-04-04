@@ -72,7 +72,7 @@ Yes, **together** the voice jobs in `.github/workflows/ci.yml` produce every VSI
 | `voice-linux` | `linux-*`, `alpine-*` (Docker on Ubuntu) |
 | `voice-windows` | `win32-x64` |
 | `voice-windows-arm64` | `win32-arm64` |
-| `voice-darwin-x64` | `darwin-x64` |
+| `voice-darwin-x64` | `darwin-x64` (`macos-15-intel`) |
 | `voice-darwin-arm64` | `darwin-arm64` |
 
 Each job **uploads** an artifact named `voice-partial-*`. The **`voice-binaries-bundle`** job downloads those, merges them into one tree, and uploads **`voice-binaries-all`** (complete `apps/voice/bin/` layout).
@@ -86,25 +86,29 @@ Each job **uploads** an artifact named `voice-partial-*`. The **`voice-binaries-
    gh run list --workflow ci.yml --limit 5
    ```
 
-3. Download the **bundled** artifact (simplest):
+3. **Recommended:** download the single merged artifact CI produces:
 
    ```bash
    gh run download <run-id> -n voice-binaries-all -D ./voice-dl
    ```
 
-4. Copy the merged `bin` tree into your clone (layout may be `./voice-dl/apps/voice/bin/<slug>/` or slug folders at the top of the zip—match what you see in the folder):
+4. Copy into your clone (open `./voice-dl` and match what you see—often `apps/voice/bin/<slug>/`):
 
    ```bash
-   # If you see apps/voice/bin/ inside the download:
    mkdir -p apps/voice/bin
    cp -a ./voice-dl/apps/voice/bin/* apps/voice/bin/
+   ```
 
-   # Or merge several voice-partial-* zips without the bundle job:
+   If slug folders sit at the top of the extract instead, copy those directories into `apps/voice/bin/`.
+
+5. **Fallback** (only if `voice-binaries-all` is missing—e.g. `voice-binaries-bundle` failed or a job was skipped): download every `voice-partial-*` artifact and merge with the script:
+
+   ```bash
    gh run download <run-id> -p 'voice-partial-*' -D ./voice-partials
    node scripts/dev/merge-voice-partial-artifacts.mjs ./voice-partials
    ```
 
-5. Then run `pnpm vscode:package:fat` (or only `node scripts/dev/build-voice-cross.mjs` if you only needed missing slugs). The fat prepublish will **keep** existing `apps/voice/bin/*` binaries when it cannot rebuild a slug on your machine.
+6. Then run `pnpm vscode:package:fat` (or only `node scripts/dev/build-voice-cross.mjs` if you only needed missing slugs). The fat prepublish will **keep** existing `apps/voice/bin/*` binaries when it cannot rebuild a slug on your machine.
 
 **UI:** On GitHub → **Actions** → select the workflow run → scroll to **Artifacts** → download `voice-binaries-all`.
 

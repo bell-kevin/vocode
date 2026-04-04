@@ -73,6 +73,9 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
+      - name: Set up QEMU (emulate linux/arm64 + arm/v7 for Docker on amd64)
+        uses: docker/setup-qemu-action@v3
+
       - name: Set up Node.js
         uses: actions/setup-node@v6
         with:
@@ -140,6 +143,23 @@ jobs:
         run: |
           "MSYS2_ROOT=${{ steps.msys2.outputs.msys2-location }}" >> $env:GITHUB_ENV
 
+      - name: Force MSYS2 MinGW64 for CGO (override Strawberry Perl pkg-config)
+        shell: pwsh
+        run: |
+          $msys = "${{ steps.msys2.outputs.msys2-location }}"
+          $bin = Join-Path $msys "mingw64\bin"
+          $pkgConfig = Join-Path $bin "pkg-config.exe"
+          $pkgConf = Join-Path $bin "pkgconf.exe"
+          $pkgTool = if (Test-Path $pkgConfig) { $pkgConfig } else { $pkgConf }
+          $pkgPath = Join-Path $msys "mingw64\lib\pkgconfig"
+          $gcc = Join-Path $bin "gcc.exe"
+          $newPath = "$bin;$env:Path"
+          "Path=$newPath" >> $env:GITHUB_ENV
+          "PKG_CONFIG=$pkgTool" >> $env:GITHUB_ENV
+          "PKG_CONFIG_PATH=$pkgPath" >> $env:GITHUB_ENV
+          "CC=$gcc" >> $env:GITHUB_ENV
+          "CGO_ENABLED=1" >> $env:GITHUB_ENV
+
       - name: Build vocode-voiced (win32-x64)
         run: node scripts/dev/build-voice-cross.mjs
         env:
@@ -173,6 +193,7 @@ jobs:
         with:
           go-version-file: go.mod
           cache: true
+          architecture: arm64
 
       - name: Set up MSYS2 (Clang ARM64)
         id: msys2
@@ -191,6 +212,24 @@ jobs:
         run: |
           "MSYS2_ROOT=${{ steps.msys2.outputs.msys2-location }}" >> $env:GITHUB_ENV
 
+      - name: Force MSYS2 ClangARM64 for CGO (build + test; WoA may misreport arch)
+        shell: pwsh
+        run: |
+          $msys = "${{ steps.msys2.outputs.msys2-location }}"
+          $bin = Join-Path $msys "clangarm64\bin"
+          $pkgConfig = Join-Path $bin "pkg-config.exe"
+          $pkgConf = Join-Path $bin "pkgconf.exe"
+          $pkgTool = if (Test-Path $pkgConfig) { $pkgConfig } else { $pkgConf }
+          $pkgPath = Join-Path $msys "clangarm64\lib\pkgconfig"
+          $clang = Join-Path $bin "clang.exe"
+          $newPath = "$bin;$env:Path"
+          "Path=$newPath" >> $env:GITHUB_ENV
+          "PKG_CONFIG=$pkgTool" >> $env:GITHUB_ENV
+          "PKG_CONFIG_PATH=$pkgPath" >> $env:GITHUB_ENV
+          "CC=$clang" >> $env:GITHUB_ENV
+          "CGO_ENABLED=1" >> $env:GITHUB_ENV
+          "GOARCH=arm64" >> $env:GITHUB_ENV
+
       - name: Build vocode-voiced (win32-arm64)
         run: node scripts/dev/build-voice-one.mjs win32-arm64
 
@@ -206,7 +245,7 @@ jobs:
 
   voice-darwin-x64:
     name: Build voice (macOS Intel, PortAudio)
-    runs-on: macos-13
+    runs-on: macos-15-intel
 
     steps:
       - name: Check out repository
