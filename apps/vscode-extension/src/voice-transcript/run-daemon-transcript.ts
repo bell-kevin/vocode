@@ -100,9 +100,8 @@ export async function runDaemonTranscriptForPendingId(
       paramsWithSymbols = {
         ...baseParams,
         activeFileSymbols: (() => {
-          const out: NonNullable<
-            VoiceTranscriptParams["activeFileSymbols"]
-          > = [];
+          const out: NonNullable<VoiceTranscriptParams["activeFileSymbols"]> =
+            [];
           flattenSymbols(docSymbols, out);
           return out;
         })(),
@@ -136,8 +135,7 @@ export async function runDaemonTranscriptForPendingId(
     }
 
     if (!result.success) {
-      const errMsg =
-        result.summary?.trim() || FAILED_TO_PROCESS_TRANSCRIPT;
+      const errMsg = result.summary?.trim() || FAILED_TO_PROCESS_TRANSCRIPT;
       mainPanelStore.markError(pendingId, errMsg);
       return;
     }

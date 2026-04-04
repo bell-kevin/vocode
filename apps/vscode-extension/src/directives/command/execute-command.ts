@@ -1,6 +1,5 @@
 import { spawn } from "node:child_process";
 import path from "node:path";
-
 import type { CommandDirective } from "@vocode/protocol";
 
 /** Shell entrypoints only; real dev CLIs run inside -c / -Command. */

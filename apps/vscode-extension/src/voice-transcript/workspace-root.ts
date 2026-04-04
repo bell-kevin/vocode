@@ -55,7 +55,9 @@ export function transcriptWorkspaceRoot(
  * Returns undefined when no folder is open — single-file windows still need an active file
  * for a meaningful root via {@link transcriptWorkspaceRoot}.
  */
-export function transcriptWorkspaceRootWithoutActiveEditor(): string | undefined {
+export function transcriptWorkspaceRootWithoutActiveEditor():
+  | string
+  | undefined {
   const folders = vscode.workspace.workspaceFolders;
   if (!folders?.length) {
     return undefined;

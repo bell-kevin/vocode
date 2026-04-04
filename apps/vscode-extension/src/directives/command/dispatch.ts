@@ -1,8 +1,8 @@
 import type { CommandDirective } from "@vocode/protocol";
 import * as vscode from "vscode";
 
-import type { DirectiveDispatchOutcome } from "../dispatch";
 import type { TranscriptApplyContext } from "../../voice-transcript/context";
+import type { DirectiveDispatchOutcome } from "../dispatch";
 import { runAllowedCommand } from "./execute-command";
 
 function commandDirectiveDisplayLine(d: CommandDirective): string {

@@ -7,7 +7,9 @@ export const FAILED_TO_PROCESS_TRANSCRIPT = "Failed to process transcript.";
  */
 export function userFacingTranscriptRpcError(err: unknown): string {
   if (!(err instanceof Error)) {
-    return typeof err === "string" ? err : "Unknown error while running the transcript.";
+    return typeof err === "string"
+      ? err
+      : "Unknown error while running the transcript.";
   }
   const m = err.message;
   const match = /^\[rpc\] -?\d+:\s*(.*)$/s.exec(m);

@@ -479,7 +479,9 @@ export class MainPanelStore {
     let next = (item.applyingCommandOutput ?? "") + chunk;
     if (next.length > maxApplyingCommandOutputChars) {
       const marker = "\n…(earlier output truncated)…\n";
-      next = marker + next.slice(next.length - maxApplyingCommandOutputChars + marker.length);
+      next =
+        marker +
+        next.slice(next.length - maxApplyingCommandOutputChars + marker.length);
     }
     item.applyingCommandOutput = next;
     this.emit();
