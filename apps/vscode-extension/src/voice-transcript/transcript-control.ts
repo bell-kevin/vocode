@@ -9,7 +9,9 @@ import {
 
 /**
  * Notifies the daemon to clear session state for clarify/search UI cancel, then the caller
- * should update the panel store (e.g. abortClarifyAsSkipped / dismissSearchState).
+ * should update the panel store (e.g. abortClarifyAsSkipped / dismissSearchState). When searchState
+ * clears (here, via daemon voice cancel, or markHandled closed), MainPanelViewProvider collapses the
+ * active editor selection so ROOT create vs edit routing matches the closed flow.
  */
 export async function sendTranscriptControlRequest(
   services: ExtensionServices,

@@ -11,8 +11,12 @@ import {
   getVocodeSetupBlockReason,
   OPENAI_API_KEY_SECRET,
 } from "../../config/spawn-env";
+import { collapseNonemptySelectionsInActiveEditor } from "../../voice-transcript/collapse-selection";
 import { sendTranscriptControlRequest } from "../../voice-transcript/transcript-control";
-import type { MainPanelStore } from "./main-panel-store";
+import {
+  type MainPanelStore,
+  panelHadActiveSearchInterrupt,
+} from "./main-panel-store";
 
 /** VS Code contributed view id (package.json); stable for user layouts and commands. */
 const mainPanelViewId = "vocode.transcriptPanel";
@@ -28,6 +32,8 @@ export class MainPanelViewProvider
   private pendingOpenPanelView: "settings" | "main" | null = null;
   private readonly unsubscribe: () => void;
   private readonly voiceStatusDisposable: vscode.Disposable;
+  /** Previous snapshot: whether search/file interrupt was showing (for collapsing editor selection when flow ends). */
+  private lastHadSearchInterrupt: boolean;
 
   constructor(
     private readonly extensionUri: vscode.Uri,
@@ -35,7 +41,16 @@ export class MainPanelViewProvider
     private readonly extensionContext: vscode.ExtensionContext,
     private readonly services: ExtensionServices,
   ) {
+    this.lastHadSearchInterrupt = panelHadActiveSearchInterrupt(
+      this.store.getSnapshot(),
+    );
     this.unsubscribe = this.store.onDidChange(() => {
+      const snap = this.store.getSnapshot();
+      const now = panelHadActiveSearchInterrupt(snap);
+      if (this.lastHadSearchInterrupt && !now) {
+        collapseNonemptySelectionsInActiveEditor();
+      }
+      this.lastHadSearchInterrupt = now;
       this.postState();
     });
     this.voiceStatusDisposable = this.services.voiceStatus.onDidChangeState(

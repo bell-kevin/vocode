@@ -173,6 +173,18 @@ export type MainPanelSnapshot = {
   readonly audioMeter: AudioMeterSnapshot;
 };
 
+/** True when the sidebar shows the workspace/file search interrupt (matches webview hasSearchInterrupt). */
+export function panelHadActiveSearchInterrupt(s: MainPanelSnapshot): boolean {
+  const ss = s.searchState;
+  if (!ss) {
+    return false;
+  }
+  if (ss.noHits) {
+    return true;
+  }
+  return ss.results.length > 0;
+}
+
 export type AudioMeterSnapshot = {
   readonly speaking: boolean;
   /** Normalized 0-1 RMS level from sidecar. */

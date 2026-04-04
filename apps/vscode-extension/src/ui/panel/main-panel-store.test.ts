@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { MainPanelStore } from "./main-panel-store";
+import {
+  MainPanelStore,
+  panelHadActiveSearchInterrupt,
+} from "./main-panel-store";
 
 test("clears partial buffer when a committed line arrives", () => {
   const store = new MainPanelStore();
@@ -88,6 +91,29 @@ test("abortClarifyAsSkipped clears prompt and appends skipped row", () => {
     typeof h?.summary === "string" &&
       h.summary.includes("Clarification cancelled"),
   );
+});
+
+test("panelHadActiveSearchInterrupt is true only when sidebar shows search/file list", () => {
+  const store = new MainPanelStore();
+  assert.equal(panelHadActiveSearchInterrupt(store.getSnapshot()), false);
+  const id = store.enqueueCommitted("find foo") as number;
+  store.markHandled(id, {
+    uiDisposition: "browse",
+    search: {
+      results: [
+        {
+          path: "/x.ts",
+          line: 0,
+          character: 0,
+          preview: "hit",
+        },
+      ],
+      activeIndex: 0,
+    },
+  });
+  assert.equal(panelHadActiveSearchInterrupt(store.getSnapshot()), true);
+  store.dismissSearchState();
+  assert.equal(panelHadActiveSearchInterrupt(store.getSnapshot()), false);
 });
 
 test("dismissSearchState clears search hit list", () => {
