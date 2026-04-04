@@ -1,5 +1,15 @@
 import type { PanelState } from "./types";
 
+/** Last path segment for display when the host omits `preview` (Go json omitempty on empty string). */
+function basenameFromPath(p: string): string {
+  const s = p.replace(/\\/g, "/").trim();
+  if (s === "") {
+    return "";
+  }
+  const i = s.lastIndexOf("/");
+  return i >= 0 ? s.slice(i + 1) : s;
+}
+
 function normalizeSearchStateWire(
   ss: Record<string, unknown>,
 ): PanelState["searchState"] | undefined {
@@ -8,19 +18,24 @@ function normalizeSearchStateWire(
   }
   const results = ss.results
     .map((r) => r as Record<string, unknown>)
-    .filter(
-      (r) =>
-        typeof r.path === "string" &&
-        typeof r.line === "number" &&
-        typeof r.character === "number" &&
-        typeof r.preview === "string",
-    )
-    .map((r) => ({
-      path: r.path as string,
-      line: r.line as number,
-      character: r.character as number,
-      preview: r.preview as string,
-    }));
+    .filter((r) => typeof r.path === "string" && r.path.trim() !== "")
+    .map((r) => {
+      const pathStr = (r.path as string).trim();
+      const rawPrev = r.preview;
+      const preview =
+        typeof rawPrev === "string" && rawPrev.trim() !== ""
+          ? rawPrev.trim()
+          : basenameFromPath(pathStr);
+      const line =
+        typeof r.line === "number" && Number.isFinite(r.line)
+          ? r.line
+          : 0;
+      const character =
+        typeof r.character === "number" && Number.isFinite(r.character)
+          ? r.character
+          : 0;
+      return { path: pathStr, line, character, preview };
+    });
   const activeIndex =
     typeof ss.activeIndex === "number" && Number.isFinite(ss.activeIndex)
       ? ss.activeIndex

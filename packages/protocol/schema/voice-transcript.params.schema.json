@@ -19,6 +19,10 @@
           "type": "string",
           "description": "Absolute workspace folder when one is open; otherwise the host may send the active file's parent directory so relative paths still resolve (single-file windows)."
         },
+        "pathSearchWorkspaceRoot": {
+          "type": "string",
+          "description": "Absolute folder to walk for path-basename voice file search (find/open file by name). Use the shortest workspace folder that contains the active file so nested multi-root (parent + child folders) still searches the outer tree and lists folder hits like the child root. Omit to use workspaceRoot / active-file parent per EffectiveWorkspaceRoot."
+        },
         "hostPlatform": {
           "type": "string",
           "description": "Node process.platform from the host (e.g. win32, darwin, linux). Used to choose shell invocation for voice command execution."
@@ -164,6 +168,15 @@
               "description": "Overrides VOCODE_DAEMON_GATHERED_MAX_EXCERPTS."
             }
           }
+        },
+        "workspaceSkillIds": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Optional: from workspace `.vocode` `skills`. Each builtin id (e.g. react-native-expo) adds that stack-specific prompt section to scoped edit / file-create. Omit or use [] for no builtin skills — nothing is enabled by default."
+        },
+        "workspacePromptAddendum": {
+          "type": "string",
+          "description": "Optional: freeform project rules from `.vocode` `promptAddendum`, appended to scoped edit / file-create model prompts."
         }
       }
     },

@@ -3,6 +3,7 @@ package fileselectflow
 import (
 	"vocoding.net/vocode/v2/apps/core/internal/flows"
 	global "vocoding.net/vocode/v2/apps/core/internal/flows/global"
+	"vocoding.net/vocode/v2/apps/core/internal/flows/router"
 	workspaceselectflow "vocoding.net/vocode/v2/apps/core/internal/flows/workspaceselect"
 	"vocoding.net/vocode/v2/apps/core/internal/transcript/session"
 	protocol "vocoding.net/vocode/v2/packages/protocol/go"
@@ -57,6 +58,9 @@ func DispatchRoute(
 	case "create":
 		if deps == nil || deps.Editor == nil {
 			return global.HandleIrrelevant(vs, flows.SelectFile)
+		}
+		if c, msg, ok := router.RejectCreateWhenEditorSelection(params); ok {
+			return c, msg
 		}
 		return workspaceselectflow.HandleCreate(deps.Editor, params, vs, text)
 	case "command":

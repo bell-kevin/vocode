@@ -7,7 +7,9 @@ import {
   FAILED_TO_PROCESS_TRANSCRIPT,
   userFacingTranscriptRpcError,
 } from "./messages";
+import { readWorkspaceVocodeTranscriptHints } from "../config/workspace-vocode";
 import {
+  transcriptPathSearchWorkspaceRoot,
   transcriptWorkspaceFolderOpen,
   transcriptWorkspaceRoot,
   transcriptWorkspaceRootWithoutActiveEditor,
@@ -39,6 +41,21 @@ export async function runDaemonTranscriptForPendingId(
       maxGatheredExcerpts: 12,
     };
 
+    const vocodeHints = await readWorkspaceVocodeTranscriptHints();
+    const vocodeTranscriptFields: Partial<
+      Pick<
+        VoiceTranscriptParams,
+        "workspaceSkillIds" | "workspacePromptAddendum"
+      >
+    > = {};
+    if (vocodeHints.skillsExplicit) {
+      vocodeTranscriptFields.workspaceSkillIds = vocodeHints.skillIds;
+    }
+    if (vocodeHints.promptAddendum) {
+      vocodeTranscriptFields.workspacePromptAddendum =
+        vocodeHints.promptAddendum;
+    }
+
     let paramsWithSymbols: VoiceTranscriptParams;
 
     if (editor) {
@@ -50,6 +67,7 @@ export async function runDaemonTranscriptForPendingId(
         activeFile,
         focusedWorkspacePath: activeFile,
         workspaceRoot: transcriptWorkspaceRoot(activeFile),
+        pathSearchWorkspaceRoot: transcriptPathSearchWorkspaceRoot(activeFile),
         hostPlatform: process.platform,
         workspaceFolderOpen: transcriptWorkspaceFolderOpen(),
         cursorPosition: {
@@ -64,6 +82,7 @@ export async function runDaemonTranscriptForPendingId(
         },
         contextSessionId: voiceSession.contextSessionId(),
         daemonConfig,
+        ...vocodeTranscriptFields,
       };
 
       const docSymbols = (await vscode.commands.executeCommand(
@@ -116,6 +135,7 @@ export async function runDaemonTranscriptForPendingId(
         workspaceFolderOpen: transcriptWorkspaceFolderOpen(),
         contextSessionId: voiceSession.contextSessionId(),
         daemonConfig,
+        ...vocodeTranscriptFields,
       };
     }
 

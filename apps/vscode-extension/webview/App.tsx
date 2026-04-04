@@ -105,9 +105,11 @@ export function App() {
   const initialRouteApplied = useRef(false);
 
   const hasClarifyInterrupt = Boolean(panel.clarifyPrompt?.question);
+  const ss = panel.searchState;
   const hasSearchInterrupt =
-    Array.isArray(panel.searchState?.results) &&
-    panel.searchState.results.length > 0;
+    ss != null &&
+    (ss.noHits === true ||
+      (Array.isArray(ss.results) && ss.results.length > 0));
 
   useEffect(() => {
     const handler = (event: MessageEvent) => {

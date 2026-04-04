@@ -43,7 +43,8 @@ func HandleCreate(deps *SelectionDeps, params protocol.VoiceTranscriptParams, vs
 	lines := strings.Split(body, "\n")
 	snippet := numberedFileSnippet(lines)
 
-	plan, err := callFileCreatePlanModel(context.Background(), deps.EditModel, instr, active, len(lines), snippet)
+	addenda := StackPromptAddenda(params.WorkspaceSkillIds, params.WorkspacePromptAddendum)
+	plan, err := callFileCreatePlanModel(context.Background(), deps.EditModel, instr, active, len(lines), snippet, addenda)
 	if err != nil {
 		return protocol.VoiceTranscriptCompletion{Success: false}, "create model: " + err.Error()
 	}
@@ -51,24 +52,35 @@ func HandleCreate(deps *SelectionDeps, params protocol.VoiceTranscriptParams, vs
 		return protocol.VoiceTranscriptCompletion{Success: false}, "create: model returned empty newText"
 	}
 
+	filteredImports := filterNewImportLines(body, plan.ImportLines)
+	importBlock := importBlockForInsert(filteredImports)
+	insertImpLn := importInsertLine(lines, active)
+	lineOffImp := linesAddedByImportBlock(importBlock)
+	imp := createImportContext{
+		Block:      importBlock,
+		InsertLine: insertImpLn,
+		LineOff:    lineOffImp,
+		Organize:   plan.shouldOrganizeImports(len(filteredImports) > 0),
+	}
+
 	placement := strings.ToLower(strings.TrimSpace(plan.Placement))
 	switch placement {
 	case "beginning", "start", "bof":
-		return applyCreateBeginning(deps, params, vs, active, body, lines, plan.NewText)
+		return applyCreateBeginning(deps, params, vs, active, body, lines, plan.NewText, imp)
 	case "end", "eof", "append":
-		return applyCreateAppend(deps, params, vs, active, body, plan.NewText)
+		return applyCreateAppend(deps, params, vs, active, body, plan.NewText, imp)
 	case "before_line", "line":
 		line1 := plan.Line
 		if line1 < 1 || line1 > len(lines) {
 			return protocol.VoiceTranscriptCompletion{Success: false}, fmt.Sprintf("create: line %d out of range (file has %d line(s))", line1, len(lines))
 		}
-		return applyCreateBeforeLine(deps, params, vs, active, body, lines, line1, plan.NewText)
+		return applyCreateBeforeLine(deps, params, vs, active, body, lines, line1, plan.NewText, imp)
 	case "after_line":
 		line1 := plan.Line
 		if line1 < 1 || line1 > len(lines) {
 			return protocol.VoiceTranscriptCompletion{Success: false}, fmt.Sprintf("create: line %d out of range (file has %d line(s))", line1, len(lines))
 		}
-		return applyCreateAfterLine(deps, params, vs, active, body, lines, line1, plan.NewText)
+		return applyCreateAfterLine(deps, params, vs, active, body, lines, line1, plan.NewText, imp)
 	default:
 		return protocol.VoiceTranscriptCompletion{Success: false}, `create: model placement must be "beginning", "end", "before_line", or "after_line"`
 	}
@@ -98,16 +110,58 @@ func formatNumberedLines(lines []string, startLine1 int) string {
 }
 
 type fileCreatePlan struct {
-	Placement string `json:"placement"`
-	Line      int    `json:"line"`
-	NewText   string `json:"newText"`
+	Placement       string   `json:"placement"`
+	Line            int      `json:"line"`
+	NewText         string   `json:"newText"`
+	ImportLines     []string `json:"importLines"`
+	OrganizeImports *bool    `json:"organizeImports,omitempty"`
 }
 
-func callFileCreatePlanModel(ctx context.Context, m agent.ModelClient, instruction, activeFile string, totalLines int, numberedSnippet string) (fileCreatePlan, error) {
+func (p fileCreatePlan) shouldOrganizeImports(hasNewImports bool) bool {
+	if !hasNewImports {
+		return false
+	}
+	if p.OrganizeImports != nil {
+		return *p.OrganizeImports
+	}
+	return true
+}
+
+// createImportContext carries optional top-of-file import insertion (same pipeline as scoped edit).
+type createImportContext struct {
+	Block      string
+	InsertLine int
+	LineOff    int
+	Organize   bool
+}
+
+func (c createImportContext) active() bool { return c.Block != "" }
+
+// syntheticFileLinesAfterImport returns the line list as it looks after inserting importBlock before insertLine.
+func syntheticFileLinesAfterImport(lines []string, insertLine int, importBlock string) []string {
+	importBlock = strings.TrimRight(importBlock, "\n")
+	if importBlock == "" {
+		return lines
+	}
+	chunks := strings.Split(importBlock, "\n")
+	if insertLine < 0 {
+		insertLine = 0
+	}
+	if insertLine > len(lines) {
+		insertLine = len(lines)
+	}
+	out := make([]string, 0, len(lines)+len(chunks))
+	out = append(out, lines[:insertLine]...)
+	out = append(out, chunks...)
+	out = append(out, lines[insertLine:]...)
+	return out
+}
+
+func callFileCreatePlanModel(ctx context.Context, m agent.ModelClient, instruction, activeFile string, totalLines int, numberedSnippet, stackAddenda string) (fileCreatePlan, error) {
 	schema := map[string]any{
 		"type":                 "object",
 		"additionalProperties": false,
-		"required":             []string{"placement", "line", "newText"},
+		"required":             []string{"placement", "line", "newText", "importLines"},
 		"properties": map[string]any{
 			"placement": map[string]any{
 				"type": "string",
@@ -118,8 +172,22 @@ func callFileCreatePlanModel(ctx context.Context, m agent.ModelClient, instructi
 				"description": "1-based line from the snippet: required for before_line and after_line (before_line = insert before that line; after_line = insert after that line). Use 0 for beginning or end.",
 			},
 			"newText": map[string]any{
-				"type":        "string",
-				"description": "Only the new block to insert; must reflect what the classifier already gated (type of addition). No markdown fences. In React Native/Expo files use RN components and onPress, never HTML tags or onClick.",
+				"type": "string",
+				"description": "Only the new block to insert (no markdown fences). " +
+					"MUST compile and typecheck for the language/stack implied by activeFile and the numbered snippet — every language, not optional. " +
+					"No undefined identifiers: declare locals, types, and hooks in this block when the insertion is a full function/component, or rely on existing file context. " +
+					"Do NOT put import or export-from lines in newText unless the insertion is into an import section: the host inserts importLines at the import region first, then inserts newText — duplicating imports causes doubles. ",
+			},
+			"importLines": map[string]any{
+				"type":  "array",
+				"items": map[string]any{"type": "string"},
+				"description": `Always include this key (use [] if nothing new). When the file uses imports: required whenever newText references a symbol from another module that the file does not already import. ` +
+					`Full lines (JS/TS: import { x } from "y"; host merges via organize imports). ` +
+					`Use [] if every external symbol is already imported. In React function components, importing useState in importLines requires a useState(...) call inside newText when you use that state.`,
+			},
+			"organizeImports": map[string]any{
+				"type":        "boolean",
+				"description": "When importLines is non-empty, defaults to true (host merges/formats imports); set false to skip.",
 			},
 		},
 	}
@@ -135,11 +203,11 @@ func callFileCreatePlanModel(ctx context.Context, m agent.ModelClient, instructi
 		return fileCreatePlan{}, err
 	}
 	sys := strings.TrimSpace(`
-You are Vocode's file-create helper. The route classifier only reaches you when the user already named or clearly implied what to add; produce newText that matches that intent.
+You are Vocode's file-create helper. Produce newText and placement from the instruction and file context below.
 
 From the user instruction and the numbered snippet (each line is "N|content"), decide exactly where NEW content should go in the active file. If they did not specify placement in speech, infer a reasonable placement from the snippet and conventions (e.g. append at end, after related code).
 
-Respond with one JSON object: {"placement":"beginning"|"end"|"before_line"|"after_line","line":<int>,"newText":"..."}.
+Respond with JSON: placement, line, newText, importLines (array, use [] if nothing new), organizeImports (optional).
 
 You must map the user's wording to the correct placement yourself, including informal speech:
 - "top", "start", "beginning of the file" → beginning (line 0).
@@ -151,8 +219,21 @@ If two readings are possible, prefer the one that matches common editor behavior
 
 For "beginning" or "end", set line to 0. For "before_line" or "after_line", line must be a valid 1-based line number from the snippet (totalLines is the line count).
 
-newText is ONLY the new block to add — no markdown fences or explanation. Match indentation to neighboring lines when obvious from the snippet.
-`) + reactNativeExpoRules
+## Always (every language and stack)
+- newText MUST compile and typecheck as real code for that file — no placeholders, no invented APIs, no undefined names (Go, Python, Rust, Java, JS/TS, etc.).
+- If the insertion is a whole function, component, or class body, you may include statements before a return or JSX inside newText when that matches the instruction.
+- Match idioms, naming, and patterns visible in the snippet.
+
+## Imports (when the language uses them)
+- The host applies importLines at the import area first, then inserts newText. Do not put import or export-from lines in newText unless you are inserting into an import section.
+- importLines is a required JSON key: use [] when the file already imports every symbol you use; otherwise list full lines (including hooks like useState).
+- React/TSX: listing useState in importLines is not enough — invoke it in the component (e.g. const [n, setN] = useState(0);) before JSX uses n or setN.
+- organizeImports defaults to true when importLines is non-empty; set false to skip.
+
+newText is ONLY the new block — no markdown fences or explanation. Match indentation to neighboring lines when obvious from the snippet.
+
+No extra JSON keys beyond placement, line, newText, importLines, organizeImports.
+`) + stackAddenda
 	out, err := m.Call(ctx, agent.CompletionRequest{
 		System:     sys,
 		User:       string(userBytes),
@@ -168,32 +249,199 @@ newText is ONLY the new block to add — no markdown fences or explanation. Matc
 	return plan, nil
 }
 
-func applyCreateBeginning(deps *SelectionDeps, params protocol.VoiceTranscriptParams, vs *session.VoiceSession, active, body string, lines []string, newText string) (protocol.VoiceTranscriptCompletion, string) {
+func applyCreateBeginning(deps *SelectionDeps, params protocol.VoiceTranscriptParams, vs *session.VoiceSession, active, body string, lines []string, newText string, imp createImportContext) (protocol.VoiceTranscriptCompletion, string) {
 	core := strings.TrimRight(newText, "\n")
-	sl, sc := 0, 0
-	pfx, suf := insertAffixForZeroWidth(lines, sl, sc, core)
+	sl, sc, el, ec := 0, 0, 0, 0
+	workLines := lines
+	sl2, sc2, el2, ec2 := sl, sc, el, ec
+	if imp.active() {
+		sl2, sc2, el2, ec2 = shiftRangeAfterImportInsert(sl, sc, el, ec, imp.InsertLine, imp.LineOff)
+		workLines = syntheticFileLinesAfterImport(lines, imp.InsertLine, imp.Block)
+	}
+	pfx, suf := insertAffixForZeroWidth(workLines, sl2, sc2, core)
 	payload := pfx + core + suf
-	return applyCreateReplaceRange(deps, params, vs, active, 0, 0, 0, 0, emptySHA256, body, pfx, payload, core, "added at beginning of file")
+	actions := buildCreateEditActions(active, imp, emptySHA256, sl2, sc2, el2, ec2, payload)
+	return applyCreateEditActions(deps, params, vs, active, body, actions, imp, pfx, payload, core, "added at beginning of file", sl2, sc2, imp.active())
 }
 
-func applyCreateBeforeLine(deps *SelectionDeps, params protocol.VoiceTranscriptParams, vs *session.VoiceSession, active, body string, lines []string, line1 int, newText string) (protocol.VoiceTranscriptCompletion, string) {
+func applyCreateBeforeLine(deps *SelectionDeps, params protocol.VoiceTranscriptParams, vs *session.VoiceSession, active, body string, lines []string, line1 int, newText string, imp createImportContext) (protocol.VoiceTranscriptCompletion, string) {
 	idx := line1 - 1
 	core := strings.TrimRight(newText, "\n")
-	pfx, suf := insertAffixForZeroWidth(lines, idx, 0, core)
+	sl, sc, el, ec := idx, 0, idx, 0
+	workLines := lines
+	sl2, sc2, el2, ec2 := sl, sc, el, ec
+	if imp.active() {
+		sl2, sc2, el2, ec2 = shiftRangeAfterImportInsert(sl, sc, el, ec, imp.InsertLine, imp.LineOff)
+		workLines = syntheticFileLinesAfterImport(lines, imp.InsertLine, imp.Block)
+	}
+	pfx, suf := insertAffixForZeroWidth(workLines, sl2, sc2, core)
 	payload := pfx + core + suf
 	msg := fmt.Sprintf("added before line %d", line1)
-	return applyCreateReplaceRange(deps, params, vs, active, idx, 0, idx, 0, emptySHA256, body, pfx, payload, core, msg)
+	actions := buildCreateEditActions(active, imp, emptySHA256, sl2, sc2, el2, ec2, payload)
+	return applyCreateEditActions(deps, params, vs, active, body, actions, imp, pfx, payload, core, msg, sl2, sc2, imp.active())
 }
 
 // applyCreateAfterLine inserts after 1-based line line1: before the next line if any, else at end of the last line.
 // line1 is validated: 1 <= line1 <= len(lines).
-func applyCreateAfterLine(deps *SelectionDeps, params protocol.VoiceTranscriptParams, vs *session.VoiceSession, active, body string, lines []string, line1 int, newText string) (protocol.VoiceTranscriptCompletion, string) {
+func applyCreateAfterLine(deps *SelectionDeps, params protocol.VoiceTranscriptParams, vs *session.VoiceSession, active, body string, lines []string, line1 int, newText string, imp createImportContext) (protocol.VoiceTranscriptCompletion, string) {
 	core := strings.TrimRight(newText, "\n")
 	sl, sc, el, ec := rangeAfterLine(lines, line1)
-	pfx, suf := insertAffixForZeroWidth(lines, sl, sc, core)
+	workLines := lines
+	sl2, sc2, el2, ec2 := sl, sc, el, ec
+	if imp.active() {
+		sl2, sc2, el2, ec2 = shiftRangeAfterImportInsert(sl, sc, el, ec, imp.InsertLine, imp.LineOff)
+		workLines = syntheticFileLinesAfterImport(lines, imp.InsertLine, imp.Block)
+	}
+	pfx, suf := insertAffixForZeroWidth(workLines, sl2, sc2, core)
 	payload := pfx + core + suf
 	msg := fmt.Sprintf("added after line %d", line1)
-	return applyCreateReplaceRange(deps, params, vs, active, sl, sc, el, ec, emptySHA256, body, pfx, payload, core, msg)
+	actions := buildCreateEditActions(active, imp, emptySHA256, sl2, sc2, el2, ec2, payload)
+	return applyCreateEditActions(deps, params, vs, active, body, actions, imp, pfx, payload, core, msg, sl2, sc2, imp.active())
+}
+
+func buildCreateEditActions(active string, imp createImportContext, fp string, sl, sc, el, ec int, createPayload string) []protocol.EditAction {
+	rng := func(slo, sco, elo, eco int) *struct {
+		StartLine int64 `json:"startLine"`
+		StartChar int64 `json:"startChar"`
+		EndLine   int64 `json:"endLine"`
+		EndChar   int64 `json:"endChar"`
+	} {
+		return &struct {
+			StartLine int64 `json:"startLine"`
+			StartChar int64 `json:"startChar"`
+			EndLine   int64 `json:"endLine"`
+			EndChar   int64 `json:"endChar"`
+		}{
+			StartLine: int64(slo),
+			StartChar: int64(sco),
+			EndLine:   int64(elo),
+			EndChar:   int64(eco),
+		}
+	}
+	out := make([]protocol.EditAction, 0, 2)
+	if imp.active() {
+		out = append(out, protocol.EditAction{
+			Kind:           "replace_range",
+			Path:           active,
+			NewText:        imp.Block,
+			ExpectedSha256: emptySHA256,
+			Range:          rng(imp.InsertLine, 0, imp.InsertLine, 0),
+		})
+	}
+	out = append(out, protocol.EditAction{
+		Kind:           "replace_range",
+		Path:           active,
+		NewText:        createPayload,
+		ExpectedSha256: fp,
+		Range:          rng(sl, sc, el, ec),
+	})
+	return out
+}
+
+func applyCreateEditActions(
+	deps *SelectionDeps,
+	params protocol.VoiceTranscriptParams,
+	vs *session.VoiceSession,
+	active, preBody string,
+	actions []protocol.EditAction,
+	imp createImportContext,
+	insertPrefix, fullPayload, coreBlock, summary string,
+	anchorSl, anchorSc int,
+	multiStep bool,
+) (protocol.VoiceTranscriptCompletion, string) {
+	if deps.HostApply == nil || deps.NewBatchID == nil {
+		return protocol.VoiceTranscriptCompletion{Success: false}, "host apply client not configured"
+	}
+	batchID := deps.NewBatchID()
+	for i := range actions {
+		if imp.active() && i == 0 {
+			actions[i].EditId = "vocode-create-import-" + batchID
+		} else {
+			actions[i].EditId = "vocode-create-" + batchID
+		}
+	}
+	dir := []protocol.VoiceTranscriptDirective{
+		{
+			Kind: "edit",
+			EditDirective: &protocol.EditDirective{
+				Kind:    "success",
+				Actions: actions,
+			},
+		},
+	}
+	if imp.active() && imp.Organize {
+		dir = append(dir, protocol.VoiceTranscriptDirective{
+			Kind: "code_action",
+			CodeActionDirective: &struct {
+				Path   string `json:"path"`
+				Range  *struct {
+					StartLine int64 `json:"startLine"`
+					StartChar int64 `json:"startChar"`
+					EndLine   int64 `json:"endLine"`
+					EndChar   int64 `json:"endChar"`
+				} `json:"range,omitempty"`
+				ActionKind             string `json:"actionKind"`
+				PreferredTitleIncludes string `json:"preferredTitleIncludes,omitempty"`
+			}{
+				Path:       active,
+				ActionKind: "source.organizeImports",
+			},
+		})
+	}
+	pending := &session.DirectiveApplyBatch{ID: batchID, NumDirectives: len(dir)}
+	if vs != nil {
+		vs.PendingDirectiveApply = pending
+	}
+	hostRes, err := deps.HostApply.ApplyDirectives(protocol.HostApplyParams{
+		ApplyBatchId: batchID,
+		ActiveFile:   params.ActiveFile,
+		Directives:   dir,
+	})
+	if err != nil {
+		if vs != nil {
+			vs.PendingDirectiveApply = nil
+		}
+		return protocol.VoiceTranscriptCompletion{Success: false}, "host.applyDirectives failed: " + err.Error()
+	}
+	if err := pending.ConsumeHostApplyReport(batchID, hostRes.Items); err != nil {
+		if vs != nil {
+			vs.PendingDirectiveApply = nil
+		}
+		return protocol.VoiceTranscriptCompletion{Success: false}, "host apply failed: " + err.Error()
+	}
+	if vs != nil {
+		vs.PendingDirectiveApply = nil
+	}
+	line0, char0 := anchorSl, anchorSc
+	if coreBlock != "" && deps.ExtensionHost != nil {
+		if full, rerr := deps.ExtensionHost.ReadHostFile(active); rerr == nil {
+			fn := normalizeEOL(full)
+			if off, ok := anchorCreateCoreByteOffset(preBody, fn, coreBlock, insertPrefix, fullPayload, anchorSl, anchorSc, multiStep); ok {
+				line0, char0 = lineCharUTF16FromByteIndex(fn, off)
+			}
+		}
+	}
+	return finishCreateWithWorkspaceSelection(deps, params, vs, active, line0, char0, coreBlock, summary)
+}
+
+// anchorCreateCoreByteOffset returns the byte offset of coreBlock in postFull (normalized).
+func anchorCreateCoreByteOffset(preBody, postFull, coreBlock, insertPrefix, fullPayload string, sl, sc int, multiStep bool) (int, bool) {
+	postN := normalizeEOL(postFull)
+	if coreBlock == "" {
+		return 0, false
+	}
+	if multiStep {
+		off := strings.Index(postN, coreBlock)
+		if off < 0 {
+			return 0, false
+		}
+		return alignCoreAnchorByteOffset(postN, off, coreBlock), true
+	}
+	off, ok := createReplaceCoreByteOffset(preBody, postFull, sl, sc, insertPrefix, fullPayload, coreBlock)
+	if !ok {
+		return 0, false
+	}
+	return off, true
 }
 
 // rangeAfterLine returns a zero-width range (0-based line/char) for inserting after 1-based line line1.
@@ -570,27 +818,67 @@ func finishCreateWithWorkspaceSelection(
 	}, ""
 }
 
-func applyCreateAppend(deps *SelectionDeps, params protocol.VoiceTranscriptParams, vs *session.VoiceSession, active, body, newText string) (protocol.VoiceTranscriptCompletion, string) {
+func applyCreateAppend(deps *SelectionDeps, params protocol.VoiceTranscriptParams, vs *session.VoiceSession, active, body, newText string, imp createImportContext) (protocol.VoiceTranscriptCompletion, string) {
 	toAppend, block, prefixLen := appendCreateToAppend(body, newText)
 	if deps.HostApply == nil || deps.NewBatchID == nil {
 		return protocol.VoiceTranscriptCompletion{Success: false}, "host apply client not configured"
 	}
 	batchID := deps.NewBatchID()
+	actions := make([]protocol.EditAction, 0, 2)
+	if imp.active() {
+		rng := &struct {
+			StartLine int64 `json:"startLine"`
+			StartChar int64 `json:"startChar"`
+			EndLine   int64 `json:"endLine"`
+			EndChar   int64 `json:"endChar"`
+		}{
+			StartLine: int64(imp.InsertLine),
+			StartChar: 0,
+			EndLine:   int64(imp.InsertLine),
+			EndChar:   0,
+		}
+		actions = append(actions, protocol.EditAction{
+			Kind:           "replace_range",
+			Path:           active,
+			NewText:        imp.Block,
+			ExpectedSha256: emptySHA256,
+			Range:          rng,
+			EditId:         "vocode-create-import-" + batchID,
+		})
+	}
+	actions = append(actions, protocol.EditAction{
+		Kind:   "append_to_file",
+		Path:   active,
+		Text:   toAppend,
+		EditId: "vocode-create-" + batchID,
+	})
 	dir := []protocol.VoiceTranscriptDirective{
 		{
 			Kind: "edit",
 			EditDirective: &protocol.EditDirective{
-				Kind: "success",
-				Actions: []protocol.EditAction{
-					{
-						Kind:   "append_to_file",
-						Path:   active,
-						Text:   toAppend,
-						EditId: "vocode-create-" + batchID,
-					},
-				},
+				Kind:    "success",
+				Actions: actions,
 			},
 		},
+	}
+	if imp.active() && imp.Organize {
+		dir = append(dir, protocol.VoiceTranscriptDirective{
+			Kind: "code_action",
+			CodeActionDirective: &struct {
+				Path   string `json:"path"`
+				Range  *struct {
+					StartLine int64 `json:"startLine"`
+					StartChar int64 `json:"startChar"`
+					EndLine   int64 `json:"endLine"`
+					EndChar   int64 `json:"endChar"`
+				} `json:"range,omitempty"`
+				ActionKind             string `json:"actionKind"`
+				PreferredTitleIncludes string `json:"preferredTitleIncludes,omitempty"`
+			}{
+				Path:       active,
+				ActionKind: "source.organizeImports",
+			},
+		})
 	}
 	pending := &session.DirectiveApplyBatch{ID: batchID, NumDirectives: len(dir)}
 	if vs != nil {
@@ -620,7 +908,14 @@ func applyCreateAppend(deps *SelectionDeps, params protocol.VoiceTranscriptParam
 	if full, rerr := deps.ExtensionHost.ReadHostFile(active); rerr == nil {
 		fn := normalizeEOL(full)
 		if block != "" {
-			if off, ok := appendInsertionByteOffset(body, full, prefixLen, block); ok {
+			if imp.active() {
+				if off := strings.Index(fn, block); off >= 0 {
+					off = alignCoreAnchorByteOffset(fn, off, block)
+					line0, char0 = lineCharUTF16FromByteIndex(fn, off)
+				} else {
+					line0, char0, _ = insertionAnchorAfterAppend(deps, active, block)
+				}
+			} else if off, ok := appendInsertionByteOffset(body, full, prefixLen, block); ok {
 				off = alignCoreAnchorByteOffset(fn, off, block)
 				line0, char0 = lineCharUTF16FromByteIndex(fn, off)
 			} else {
@@ -631,73 +926,4 @@ func applyCreateAppend(deps *SelectionDeps, params protocol.VoiceTranscriptParam
 		line0, char0, _ = insertionAnchorAfterAppend(deps, active, block)
 	}
 	return finishCreateWithWorkspaceSelection(deps, params, vs, active, line0, char0, block, "appended to file")
-}
-
-func applyCreateReplaceRange(deps *SelectionDeps, params protocol.VoiceTranscriptParams, vs *session.VoiceSession, active string, sl, sc, el, ec int, fp, body, insertPrefix, fullPayload, coreBlock, summary string) (protocol.VoiceTranscriptCompletion, string) {
-	if deps.HostApply == nil || deps.NewBatchID == nil {
-		return protocol.VoiceTranscriptCompletion{Success: false}, "host apply client not configured"
-	}
-	batchID := deps.NewBatchID()
-	dir := []protocol.VoiceTranscriptDirective{
-		{
-			Kind: "edit",
-			EditDirective: &protocol.EditDirective{
-				Kind: "success",
-				Actions: []protocol.EditAction{
-					{
-						Kind:           "replace_range",
-						Path:           active,
-						NewText:        fullPayload,
-						ExpectedSha256: fp,
-						Range: &struct {
-							StartLine int64 `json:"startLine"`
-							StartChar int64 `json:"startChar"`
-							EndLine   int64 `json:"endLine"`
-							EndChar   int64 `json:"endChar"`
-						}{
-							StartLine: int64(sl),
-							StartChar: int64(sc),
-							EndLine:   int64(el),
-							EndChar:   int64(ec),
-						},
-						EditId: "vocode-create-" + batchID,
-					},
-				},
-			},
-		},
-	}
-	pending := &session.DirectiveApplyBatch{ID: batchID, NumDirectives: len(dir)}
-	if vs != nil {
-		vs.PendingDirectiveApply = pending
-	}
-	hostRes, err := deps.HostApply.ApplyDirectives(protocol.HostApplyParams{
-		ApplyBatchId: batchID,
-		ActiveFile:   params.ActiveFile,
-		Directives:   dir,
-	})
-	if err != nil {
-		if vs != nil {
-			vs.PendingDirectiveApply = nil
-		}
-		return protocol.VoiceTranscriptCompletion{Success: false}, "host.applyDirectives failed: " + err.Error()
-	}
-	if err := pending.ConsumeHostApplyReport(batchID, hostRes.Items); err != nil {
-		if vs != nil {
-			vs.PendingDirectiveApply = nil
-		}
-		return protocol.VoiceTranscriptCompletion{Success: false}, "host apply failed: " + err.Error()
-	}
-	if vs != nil {
-		vs.PendingDirectiveApply = nil
-	}
-	line0, char0 := sl, sc
-	if coreBlock != "" && deps.ExtensionHost != nil {
-		if full, rerr := deps.ExtensionHost.ReadHostFile(active); rerr == nil {
-			fn := normalizeEOL(full)
-			if off, ok := createReplaceCoreByteOffset(body, full, sl, sc, insertPrefix, fullPayload, coreBlock); ok {
-				line0, char0 = lineCharUTF16FromByteIndex(fn, off)
-			}
-		}
-	}
-	return finishCreateWithWorkspaceSelection(deps, params, vs, active, line0, char0, coreBlock, summary)
 }

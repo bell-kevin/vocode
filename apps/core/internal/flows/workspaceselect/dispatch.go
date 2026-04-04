@@ -4,6 +4,7 @@ import (
 	"vocoding.net/vocode/v2/apps/core/internal/agent"
 	"vocoding.net/vocode/v2/apps/core/internal/flows"
 	global "vocoding.net/vocode/v2/apps/core/internal/flows/global"
+	"vocoding.net/vocode/v2/apps/core/internal/flows/router"
 	"vocoding.net/vocode/v2/apps/core/internal/rpc"
 	"vocoding.net/vocode/v2/apps/core/internal/transcript/session"
 	protocol "vocoding.net/vocode/v2/packages/protocol/go"
@@ -53,6 +54,9 @@ func DispatchRoute(
 	case "edit":
 		return HandleEdit(deps, params, vs, text)
 	case "create":
+		if c, msg, ok := router.RejectCreateWhenEditorSelection(params); ok {
+			return c, msg
+		}
 		return HandleCreate(deps, params, vs, text)
 	case "command":
 		if deps == nil {

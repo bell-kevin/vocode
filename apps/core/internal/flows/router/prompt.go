@@ -31,30 +31,17 @@ Rules:
 - For "file_select", set "search_query" to a single file or folder name only (basename): e.g. game.js, README.md, Res. No slashes, no path segments, no absolute paths — never paste activeFile or any full system path. STT may say "dot" for a period in the name — rewrite to real punctuation in that one segment only. Set "search_symbol_kind" to "". Still use file_select if workspaceFolderOpen is false; the host handles missing workspace later.
 - For "workspace_select" and "file_select", "search_query" must be non-empty.
 - For all other routes, set "search_query" to "" and "search_symbol_kind" to "".
-- "question" vs "command": "question" = informational / how-what-why. "command" = imperative or clear execute-now intent for terminal work (install, run tests, scaffold, git), including "can you run …?" / "could you npm install?" when they mean execution, not a lesson.
-- "workspace_select" vs "file_select": Verbs find, go to, navigate to, select, look for can mean either — use path signals (extension, file/folder/directory/document, obvious basename) → "file_select". The verb "open" is reserved for files and folders: "open …" → "file_select" with basename in search_query, never "workspace_select" for a symbol hunt. If ambiguous and no path signal and no "open", default "workspace_select". "Go to main" without file/open cues → "workspace_select".
-- "go to" + named symbol or component, or file-target phrase: use "workspace_select" or "file_select" respectively; search_query = identifier or basename only (strip find, go, to, the). "open" + name → always "file_select". Do NOT use "workspace_select_control" for those — control is only for the existing hit list (next, previous, first/second hit/result, bare short picks).
+- "question" vs "command": follow the "question" and "command" route descriptions (run-now intent → command even if phrased as a question).
+- "workspace_select" vs "file_select" vs "workspace_select_control": follow those route descriptions; strip filler (find, go, to, the) from search_query. Never use "workspace_select_control" for a newly named symbol or file — only for next/previous/pick-N on the current hit list.
 - Compound utterance (e.g. find X and then add Y): if both search and create/command apply, prefer "workspace_select" or "file_select" over "create" or "command" (search wins for this turn).
-- "create" gate: use "create" only when the user names or clearly implies what to add (function, comment, import, type, etc.). Vague "add something" / "put code here" with no identifiable what → "irrelevant", not "create".
+- "create": follow the create route description in the Routes list (concrete "what to add"; vague "add something" → "irrelevant"). If hasNonemptySelection is true, never return "create" — use "edit" for the highlight.
 - "control" vs "irrelevant": "control" = dismiss/leave the flow (exit, cancel, stop, quit, go back, never mind). Casual "thanks" / "okay" / "got it" without clear exit → "irrelevant".
-- ROOT flow + hasNonemptySelection + only vague "fix this" / "make it work" with no named what to add → "irrelevant", not "create".
 - No other keys. No markdown.
 `)
 	if flow == flows.WorkspaceSelect {
 		b.WriteString(`
 
-Workspace select — user JSON may include hasNonemptySelection (true when the editor selection is non-empty) and activeFile:
-- When hasNonemptySelection is true and the utterance is vague "fix this" / "make it work" / improve existing code without naming new content to add, prefer "edit" over "irrelevant" or "workspace_select".
-- When hasNonemptySelection is true, if the utterance matches global "create" or "rename" per the route list, prefer those when appropriate.
-- When hasNonemptySelection is true, the utterance is an imperative to change existing code and they are not starting a new workspace search, prefer "edit" over "workspace_select".
-- Starting a new search while in this flow → "workspace_select" with a fresh non-empty search_query. List navigation only → "workspace_select_control".
-- Phrases like "go to the TabTwo screen" → workspace_select; "open the explore file" / "go to the explore file" with file cue → file_select — new search, not workspace_select_control. Put symbol or basename in search_query, not list position.
-`)
-	}
-	if flow == flows.SelectFile {
-		b.WriteString(`
-
-Select file — global "create" vs "create_entry": user JSON flow is file_select; activeFile may still be set from the editor. Use create_entry when they name a new file or folder on disk under the list row (add, make, create, new + a name; STT may say "dot" for "."). For create_entry set search_query to "". Use create only for changing the open editor buffer, not for a new disk path from this flow.
+Workspace select — when hasNonemptySelection is true: vague "fix this" / "make it work" without naming new content → prefer "edit" over "irrelevant" or "workspace_select"; imperative to change existing code without starting a new search → prefer "edit" over "workspace_select".
 `)
 	}
 	return strings.TrimSpace(b.String())

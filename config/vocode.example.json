@@ -1,1 +1,5 @@
-{}
+{
+  "sttKeywords": ["useState", "Pressable", "expo-router"],
+  "skills": ["react-native-expo"],
+  "promptAddendum": "We use Zustand for global state; keep components mostly presentational."
+}

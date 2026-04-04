@@ -14,9 +14,7 @@ func TestClassifierSystem_rootContainsTieBreaksAndRoutes(t *testing.T) {
 		"ROOT flow",
 		"speech-to-text",
 		"Tie-breaks (ROOT):",
-		"- question:",
-		"- workspace_select:",
-		"- file_select:",
+		"Compound utterance",
 		"Return exactly ONE JSON object:",
 		`"control" vs "irrelevant"`,
 	} {
@@ -31,8 +29,8 @@ func TestClassifierSystem_workspaceSelectAddendum(t *testing.T) {
 	if !strings.Contains(s, "WORKSPACE SELECT flow") {
 		t.Error("expected workspace select intro from spec")
 	}
-	if !strings.Contains(s, "Starting a new search") {
-		t.Error("expected workspace-select new-search vs navigation guidance")
+	if !strings.Contains(s, "hasNonemptySelection") {
+		t.Error("expected workspace-select selection tie-break")
 	}
 }
 
@@ -42,7 +40,7 @@ func TestClassifierSystem_selectFileAddendum(t *testing.T) {
 		t.Error("expected select file intro from spec")
 	}
 	if !strings.Contains(s, "create_entry") || !strings.Contains(s, "search_query") {
-		t.Error("expected select-file create_entry search_query rule")
+		t.Error("expected select-file routes to include create_entry and Rules search_query")
 	}
 }
 

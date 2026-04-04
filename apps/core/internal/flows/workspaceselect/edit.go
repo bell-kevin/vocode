@@ -46,9 +46,14 @@ func HandleEdit(deps *SelectionDeps, params protocol.VoiceTranscriptParams, vs *
 	sum := sha256.Sum256([]byte(targetText))
 	fp := hex.EncodeToString(sum[:])
 
-	modelOut, err := callScopedEditModel(context.Background(), deps.EditModel, instr, active, sl, sc, el, ec, targetText, body)
+	addenda := StackPromptAddenda(params.WorkspaceSkillIds, params.WorkspacePromptAddendum)
+	modelOut, err := callScopedEditModel(context.Background(), deps.EditModel, instr, active, sl, sc, el, ec, targetText, body, addenda)
 	if err != nil {
 		return protocol.VoiceTranscriptCompletion{Success: false}, "edit model: " + err.Error()
+	}
+	if rest, peeled := mergePeelLeadingImportLines(modelOut.ReplacementText, targetText); len(peeled) > 0 {
+		modelOut.ReplacementText = rest
+		modelOut.ImportLines = append(peeled, modelOut.ImportLines...)
 	}
 
 	if deps.HostApply == nil || deps.NewBatchID == nil {
@@ -116,7 +121,10 @@ func HandleEdit(deps *SelectionDeps, params protocol.VoiceTranscriptParams, vs *
 		},
 	}
 
-	shouldOrganize := len(filteredImports) > 0 && modelOut.OrganizeImports
+	shouldOrganize := len(filteredImports) > 0
+	if shouldOrganize && modelOut.OrganizeImports != nil && !*modelOut.OrganizeImports {
+		shouldOrganize = false
+	}
 	if shouldOrganize {
 		dir = append(dir, protocol.VoiceTranscriptDirective{
 			Kind: "code_action",
@@ -186,25 +194,32 @@ func truncateScopedEditFileContext(s string) string {
 type scopedEditModelOut struct {
 	ReplacementText string
 	ImportLines     []string
-	OrganizeImports bool
+	// OrganizeImports is nil unless the model set organizeImports; when nil and filteredImports is non-empty, default is organize (see HandleEdit).
+	OrganizeImports *bool
 }
 
-func callScopedEditModel(ctx context.Context, m agent.ModelClient, instruction, activeFile string, sl, sc, el, ec int, targetText, fullFile string) (scopedEditModelOut, error) {
+func callScopedEditModel(ctx context.Context, m agent.ModelClient, instruction, activeFile string, sl, sc, el, ec int, targetText, fullFile, stackAddenda string) (scopedEditModelOut, error) {
 	schema := map[string]any{
 		"type":                 "object",
 		"additionalProperties": false,
-		"required":             []string{"replacementText"},
+		"required":             []string{"replacementText", "importLines"},
 		"properties": map[string]any{
 			"replacementText": map[string]any{
-				"type":        "string",
-				"description": "Replacement for targetText only; must match language, libraries, and idioms evident in targetText and the file path. In React Native/Expo files use RN components and onPress, never HTML tags or onClick.",
+				"type": "string",
+				"description": "New source for targetText only. " +
+					"MUST compile and typecheck for the language/stack implied by activeFile, fullFile, and path (every language — not optional). " +
+					"No undefined identifiers: declare locals, types, and closures before use inside the span; do not reference symbols that are not in scope. " +
+					"For languages with separate import sites (JS/TS, etc.), symbols from another module must already appear in fullFile or be added via importLines — never use a name from 'react', 'react-native', stdlib, or any package without an import. " +
+					"Do NOT put import or export-from lines in replacementText unless the selection is only an import section: the host inserts importLines at the file import region first, then applies replacementText; duplicating imports here causes double imports. " +
+					"Additional stack-specific rules may appear after the main system prompt (e.g. React Native).",
 			},
 			"importLines": map[string]any{
 				"type":  "array",
 				"items": map[string]any{"type": "string"},
-				"description": `Optional import lines for the host to insert. JS/TS: full lines (e.g. import { foo } from "bar"). ` +
-					`Go single import: import "encoding/json". Go grouped import ( ... ): use spec lines only inside the parens (e.g. "errors" or m "example.com/lib"). ` +
-					`Omit or [] if none. Do not duplicate lines already in fullFile.`,
+				"description": `Always include this key (use [] if nothing new). For any file that uses import/include statements: required whenever replacementText uses a name from another module that fullFile does not already import (types, functions, hooks, components, constants). ` +
+					`JS/TS: full lines, e.g. import { foo } from "bar"; the host inserts these lines, then runs organize imports when enabled — prefer importLines over pasting imports into replacementText. ` +
+					`Go: import "path" or grouped spec lines inside import ( ). Python: import lines or from x import y. ` +
+					`Use [] only when every external symbol you use is already imported in fullFile.`,
 			},
 			"organizeImports": map[string]any{
 				"type":        "boolean",
@@ -239,17 +254,22 @@ func callScopedEditModel(ctx context.Context, m agent.ModelClient, instruction, 
 	sys := strings.TrimSpace(`
 You are Vocode's scoped edit model. You receive the user's instruction, active file path, a target range, targetText (exact source in that range), and fullFile (entire buffer, possibly truncated at the end).
 
-Output JSON with:
-- replacementText: the literal new source for the target range only. Never paste the whole file. Do not put import statements here unless the selection itself is an import block.
-- importLines (optional): array of complete new import lines the host will insert into the file's import section (e.g. import { Pressable } from "react-native"). Omit or use [] if nothing new is needed. Never repeat a line that already appears in fullFile.
-- organizeImports (optional): when importLines is non-empty, defaults to true — host runs TypeScript/JavaScript "organize imports" after applying; set false to leave order as-is.
+## Always (every language and stack)
+- replacementText MUST compile and typecheck as real code for that file — no placeholders, no invented APIs, no undefined names. This is mandatory for Go, Python, Rust, Java, JS/TS, etc., not only for one framework.
+- If the selection spans a whole function or block, you may add statements above an inner return (e.g. hooks or locals) inside replacementText whenever that text includes those lines.
+- Declare everything you use: if you reference count, setCount, helper types, or callbacks, define them inside the edited span or ensure they already exist in targetText/fullFile.
+- Match idioms, naming, and patterns visible in fullFile and targetText.
 
-Use fullFile for awareness: existing imports, components, hooks, and patterns. Infer language and stack from targetText, fullFile, and path.
+## Imports and modules (when the language uses them)
+- The host applies importLines at the top import area first, then replaces the selection with replacementText. Do not put import or export-from lines in replacementText unless the selection is only imports — use importLines for every new module symbol (including hooks like useState).
+- importLines is a required JSON key: use [] when fullFile already imports every symbol you use; otherwise list full import lines.
+- Importing a hook or function does not declare state: in React/TSX, if JSX or handlers use count/setCount (or similar), you must include the hook call in replacementText in the same function (e.g. const [count, setCount] = useState(0);) before the return — not only import useState in importLines.
+- organizeImports (optional): when importLines is non-empty, defaults to true for hosts that can merge/format imports; set false to skip.
 
-replacementText should read as if the same author wrote it: consistent naming and structure with the rest of the file.
+Output JSON keys only: replacementText, importLines (required array, may be empty []), organizeImports (optional).
 
-No markdown fences or extra keys beyond replacementText, importLines, and organizeImports.
-`) + reactNativeExpoRules
+No markdown fences or extra keys.
+`) + stackAddenda
 	out, err := m.Call(ctx, agent.CompletionRequest{
 		System:     sys,
 		User:       string(userBytes),
@@ -266,13 +286,9 @@ No markdown fences or extra keys beyond replacementText, importLines, and organi
 	if err := json.Unmarshal([]byte(strings.TrimSpace(out)), &parsed); err != nil {
 		return scopedEditModelOut{}, fmt.Errorf("decode model json: %w", err)
 	}
-	result := scopedEditModelOut{ReplacementText: parsed.ReplacementText, ImportLines: parsed.ImportLines}
-	if len(parsed.ImportLines) > 0 {
-		if parsed.OrganizeImports != nil {
-			result.OrganizeImports = *parsed.OrganizeImports
-		} else {
-			result.OrganizeImports = true
-		}
-	}
-	return result, nil
+	return scopedEditModelOut{
+		ReplacementText: parsed.ReplacementText,
+		ImportLines:     parsed.ImportLines,
+		OrganizeImports: parsed.OrganizeImports,
+	}, nil
 }

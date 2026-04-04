@@ -19,7 +19,7 @@ func (e *TranscriptSearch) FileSearchFromQuery(params protocol.VoiceTranscriptPa
 	if q == "" {
 		return protocol.VoiceTranscriptCompletion{}, false, ""
 	}
-	root := strings.TrimSpace(workspace.EffectiveWorkspaceRoot(params.WorkspaceRoot, params.ActiveFile))
+	root := strings.TrimSpace(workspace.PathSearchWorkspaceRoot(params.WorkspaceRoot, params.PathSearchWorkspaceRoot, params.ActiveFile))
 	if root == "" {
 		return protocol.VoiceTranscriptCompletion{
 			Success: false,
@@ -32,7 +32,9 @@ func (e *TranscriptSearch) FileSearchFromQuery(params protocol.VoiceTranscriptPa
 		return protocol.VoiceTranscriptCompletion{}, false, ""
 	}
 
-	matches, err := search.PathFragmentMatches(root, fragment, fileSearchMaxUniquePaths)
+	matches, err := search.PathFragmentMatches(root, fragment, fileSearchMaxUniquePaths, search.PathFragmentOptions{
+		PreferFiles: search.PreferFilesFromSelectQuery(q),
+	})
 	if err != nil {
 		return protocol.VoiceTranscriptCompletion{Success: false}, true, "file search failed: " + err.Error()
 	}

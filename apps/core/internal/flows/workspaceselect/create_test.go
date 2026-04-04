@@ -5,6 +5,23 @@ import (
 	"testing"
 )
 
+func TestSyntheticFileLinesAfterImport(t *testing.T) {
+	t.Parallel()
+	got := syntheticFileLinesAfterImport([]string{"a", "b"}, 0, "import x\n")
+	want := []string{"import x", "a", "b"}
+	if len(got) != len(want) {
+		t.Fatalf("len got %d want %d", len(got), len(want))
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("line %d: got %q want %q", i, got[i], want[i])
+		}
+	}
+	if syntheticFileLinesAfterImport([]string{"z"}, 1, "")[0] != "z" {
+		t.Fatal("empty block should return original lines")
+	}
+}
+
 func TestNumberedFileSnippet_shortFile(t *testing.T) {
 	t.Parallel()
 	s := numberedFileSnippet([]string{"a", "b", "c"})

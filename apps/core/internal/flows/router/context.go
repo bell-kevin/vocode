@@ -32,6 +32,11 @@ func ContextForClassification(flow flows.ID, instruction string, p protocol.Voic
 	}
 }
 
+// HasNonemptyEditorSelection is true when activeSelection spans at least one character (not a bare caret).
+func HasNonemptyEditorSelection(p protocol.VoiceTranscriptParams) bool {
+	return hasNonemptyEditorSelection(p)
+}
+
 func hasNonemptyEditorSelection(p protocol.VoiceTranscriptParams) bool {
 	sel := p.ActiveSelection
 	if sel == nil {

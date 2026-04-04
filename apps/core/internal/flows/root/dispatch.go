@@ -60,6 +60,9 @@ func DispatchRoute(
 		if deps == nil || deps.Editor == nil {
 			return IrrelevantSkipped()
 		}
+		if c, msg, ok := router.RejectCreateWhenEditorSelection(params); ok {
+			return c, msg
+		}
 		return workspaceselectflow.HandleCreate(deps.Editor, params, vs, text)
 
 	case "command":
