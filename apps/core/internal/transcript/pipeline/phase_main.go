@@ -31,7 +31,14 @@ func runMainPhase(
 		res, fail := rootflow.DispatchRoute(rootD, params, vs, text, fr)
 		if strings.TrimSpace(fail) != "" {
 			persist(e, key, *vs)
-			return protocol.VoiceTranscriptCompletion{Success: false}, true, fail
+			return protocol.VoiceTranscriptCompletion{
+				Success: false,
+				Summary: fail,
+			}, true, fail
+		}
+		if !res.Success {
+			persist(e, key, *vs)
+			return res, true, transcriptFailureReason(res)
 		}
 		outcome.Apply(vs, params, res)
 		persist(e, key, *vs)
@@ -41,9 +48,24 @@ func runMainPhase(
 	execRes, failure := rootflow.ExecuteMainPhase(rootDeps(e), params, vs, text)
 	if strings.TrimSpace(failure) != "" {
 		persist(e, key, *vs)
-		return protocol.VoiceTranscriptCompletion{Success: false}, true, failure
+		return protocol.VoiceTranscriptCompletion{
+			Success: false,
+			Summary: failure,
+		}, true, failure
+	}
+	if !execRes.Success {
+		persist(e, key, *vs)
+		return execRes, true, transcriptFailureReason(execRes)
 	}
 	outcome.Apply(vs, params, execRes)
 	persist(e, key, *vs)
 	return execRes, true, ""
+}
+
+func transcriptFailureReason(res protocol.VoiceTranscriptCompletion) string {
+	s := strings.TrimSpace(res.Summary)
+	if s != "" {
+		return s
+	}
+	return "voice.transcript failed"
 }

@@ -43,6 +43,12 @@ export async function dispatchCommand(
           "command exited non-zero or failed to run"),
     };
   }
+  if (params.detached === true) {
+    void vscode.window.showInformationMessage(
+      "Vocode: opened a terminal tab — check the Terminal panel for output; press Ctrl+C there to stop the dev server.",
+    );
+    return { ok: true };
+  }
   const stdoutLine = outcome.stdout.trim();
   if (stdoutLine.length > 0) {
     void vscode.window.showInformationMessage(`Vocode: ${stdoutLine}`);

@@ -36,7 +36,14 @@ func runWorkspaceSelectPhase(
 	execRes, failure := workspaceselectflow.DispatchRoute(selectionDeps(e), params, vs, text, route, searchQuery, searchSymbolKind)
 	if strings.TrimSpace(failure) != "" {
 		persist(e, key, *vs)
-		return protocol.VoiceTranscriptCompletion{Success: false}, true, failure
+		return protocol.VoiceTranscriptCompletion{
+			Success: false,
+			Summary: failure,
+		}, true, failure
+	}
+	if !execRes.Success {
+		persist(e, key, *vs)
+		return execRes, true, transcriptFailureReason(execRes)
 	}
 	outcome.Apply(vs, params, execRes)
 	persist(e, key, *vs)

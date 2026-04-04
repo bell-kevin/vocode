@@ -95,6 +95,7 @@ function isCommandDirective(value: unknown): value is CommandDirective {
       "args",
       "workingDirectory",
       "timeoutMs",
+      "detached",
     ])
   ) {
     return false;
@@ -118,6 +119,11 @@ function isCommandDirective(value: unknown): value is CommandDirective {
 
   const timeoutMs = (value as Record<string, unknown>).timeoutMs;
   if (timeoutMs !== undefined && typeof timeoutMs !== "number") {
+    return false;
+  }
+
+  const detached = (value as Record<string, unknown>).detached;
+  if (detached !== undefined && typeof detached !== "boolean") {
     return false;
   }
 

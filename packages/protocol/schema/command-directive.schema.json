@@ -14,7 +14,11 @@
       "type": "string",
       "description": "Optional absolute directory passed to spawn cwd; when set, the child process starts in this folder."
     },
-    "timeoutMs": { "type": "integer" }
+    "timeoutMs": { "type": "integer" },
+    "detached": {
+      "type": "boolean",
+      "description": "When true, the host opens an editor integrated terminal for the command (user sees logs, Ctrl+C stops). Does not wait for exit. timeoutMs is ignored."
+    }
   },
   "required": ["command"]
 }

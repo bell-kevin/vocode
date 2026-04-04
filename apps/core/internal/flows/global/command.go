@@ -107,6 +107,33 @@ func gatherWorkspaceCommandContext(host interface {
 	return b.String(), foundNames
 }
 
+// nearestPackageJSONRoot walks up from activeFile's directory looking for package.json (non-empty).
+func nearestPackageJSONRoot(host interface {
+	ReadHostFile(path string) (string, error)
+}, activeFile string) string {
+	activeFile = strings.TrimSpace(activeFile)
+	if activeFile == "" || host == nil {
+		return ""
+	}
+	dir := filepath.Dir(filepath.Clean(activeFile))
+	for {
+		if dir == "" || dir == "." {
+			break
+		}
+		p := filepath.Join(dir, "package.json")
+		body, err := host.ReadHostFile(p)
+		if err == nil && strings.TrimSpace(body) != "" {
+			return dir
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			break
+		}
+		dir = parent
+	}
+	return ""
+}
+
 type voiceCommandPlan struct {
 	Status             string   `json:"status"`
 	Message            string   `json:"message"`
@@ -114,6 +141,7 @@ type voiceCommandPlan struct {
 	Args               []string `json:"args"`
 	WorkingDirectory   string   `json:"workingDirectory"`
 	TimeoutMs          *int64   `json:"timeoutMs"`
+	Detached           *bool    `json:"detached"`
 }
 
 // voiceCommandResponseSchema must be a JSON object at the root with type "object".
@@ -150,7 +178,11 @@ func voiceCommandResponseSchema() map[string]any {
 			},
 			"timeoutMs": map[string]any{
 				"type":        "integer",
-				"description": "Optional timeout in ms when status is ok.",
+				"description": "Optional timeout in ms when status is ok. Ignored when detached is true.",
+			},
+			"detached": map[string]any{
+				"type":        "boolean",
+				"description": `When true: host opens an integrated terminal tab (user sees output, Ctrl+C stops); no exit wait. Use for dev servers: "npx expo start", "npm run dev", "next dev", vite. For PowerShell do NOT pass -NonInteractive when detached (user needs an interactive TTY). Omit or false for one-shot commands.`,
 			},
 		},
 	}
@@ -172,7 +204,15 @@ func HandleCommand(
 	}
 
 	root := strings.TrimSpace(params.WorkspaceRoot)
-	ctxBody, _ := gatherWorkspaceCommandContext(deps.ExtensionHost, root)
+	ctxBody, probeFound := gatherWorkspaceCommandContext(deps.ExtensionHost, root)
+	hasRootPackageJSON := false
+	for _, n := range probeFound {
+		if n == "package.json" {
+			hasRootPackageJSON = true
+			break
+		}
+	}
+	nearPkg := nearestPackageJSONRoot(deps.ExtensionHost, params.ActiveFile)
 
 	sys := strings.TrimSpace(`You are Vocode's voice command planner inside an IDE.
 The host runs your JSON by spawning EXACTLY ONE process: the string in "command" must be a shell binary only. It will REJECT npx, npm, pnpm, node, git, cargo, etc. as "command".
@@ -197,7 +237,8 @@ WRONG (will fail): "command":"npx","args":["create-expo-app",...]
 
 Rules:
 - Pick runners (npx vs pnpm dlx, etc.) inside the script; honor the user's tool if they name one.
-- workingDirectory: absolute when needed; default to workspace root for installs/scaffolds.
+- workingDirectory: MUST be absolute. Prefer the host hint nearestPackageJsonRootFromActiveFile when it is non-empty and the command is app-local (expo, react-native, vite, next dev, npm run dev) — especially when workspace root has no package.json but that hint path does (monorepo / app in subfolder). Otherwise default to workspace root for installs/scaffolds.
+- detached: set true for commands that keep running until the user stops them (expo start, dev servers); the host opens an integrated terminal so the user can see logs and press Ctrl+C. Do not use PowerShell -NonInteractive when detached. Set false or omit for one-shot commands (install, build, test, create-app).
 - Greenfield: user may name pnpm/npx explicitly — still wrap in a shell as above.
 - Vague scaffold + no repo files: pick a conventional script (e.g. npx create-expo-app@latest); stderr shows if it fails.
 - "install dependencies" with no package.json/lockfile and no tool named → insufficient_context.
@@ -220,6 +261,23 @@ Rules:
 	}
 	userPayload.WriteString("\nactiveFile: ")
 	userPayload.WriteString(strings.TrimSpace(params.ActiveFile))
+	userPayload.WriteString("\nworkspaceRootHasPackageJson: ")
+	if hasRootPackageJSON {
+		userPayload.WriteString("true")
+	} else {
+		userPayload.WriteString("false")
+	}
+	userPayload.WriteString("\nnearestPackageJsonRootFromActiveFile: ")
+	if nearPkg != "" {
+		userPayload.WriteString(nearPkg)
+	} else {
+		userPayload.WriteString("(none — walk upward from activeFile found no package.json)")
+	}
+	if nearPkg != "" && root != "" && !strings.EqualFold(filepath.Clean(nearPkg), filepath.Clean(root)) {
+		userPayload.WriteString("\nNote: nearest package.json is NOT at workspace root; for Expo/Node app commands prefer workingDirectory=")
+		userPayload.WriteString(nearPkg)
+		userPayload.WriteString(" unless the transcript clearly refers to the repo root.")
+	}
 	userPayload.WriteString("\n")
 	if ctxBody != "" {
 		userPayload.WriteString("\nGathered workspace file excerpts:\n")
@@ -253,7 +311,7 @@ Rules:
 		return protocol.VoiceTranscriptCompletion{
 			Success: false,
 			Summary: msg,
-		}, ""
+		}, msg
 	case "ok":
 		// continue
 	default:
@@ -277,17 +335,23 @@ Rules:
 		return protocol.VoiceTranscriptCompletion{Success: false}, "command: workingDirectory must be absolute"
 	}
 
-	timeout := plan.TimeoutMs
-	if timeout == nil || *timeout <= 0 {
-		t := defaultCommandTimeoutMs
-		timeout = &t
+	detached := plan.Detached != nil && *plan.Detached
+
+	var timeout *int64
+	if !detached {
+		timeout = plan.TimeoutMs
+		if timeout == nil || *timeout <= 0 {
+			t := defaultCommandTimeoutMs
+			timeout = &t
+		}
 	}
 
 	dir := protocol.CommandDirective{
-		Command:            cmd,
-		Args:               append([]string(nil), plan.Args...),
-		WorkingDirectory:   wd,
-		TimeoutMs:          timeout,
+		Command:          cmd,
+		Args:             append([]string(nil), plan.Args...),
+		WorkingDirectory: wd,
+		Detached:         detached,
+		TimeoutMs:        timeout,
 	}
 
 	summaryLine := cmd
@@ -323,18 +387,23 @@ Rules:
 		if vs != nil {
 			vs.PendingDirectiveApply = nil
 		}
+		em := err.Error()
 		return protocol.VoiceTranscriptCompletion{
 			Success: false,
-			Summary: err.Error(),
-		}, ""
+			Summary: em,
+		}, em
 	}
 	if vs != nil {
 		vs.PendingDirectiveApply = nil
 	}
 
+	summaryVerb := "Ran"
+	if detached {
+		summaryVerb = "Started"
+	}
 	return protocol.VoiceTranscriptCompletion{
 		Success:       true,
-		Summary:       "Ran: " + summaryLine,
+		Summary:       summaryVerb + ": " + summaryLine,
 		UiDisposition: "hidden",
 	}, ""
 }

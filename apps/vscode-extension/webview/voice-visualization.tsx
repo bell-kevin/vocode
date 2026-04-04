@@ -38,7 +38,24 @@ export function VoiceVisualization(props: Props) {
       <div className="voice-viz-shell">
         <header className="voice-viz-header">
           <div className="voice-viz-header-main">
-            <span className="voice-viz-eyebrow">Voice</span>
+            <div className="voice-viz-title-row">
+              <span className="voice-viz-eyebrow">Voice</span>
+              <button
+                type="button"
+                className={`voice-viz-status-toggle voice-viz-status-toggle--${voiceUiStatus}`}
+                title="Start or stop voice"
+                aria-label={`Voice: ${voiceUiStatus}. Click to start or stop listening.`}
+                onClick={() =>
+                  getVsCodeApi()?.postMessage({ type: "toggleVoiceUiStatus" })
+                }
+              >
+                {voiceUiStatus === "processing"
+                  ? "Processing"
+                  : voiceUiStatus === "listening"
+                    ? "Listening"
+                    : "Idle"}
+              </button>
+            </div>
             <div className="voice-viz-status-row">
               <span
                 className={[
@@ -53,21 +70,6 @@ export function VoiceVisualization(props: Props) {
               <div className="voice-viz-status-text">
                 <span className="voice-viz-sub">{statusSub}</span>
               </div>
-              <button
-                type="button"
-                className="panel-status-toggle voice-viz-status-toggle"
-                title="Start or stop voice"
-                aria-label={`Voice: ${voiceUiStatus}. Click to start or stop listening.`}
-                onClick={() =>
-                  getVsCodeApi()?.postMessage({ type: "toggleVoiceUiStatus" })
-                }
-              >
-                {voiceUiStatus === "processing"
-                  ? "Processing"
-                  : voiceUiStatus === "listening"
-                    ? "Listening"
-                    : "Idle"}
-              </button>
             </div>
           </div>
         </header>

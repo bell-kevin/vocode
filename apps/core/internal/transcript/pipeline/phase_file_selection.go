@@ -65,7 +65,14 @@ func runFileSelectionPhase(
 		if !frRes.Success {
 			return frRes, true, frFail
 		}
-		return protocol.VoiceTranscriptCompletion{Success: false}, true, frFail
+		return protocol.VoiceTranscriptCompletion{
+			Success: false,
+			Summary: frFail,
+		}, true, frFail
+	}
+	if !frRes.Success {
+		persist(e, key, *vs)
+		return frRes, true, transcriptFailureReason(frRes)
 	}
 	outcome.Apply(vs, params, frRes)
 	persist(e, key, *vs)

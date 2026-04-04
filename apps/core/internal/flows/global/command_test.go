@@ -69,8 +69,8 @@ func TestHandleCommand_insufficientContext(t *testing.T) {
 		HostPlatform:  "linux",
 	}
 	res, fail := HandleCommand(deps, params, &session.VoiceSession{}, "install dependencies")
-	if fail != "" {
-		t.Fatalf("unexpected fail string: %q", fail)
+	if !strings.Contains(fail, "package.json") {
+		t.Fatalf("fail string: %q", fail)
 	}
 	if res.Success {
 		t.Fatal("expected Success false")

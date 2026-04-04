@@ -36,9 +36,7 @@ export function SkippedSection({ items }: { items: readonly HandledRow[] }) {
   return (
     <section className="panel-section skipped-section">
       <details className="skipped-details">
-        <summary>
-          Skipped ({items.length})
-        </summary>
+        <summary>Skipped ({items.length})</summary>
         <div className="stack panel-section-body">
           {items.map((h) => (
             <SkippedCard key={`s-${h.receivedAt}-${h.text}`} h={h} />

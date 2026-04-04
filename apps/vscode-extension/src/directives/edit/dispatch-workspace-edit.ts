@@ -63,7 +63,10 @@ function selectDocumentRangeInVisibleEditors(
     }
     ed.selection = new vscode.Selection(start, end);
     if (shouldReveal && ed === active) {
-      ed.revealRange(range, vscode.TextEditorRevealType.InCenterIfOutsideViewport);
+      ed.revealRange(
+        range,
+        vscode.TextEditorRevealType.InCenterIfOutsideViewport,
+      );
     }
   }
 }

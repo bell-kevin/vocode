@@ -1,6 +1,7 @@
 import { spawn } from "node:child_process";
 import path from "node:path";
 import type { CommandDirective } from "@vocode/protocol";
+import * as vscode from "vscode";
 
 /** Shell entrypoints only; real dev CLIs run inside -c / -Command. */
 const allowedBasenames = new Set<string>([
@@ -76,6 +77,12 @@ export async function runAllowedCommand(
 
   const args = params.args ?? [];
   const wd = params.workingDirectory?.trim() ?? "";
+
+  if (params.detached === true) {
+    return Promise.resolve(
+      runDetachedInIntegratedTerminal(params.command, args, wd),
+    );
+  }
 
   const child = spawn(params.command, args, {
     windowsHide: true,
@@ -160,4 +167,73 @@ export async function runAllowedCommand(
   }
 
   return { ok: true, stdout, stderr, message: "" };
+}
+
+/**
+ * Dev-server style commands: open a dedicated integrated terminal so the user can
+ * read logs, use Expo's interactive menu, and stop with Ctrl+C or the trash icon.
+ */
+function runDetachedInIntegratedTerminal(
+  command: string,
+  args: string[],
+  wd: string,
+): {
+  ok: boolean;
+  stdout: string;
+  stderr: string;
+  message: string;
+} {
+  try {
+    const argsForShell = sanitizeArgsForInteractiveTerminal(command, args);
+    const line = argvToShellLine(command.trim(), argsForShell);
+    const term = vscode.window.createTerminal({
+      name: "Vocode",
+      cwd: wd === "" ? undefined : wd,
+    });
+    term.sendText(line, true);
+    term.show(true);
+    return { ok: true, stdout: "", stderr: "", message: "" };
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    return {
+      ok: false,
+      stdout: "",
+      stderr: "",
+      message: msg,
+    };
+  }
+}
+
+/** Drop -NonInteractive for PowerShell in a real TTY so tools like Expo can prompt / show QR. */
+function sanitizeArgsForInteractiveTerminal(
+  command: string,
+  args: string[],
+): string[] {
+  const base = path.basename(command).toLowerCase();
+  const isPwsh =
+    base === "powershell.exe" ||
+    base === "powershell" ||
+    base === "pwsh" ||
+    base === "pwsh.exe";
+  if (!isPwsh) {
+    return args;
+  }
+  return args.filter((a) => a !== "-NonInteractive");
+}
+
+/** Join argv into one line for sendText, with minimal quoting for spaces/meta chars. */
+function argvToShellLine(command: string, args: string[]): string {
+  const q = (a: string) => {
+    if (process.platform === "win32") {
+      if (!/[\s"%^&<>|]/.test(a)) {
+        return a;
+      }
+      return `"${a.replace(/"/g, '\\"')}"`;
+    }
+    if (!/[\s'"$`!\\]/.test(a)) {
+      return a;
+    }
+    return `'${a.replace(/'/g, `'\\''`)}'`;
+  };
+  return [command, ...args.map(q)].join(" ");
 }
