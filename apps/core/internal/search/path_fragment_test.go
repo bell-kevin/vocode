@@ -53,6 +53,71 @@ func TestPathFragmentSearch_folderMatchDoesNotListAllDescendants(t *testing.T) {
 	}
 }
 
+func TestPathFragmentSearch_assetsSuffixRanksExactBeforeMyAssets(t *testing.T) {
+	root := t.TempDir()
+	exact := filepath.Join(root, "src", "assets")
+	myAssets := filepath.Join(root, "src", "my-assets")
+	if err := os.MkdirAll(exact, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(myAssets, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	got, err := PathFragmentMatches(root, "assets", 20)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 2 {
+		t.Fatalf("want 2 dirs, got %#v", got)
+	}
+	if filepath.Clean(got[0].Path) != filepath.Clean(exact) {
+		t.Fatalf("want exact assets first, got %#v", got)
+	}
+	if filepath.Clean(got[1].Path) != filepath.Clean(myAssets) {
+		t.Fatalf("want my-assets second, got %#v", got)
+	}
+}
+
+func TestPathFragmentSearch_dirMatchesBasenameNotParentPathSegment(t *testing.T) {
+	root := t.TempDir()
+	assets := filepath.Join(root, "assets")
+	images := filepath.Join(assets, "images")
+	if err := os.MkdirAll(images, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	got, err := PathFragmentMatches(root, "assets", 20)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 1 || !got[0].IsDir || filepath.Clean(got[0].Path) != filepath.Clean(assets) {
+		t.Fatalf("want only assets/ (not images/), got %#v", got)
+	}
+}
+
+func TestPathFragmentSearch_nestedSameNamedDirsBothListed(t *testing.T) {
+	root := t.TempDir()
+	outer := filepath.Join(root, "Res")
+	inner := filepath.Join(outer, "Res")
+	if err := os.MkdirAll(inner, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(inner, "x.txt"), []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	got, err := PathFragmentMatches(root, "Res", 20)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 2 {
+		t.Fatalf("want outer+inner Res dirs (2), got %d: %#v", len(got), got)
+	}
+	for _, m := range got {
+		if !m.IsDir {
+			t.Fatalf("expected only directories, got %#v", got)
+		}
+	}
+}
+
 func TestPathFragmentSearch_prependedWorkspaceRootPrunesChildFiles(t *testing.T) {
 	// Regression: prepend must run before prune, otherwise .exe/.jar under the repo root stay listed.
 	parent := t.TempDir()
@@ -110,6 +175,41 @@ func TestPathFragmentSearch_directoryBeatsBinaryWhenBothMatch(t *testing.T) {
 	}
 	if len(got) < 1 || !got[0].IsDir || filepath.Clean(got[0].Path) != filepath.Clean(evadeDir) {
 		t.Fatalf("want top match Evade folder, got %#v", got)
+	}
+}
+
+func TestPathFragmentSearch_shortQueryAppPrefersInnerAppDirNotParentSubstring(t *testing.T) {
+	// Regression: "app" must surface the real app/ folder (exact) before vocoded-app (substring only),
+	// and must not prune app/ just because vocoded-app matched.
+	parent := t.TempDir()
+	ws := filepath.Join(parent, "vocoded-workspace")
+	va := filepath.Join(ws, "vocoded-app")
+	appDir := filepath.Join(va, "app")
+	if err := os.MkdirAll(appDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(appDir, "index.ts"), []byte("// x\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	got, err := PathFragmentMatches(ws, "app", 20)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) < 1 {
+		t.Fatalf("expected at least app dir, got %#v", got)
+	}
+	if !got[0].IsDir || filepath.Clean(got[0].Path) != filepath.Clean(appDir) {
+		t.Fatalf("want first hit inner app folder %s, got %#v", appDir, got)
+	}
+	var sawVA bool
+	for _, m := range got {
+		if filepath.Clean(m.Path) == filepath.Clean(va) {
+			sawVA = true
+		}
+	}
+	if !sawVA {
+		t.Fatalf("expected vocoded-app in results (substring dir) after exact app/, got %#v", got)
 	}
 }
 

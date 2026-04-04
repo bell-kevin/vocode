@@ -31,12 +31,27 @@ func pathFragmentMatches(rel, baseName, lowerFragment string) bool {
 	return pathContainsFold(rel, lowerFragment) || pathContainsFold(baseName, lowerFragment)
 }
 
-// PathFragmentMatches lists files and directories under root whose relative path or base name contains
-// fragment (case-insensitive). For select_file the fragment is a single basename. Not content search.
-// Per-segment path resolution (e.g. voice move targets) uses [ResolveWorkspaceRelativePath] instead.
-// Paths strictly inside a matched directory are omitted so listing a folder (e.g. "Res") does not
-// also return every file under it. Prepending the workspace root (when the query names that folder)
-// happens before pruning so children under that root are still dropped. maxPaths <= 0 defaults to 20.
+// dirBasenameMatchesSelectFileFragment is true when the directory's own name ends with the query
+// (case-insensitive), e.g. assets, my-assets, vocoded-app for "app". It does not match parent path
+// segments (assets/images for "assets") nor infix-only names (xassetsy for "assets").
+func dirBasenameMatchesSelectFileFragment(dirName, fragment string) bool {
+	fragment = strings.TrimSpace(fragment)
+	dirName = strings.TrimSpace(dirName)
+	if fragment == "" || dirName == "" {
+		return false
+	}
+	return strings.HasSuffix(strings.ToLower(dirName), strings.ToLower(fragment))
+}
+
+// PathFragmentMatches lists paths for select_file. Directories match only when their basename ends with
+// the fragment (case-insensitive): src/assets, src/things/assets, my-assets, vocoded-app for "app".
+// Exact / spoken-token names rank above suffix-only names (e.g. assets before my-assets). Files still
+// match on basename or any relative path substring. Per-segment resolution uses [ResolveWorkspaceRelativePath].
+// Every matching directory is kept, including nested dirs with the same name (e.g. Res/Res).
+// Files strictly inside a matched directory
+// are dropped so rel-path substring hits do not list every file under that folder.
+// Prepending the workspace root (when the query names that folder) runs before pruning.
+// maxPaths <= 0 defaults to 20.
 func PathFragmentMatches(root, fragment string, maxPaths int) ([]PathMatch, error) {
 	root = filepath.Clean(strings.TrimSpace(root))
 	fragment = strings.TrimSpace(fragment)
@@ -63,12 +78,9 @@ func PathFragmentMatches(root, fragment string, maxPaths int) ([]PathMatch, erro
 			if path == root {
 				return nil
 			}
-			rel, err := filepath.Rel(root, path)
-			if err != nil {
-				return nil
-			}
-			rel = filepath.ToSlash(rel)
-			if pathFragmentMatches(rel, name, lower) {
+			// Directory hits: basename ends with fragment, or spoken phrase names this segment
+			// (e.g. "find the evade directory" + folder Evade).
+			if dirBasenameMatchesSelectFileFragment(name, fragment) || fragmentRefersToBasename(name, fragment) {
 				matches = append(matches, PathMatch{Path: filepath.Clean(path), IsDir: true})
 			}
 			if len(matches) >= maxPaths*4 {
@@ -117,9 +129,8 @@ func isStrictDescendant(child, parent string) bool {
 	return !strings.HasPrefix(rel, "..")
 }
 
-// prunePathMatchesUnderMatchedDirs removes files and nested dirs whose path lies under a matched
-// directory. Otherwise a fragment like "Res" lists the folder plus every file under it because
-// relative paths contain "Res" as a substring.
+// prunePathMatchesUnderMatchedDirs removes files that lie strictly inside a matched directory.
+// Nested directories are never removed here so the user can choose among multiple folder hits (e.g. Res and Res/Res).
 func prunePathMatchesUnderMatchedDirs(matches []PathMatch) []PathMatch {
 	var dirPaths []string
 	for _, m := range matches {
@@ -137,13 +148,15 @@ func prunePathMatchesUnderMatchedDirs(matches []PathMatch) []PathMatch {
 			continue
 		}
 		drop := false
-		for _, d := range dirPaths {
-			if p == d {
-				break
-			}
-			if isStrictDescendant(p, d) {
-				drop = true
-				break
+		if !m.IsDir {
+			for _, d := range dirPaths {
+				if p == d {
+					break
+				}
+				if isStrictDescendant(p, d) {
+					drop = true
+					break
+				}
 			}
 		}
 		if !drop {
@@ -236,11 +249,16 @@ func prependWorkspaceRootIfBasenameMatches(root, fragment string, matches []Path
 func pathFragmentMatchScore(m PathMatch, fragment string) int {
 	score := 0
 	base := filepath.Base(m.Path)
+	lowerF := strings.ToLower(strings.TrimSpace(fragment))
+	lowerB := strings.ToLower(base)
 	depth := strings.Count(filepath.ToSlash(filepath.Clean(m.Path)), "/")
 	if m.IsDir {
 		score += 1000
 		if fragmentRefersToBasename(base, fragment) {
 			score += 500
+		} else if lowerF != "" && strings.HasSuffix(lowerB, lowerF) {
+			// Ends-with match only (e.g. my-assets, vocoded-app): after exact/spoken basename hits.
+			score += 120
 		}
 	} else {
 		score += 100
@@ -270,18 +288,19 @@ func uniqueSortedPathMatchesCap(items []PathMatch, max int) []PathMatch {
 	if len(items) == 0 {
 		return nil
 	}
-	sort.Slice(items, func(i, j int) bool { return items[i].Path < items[j].Path })
+	// Preserve order from [rankPathFragmentMatches] (exact directory names before substring-only).
+	seen := make(map[string]struct{}, len(items))
 	out := make([]PathMatch, 0, max)
-	var last string
 	for _, it := range items {
 		if it.Path == "" {
 			continue
 		}
-		if len(out) > 0 && it.Path == last {
+		k := filepath.Clean(it.Path)
+		if _, ok := seen[k]; ok {
 			continue
 		}
+		seen[k] = struct{}{}
 		out = append(out, it)
-		last = it.Path
 		if len(out) >= max {
 			break
 		}
