@@ -195,7 +195,9 @@ export function buildVoiceLinuxDockerDebian(slug, repoRoot) {
   const outBind = hostPathForDockerBind(outHost);
 
   const goarm = t.goarm ? `export GOARM=${t.goarm}\n` : "";
+  // Avoid bash -l: login shells reset PATH and drop /usr/local/go/bin from the golang image.
   const inner = `set -euo pipefail
+export PATH="/usr/local/go/bin:$PATH"
 apt-get update -qq
 DEBIAN_FRONTEND=noninteractive apt-get install -y -qq pkg-config libportaudio2 portaudio19-dev >/dev/null
 cd /src
@@ -216,7 +218,7 @@ ${goarm}go build -buildvcs=false -trimpath -o /out/vocode-voiced ./apps/voice/cm
     `${outBind}:/out`,
     image,
     "bash",
-    "-lc",
+    "-c",
     inner,
   ];
 
@@ -263,6 +265,7 @@ export function buildVoiceLinuxDockerAlpine(slug, repoRoot) {
   const outBind = hostPathForDockerBind(outHost);
 
   const inner = `set -eu
+export PATH="/usr/local/go/bin:$PATH"
 apk add --no-cache --quiet pkgconfig build-base portaudio-dev
 cd /src
 export CGO_ENABLED=1
