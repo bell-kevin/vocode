@@ -2,6 +2,8 @@ package searchapply
 
 import (
 	"fmt"
+	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -71,6 +73,8 @@ func (e *TranscriptSearch) SearchFromQuery(params protocol.VoiceTranscriptParams
 		return completionWorkspaceSearchNoHits(q), true, ""
 	}
 
+	hits = prioritizeActiveFileSearchHits(hits, params.ActiveFile)
+
 	res := completionWorkspaceSearchWithHits(hits, q)
 
 	if e.HostApply == nil {
@@ -105,6 +109,48 @@ func (e *TranscriptSearch) SearchFromQuery(params protocol.VoiceTranscriptParams
 	}
 
 	return res, true, ""
+}
+
+// searchHitPathSame reports whether a hit path is the editor's active file (clean paths, ASCII case-fold).
+func searchHitPathSame(hitPath, activeFile string) bool {
+	activeFile = strings.TrimSpace(activeFile)
+	if activeFile == "" {
+		return false
+	}
+	hitPath = strings.TrimSpace(hitPath)
+	if hitPath == "" {
+		return false
+	}
+	a := filepath.Clean(activeFile)
+	b := filepath.Clean(hitPath)
+	if a == "" || b == "" {
+		return false
+	}
+	return strings.EqualFold(a, b)
+}
+
+// prioritizeActiveFileSearchHits moves matches in the active editor file to the front (stable), then
+// sorts by path / line / column so the current file is ordered predictably.
+func prioritizeActiveFileSearchHits(hits []search.Hit, activeFile string) []search.Hit {
+	if len(hits) <= 1 || strings.TrimSpace(activeFile) == "" {
+		return hits
+	}
+	out := append([]search.Hit(nil), hits...)
+	sort.SliceStable(out, func(i, j int) bool {
+		ai := searchHitPathSame(out[i].Path, activeFile)
+		aj := searchHitPathSame(out[j].Path, activeFile)
+		if ai != aj {
+			return ai
+		}
+		if out[i].Path != out[j].Path {
+			return out[i].Path < out[j].Path
+		}
+		if out[i].Line0 != out[j].Line0 {
+			return out[i].Line0 < out[j].Line0
+		}
+		return out[i].Char0 < out[j].Char0
+	})
+	return out
 }
 
 func hitsToProtocolSearchResults(hits []search.Hit) []protocol.VoiceTranscriptSearchHit {
